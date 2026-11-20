@@ -1,0 +1,23 @@
+{
+  "name": "SlapTheGyatt",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "SlapConfig": {
+        "$path": "src/shared/SlapConfig.lua"
+      }
+    },
+    "ServerScriptService": {
+      "SlapServer": {
+        "$path": "src/server/SlapServer.server.lua"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "SlapClient": {
+          "$path": "src/client/SlapClient.client.lua"
+        }
+      }
+    }
+  }
+}

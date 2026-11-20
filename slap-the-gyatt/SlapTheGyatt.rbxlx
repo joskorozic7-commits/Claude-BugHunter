@@ -1,0 +1,1807 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="ReplicatedStorage" referent="RBX00000002"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="ModuleScript" referent="RBX00000001"><Properties><string name="Name">SlapConfig</string><ProtectedString name="Source"><![CDATA[--[[
+	SlapConfig (ModuleScript in ReplicatedStorage)
+
+	Alle Spielwerte von "Slap the Gyatt" an einem Ort.
+	Dieses Modul benutzt absichtlich KEINE Roblox-APIs, damit es auf
+	Server und Client identisch funktioniert (und auch ausserhalb von
+	Roblox getestet werden kann).
+]]
+
+local Config = {}
+
+-- Name des DataStores. Wenn du den Spielstand aller Spieler zuruecksetzen
+-- willst, aendere einfach die Versionsnummer am Ende.
+Config.DataStoreName = "SlapTheGyatt_Data_v1"
+Config.AutosaveInterval = 120 -- Sekunden
+
+Config.CritMultiplier = 3
+Config.GyattRespawnTime = 5 -- Sekunden bis ein besiegter Gyatt wieder erscheint
+
+-- Rebirth: setzt Slaps und Upgrades zurueck, gibt dafuer einen dauerhaften Bonus.
+Config.RebirthBaseCost = 100000
+Config.RebirthCostGrowth = 3
+Config.RebirthBonusPerRebirth = 0.5 -- +50% Slaps pro Rebirth
+
+--------------------------------------------------------------------------
+-- Upgrades fuer die Hand
+--------------------------------------------------------------------------
+-- order bestimmt die Reihenfolge im Shop.
+Config.UpgradeOrder = { "Power", "Speed", "Reach", "Luck", "Greed" }
+
+Config.Upgrades = {
+	Power = {
+		DisplayName = "Hand-Staerke",
+		Icon = "💪",
+		Description = "Mehr Schaden pro Slap. Deine Hand wird groesser!",
+		MaxLevel = 50,
+		BaseCost = 15,
+		CostGrowth = 1.3,
+	},
+	Speed = {
+		DisplayName = "Slap-Tempo",
+		Icon = "⚡",
+		Description = "Du kannst schneller hintereinander slappen.",
+		MaxLevel = 25,
+		BaseCost = 40,
+		CostGrowth = 1.45,
+	},
+	Reach = {
+		DisplayName = "Reichweite",
+		Icon = "📏",
+		Description = "Du triffst den Gyatt aus groesserer Entfernung.",
+		MaxLevel = 20,
+		BaseCost = 60,
+		CostGrowth = 1.5,
+	},
+	Luck = {
+		DisplayName = "Krit-Glueck",
+		Icon = "🍀",
+		Description = "Hoehere Chance auf einen kritischen Slap (x3 Schaden).",
+		MaxLevel = 25,
+		BaseCost = 100,
+		CostGrowth = 1.42,
+	},
+	Greed = {
+		DisplayName = "Slap-Gier",
+		Icon = "💰",
+		Description = "Du bekommst mehr Slaps fuer jeden Treffer.",
+		MaxLevel = 40,
+		BaseCost = 150,
+		CostGrowth = 1.45,
+	},
+}
+
+--------------------------------------------------------------------------
+-- Formeln
+--------------------------------------------------------------------------
+local function clampLevel(id, level)
+	local upgrade = Config.Upgrades[id]
+	level = tonumber(level) or 0
+	level = math.floor(level)
+	if level < 0 then
+		level = 0
+	end
+	if upgrade and level > upgrade.MaxLevel then
+		level = upgrade.MaxLevel
+	end
+	return level
+end
+Config.ClampLevel = clampLevel
+
+-- Preis fuer das NAECHSTE Level (aktuelles Level -> Level + 1).
+-- Gibt nil zurueck, wenn das Maximum erreicht ist.
+function Config.GetUpgradeCost(id, currentLevel)
+	local upgrade = Config.Upgrades[id]
+	if not upgrade then
+		return nil
+	end
+	currentLevel = clampLevel(id, currentLevel)
+	if currentLevel >= upgrade.MaxLevel then
+		return nil
+	end
+	return math.floor(upgrade.BaseCost * (upgrade.CostGrowth ^ currentLevel))
+end
+
+-- Schaden pro Slap
+function Config.GetDamage(powerLevel)
+	powerLevel = clampLevel("Power", powerLevel)
+	return math.floor((1 + powerLevel) * (1.15 ^ powerLevel))
+end
+
+-- Wartezeit zwischen zwei Slaps (Sekunden)
+function Config.GetCooldown(speedLevel)
+	speedLevel = clampLevel("Speed", speedLevel)
+	local cooldown = 0.8 * (0.93 ^ speedLevel)
+	if cooldown < 0.15 then
+		cooldown = 0.15
+	end
+	return cooldown
+end
+
+-- Reichweite in Studs (Abstand zur Oberflaeche des Gyatts)
+function Config.GetReach(reachLevel)
+	reachLevel = clampLevel("Reach", reachLevel)
+	return 6 + reachLevel * 1.5
+end
+
+-- Chance auf kritischen Treffer (0 bis 1)
+function Config.GetCritChance(luckLevel)
+	luckLevel = clampLevel("Luck", luckLevel)
+	return 0.02 + luckLevel * 0.02
+end
+
+-- Multiplikator aus dem Gier-Upgrade
+function Config.GetGreedMultiplier(greedLevel)
+	greedLevel = clampLevel("Greed", greedLevel)
+	return 1 + greedLevel * 0.25
+end
+
+-- Multiplikator aus Rebirths
+function Config.GetRebirthMultiplier(rebirths)
+	rebirths = math.max(0, math.floor(tonumber(rebirths) or 0))
+	return 1 + rebirths * Config.RebirthBonusPerRebirth
+end
+
+function Config.GetRebirthCost(rebirths)
+	rebirths = math.max(0, math.floor(tonumber(rebirths) or 0))
+	return math.floor(Config.RebirthBaseCost * (Config.RebirthCostGrowth ^ rebirths))
+end
+
+-- Groesse der Hand (Skalierungsfaktor)
+function Config.GetHandScale(powerLevel)
+	powerLevel = clampLevel("Power", powerLevel)
+	return 1 + powerLevel * 0.03
+end
+
+-- Beschreibung des aktuellen Werts eines Upgrades (fuer den Shop)
+function Config.DescribeStat(id, level)
+	if id == "Power" then
+		return Config.FormatNumber(Config.GetDamage(level)) .. " Schaden"
+	elseif id == "Speed" then
+		return string.format("%.2f s Cooldown", Config.GetCooldown(level))
+	elseif id == "Reach" then
+		return string.format("%.1f Studs", Config.GetReach(level))
+	elseif id == "Luck" then
+		return string.format("%d%% Krit", math.floor(Config.GetCritChance(level) * 100 + 0.5))
+	elseif id == "Greed" then
+		return string.format("x%.2f Slaps", Config.GetGreedMultiplier(level))
+	end
+	return ""
+end
+
+--------------------------------------------------------------------------
+-- Hand-Stufen (Aussehen der Hand je nach Staerke-Level)
+--------------------------------------------------------------------------
+Config.HandTiers = {
+	{ MinLevel = 0, Name = "Holz-Hand", Color = { 160, 110, 70 }, Material = "Wood" },
+	{ MinLevel = 5, Name = "Stein-Hand", Color = { 130, 130, 130 }, Material = "Slate" },
+	{ MinLevel = 12, Name = "Eisen-Hand", Color = { 190, 195, 205 }, Material = "Metal" },
+	{ MinLevel = 20, Name = "Gold-Hand", Color = { 255, 200, 40 }, Material = "Foil" },
+	{ MinLevel = 30, Name = "Diamant-Hand", Color = { 90, 220, 255 }, Material = "Glass" },
+	{ MinLevel = 40, Name = "Regenbogen-Hand", Color = { 255, 80, 200 }, Material = "Neon" },
+}
+
+function Config.GetHandTier(powerLevel)
+	powerLevel = clampLevel("Power", powerLevel)
+	local result = Config.HandTiers[1]
+	for _, tier in ipairs(Config.HandTiers) do
+		if powerLevel >= tier.MinLevel then
+			result = tier
+		end
+	end
+	return result
+end
+
+--------------------------------------------------------------------------
+-- Die Gyatts (Gegner). Position Z = Abstand vom Spawn.
+--------------------------------------------------------------------------
+Config.Gyatts = {
+	{
+		Id = "Baby",
+		DisplayName = "Baby Gyatt",
+		MaxHealth = 50,
+		Size = 6,
+		Color = { 255, 170, 200 },
+		PositionX = 0,
+		PositionZ = 35,
+		RewardMultiplier = 1,
+		DefeatBonus = 25,
+		RequiredPower = 0,
+	},
+	{
+		Id = "Big",
+		DisplayName = "Big Gyatt",
+		MaxHealth = 1000,
+		Size = 10,
+		Color = { 255, 120, 160 },
+		PositionX = 0,
+		PositionZ = 75,
+		RewardMultiplier = 3,
+		DefeatBonus = 600,
+		RequiredPower = 5,
+	},
+	{
+		Id = "Mega",
+		DisplayName = "Mega Gyatt",
+		MaxHealth = 25000,
+		Size = 14,
+		Color = { 200, 90, 255 },
+		PositionX = 0,
+		PositionZ = 125,
+		RewardMultiplier = 8,
+		DefeatBonus = 15000,
+		RequiredPower = 12,
+	},
+	{
+		Id = "King",
+		DisplayName = "King Gyatt",
+		MaxHealth = 500000,
+		Size = 20,
+		Color = { 255, 210, 60 },
+		PositionX = 0,
+		PositionZ = 190,
+		RewardMultiplier = 20,
+		DefeatBonus = 300000,
+		RequiredPower = 22,
+	},
+	{
+		Id = "God",
+		DisplayName = "Gyatt Gott",
+		MaxHealth = 10000000,
+		Size = 28,
+		Color = { 90, 230, 255 },
+		PositionX = 0,
+		PositionZ = 275,
+		RewardMultiplier = 50,
+		DefeatBonus = 6000000,
+		RequiredPower = 35,
+	},
+}
+
+--------------------------------------------------------------------------
+-- Zahlen huebsch formatieren: 1234 -> 1.23K, 5000000 -> 5M
+--------------------------------------------------------------------------
+local SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc" }
+
+function Config.FormatNumber(n)
+	n = tonumber(n) or 0
+	if n ~= n then -- NaN
+		return "0"
+	end
+	local negative = n < 0
+	if negative then
+		n = -n
+	end
+	local index = 1
+	while n >= 1000 and index < #SUFFIXES do
+		n = n / 1000
+		index = index + 1
+	end
+	local text
+	if index == 1 then
+		text = tostring(math.floor(n))
+	elseif n >= 100 then
+		text = string.format("%d", math.floor(n)) .. SUFFIXES[index]
+	elseif n >= 10 then
+		text = string.format("%.1f", math.floor(n * 10) / 10) .. SUFFIXES[index]
+	else
+		text = string.format("%.2f", math.floor(n * 100) / 100) .. SUFFIXES[index]
+	end
+	if negative then
+		text = "-" .. text
+	end
+	return text
+end
+
+return Config
+]]></ProtectedString></Properties></Item></Item><Item class="ServerScriptService" referent="RBX00000004"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000003"><Properties><string name="Name">SlapServer</string><ProtectedString name="Source"><![CDATA[--[[
+	SlapServer (Script in ServerScriptService)
+
+	Kompletter Server fuer "Slap the Gyatt":
+	  * baut die Arena und die Gyatts
+	  * gibt jedem Spieler seine Slap-Hand (Tool)
+	  * prueft jeden Slap auf dem Server (Cooldown, Reichweite) -> kein Cheaten
+	  * verwaltet Slaps (Waehrung), Upgrades und Rebirths
+	  * speichert alles im DataStore
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DataStoreService = game:GetService("DataStoreService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local Config = require(ReplicatedStorage:WaitForChild("SlapConfig"))
+
+--------------------------------------------------------------------------
+-- Remotes
+--------------------------------------------------------------------------
+local remotes = ReplicatedStorage:FindFirstChild("SlapRemotes")
+if not remotes then
+	remotes = Instance.new("Folder")
+	remotes.Name = "SlapRemotes"
+	remotes.Parent = ReplicatedStorage
+end
+
+local function getRemote(name)
+	local remote = remotes:FindFirstChild(name)
+	if not remote then
+		remote = Instance.new("RemoteEvent")
+		remote.Name = name
+		remote.Parent = remotes
+	end
+	return remote
+end
+
+local StateUpdate = getRemote("StateUpdate") -- Server -> Client: Spielstand
+local RequestState = getRemote("RequestState") -- Client -> Server: "schick mir meinen Stand"
+local BuyUpgrade = getRemote("BuyUpgrade") -- Client -> Server: Upgrade kaufen
+local DoRebirth = getRemote("DoRebirth") -- Client -> Server: Rebirth
+local SlapFx = getRemote("SlapFx") -- Server -> alle: Schadenszahl anzeigen
+local Notify = getRemote("Notify") -- Server -> Client: Nachricht
+
+--------------------------------------------------------------------------
+-- Hilfsfunktionen
+--------------------------------------------------------------------------
+local function rgb(t)
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+local function notify(player, text, color)
+	if player and player.Parent then
+		Notify:FireClient(player, text, color or { 255, 255, 255 })
+	end
+end
+
+local function notifyAll(text, color)
+	Notify:FireAllClients(text, color or { 255, 255, 255 })
+end
+
+--------------------------------------------------------------------------
+-- Arena bauen
+--------------------------------------------------------------------------
+local arena = workspace:FindFirstChild("SlapArena")
+if arena then
+	arena:Destroy()
+end
+arena = Instance.new("Folder")
+arena.Name = "SlapArena"
+arena.Parent = workspace
+
+local FLOOR_TOP = 1
+
+local floor = Instance.new("Part")
+floor.Name = "Floor"
+floor.Anchored = true
+floor.Size = Vector3.new(160, 2, 420)
+floor.Position = Vector3.new(0, FLOOR_TOP - 1, 140)
+floor.Color = Color3.fromRGB(110, 200, 120)
+floor.Material = Enum.Material.Grass
+floor.TopSurface = Enum.SurfaceType.Smooth
+floor.BottomSurface = Enum.SurfaceType.Smooth
+floor.Parent = arena
+
+-- Weg in der Mitte
+local path = Instance.new("Part")
+path.Name = "Path"
+path.Anchored = true
+path.CanCollide = false
+path.Size = Vector3.new(14, 0.2, 400)
+path.Position = Vector3.new(0, FLOOR_TOP + 0.1, 150)
+path.Color = Color3.fromRGB(230, 210, 160)
+path.Material = Enum.Material.Sand
+path.TopSurface = Enum.SurfaceType.Smooth
+path.Parent = arena
+
+local spawnPad = Instance.new("SpawnLocation")
+spawnPad.Name = "SlapSpawn"
+spawnPad.Anchored = true
+spawnPad.Size = Vector3.new(12, 1, 12)
+-- um 180 Grad gedreht, damit Spieler Richtung Gyatts (+Z) schauen
+spawnPad.CFrame = CFrame.new(0, FLOOR_TOP + 0.5, 0) * CFrame.Angles(0, math.pi, 0)
+spawnPad.Color = Color3.fromRGB(255, 120, 180)
+spawnPad.Material = Enum.Material.SmoothPlastic
+spawnPad.Neutral = true
+spawnPad.Duration = 0 -- kein ForceField
+spawnPad.Parent = arena
+
+-- Andere SpawnLocations (z.B. aus der Baseplate-Vorlage) deaktivieren,
+-- damit alle Spieler bei der Arena starten.
+for _, descendant in ipairs(workspace:GetDescendants()) do
+	if descendant:IsA("SpawnLocation") and descendant ~= spawnPad then
+		descendant.Enabled = false
+	end
+end
+
+-- Begruessungsschild
+do
+	local sign = Instance.new("Part")
+	sign.Name = "WelcomeSign"
+	sign.Anchored = true
+	sign.Size = Vector3.new(1, 6, 16)
+	sign.Position = Vector3.new(14, FLOOR_TOP + 7, 14)
+	sign.Color = Color3.fromRGB(40, 40, 60)
+	sign.Material = Enum.Material.SmoothPlastic
+	sign.Parent = arena
+
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Left -- zeigt Richtung Weg (-X)
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.Parent = sign
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(255, 170, 220)
+	label.Text = "👋 SLAP THE GYATT 👋\nKlicke mit deiner Hand auf den Gyatt!"
+	label.Parent = gui
+
+	local pole = Instance.new("Part")
+	pole.Name = "SignPole"
+	pole.Anchored = true
+	pole.Size = Vector3.new(1, 4, 1)
+	pole.Position = Vector3.new(14, FLOOR_TOP + 2, 14)
+	pole.Color = Color3.fromRGB(90, 60, 40)
+	pole.Material = Enum.Material.Wood
+	pole.Parent = arena
+end
+
+--------------------------------------------------------------------------
+-- Gyatts bauen
+--------------------------------------------------------------------------
+local gyatts = {} -- Liste von Gyatt-Objekten
+
+local function updateGyattGui(g)
+	local ratio = math.clamp(g.Health / g.Config.MaxHealth, 0, 1)
+	g.HealthFill.Size = UDim2.fromScale(ratio, 1)
+	g.HealthText.Text = Config.FormatNumber(math.ceil(g.Health)) .. " / " .. Config.FormatNumber(g.Config.MaxHealth)
+end
+
+local function setGyattVisible(g, visible)
+	g.Body.Transparency = visible and 0 or 1
+	g.Body.CanCollide = visible
+	g.Face.Transparency = visible and 0 or 1
+	g.Billboard.Enabled = visible
+	g.Highlight.Enabled = visible
+end
+
+local function createGyatt(cfg)
+	local model = Instance.new("Model")
+	model.Name = cfg.Id .. "Gyatt"
+
+	local body = Instance.new("Part")
+	body.Name = "Body"
+	body.Shape = Enum.PartType.Ball
+	body.Size = Vector3.new(cfg.Size, cfg.Size, cfg.Size)
+	-- Vorderseite (-Z) schaut zum Spawn
+	body.CFrame = CFrame.new(cfg.PositionX, FLOOR_TOP + cfg.Size / 2, cfg.PositionZ)
+	body.Anchored = true
+	body.CanCollide = true
+	body.Color = rgb(cfg.Color)
+	body.Material = Enum.Material.SmoothPlastic
+	body.TopSurface = Enum.SurfaceType.Smooth
+	body.BottomSurface = Enum.SurfaceType.Smooth
+	body.Parent = model
+
+	local face = Instance.new("Decal")
+	face.Name = "Face"
+	face.Texture = "rbxasset://textures/face.png"
+	face.Face = Enum.NormalId.Front
+	face.Parent = body
+
+	local highlight = Instance.new("Highlight")
+	highlight.FillTransparency = 1
+	highlight.OutlineColor = Color3.fromRGB(40, 20, 40)
+	highlight.OutlineTransparency = 0
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.Adornee = model
+	highlight.Parent = model
+
+	local slapSound = Instance.new("Sound")
+	slapSound.Name = "SlapSound"
+	slapSound.SoundId = "rbxasset://sounds/swordslash.wav"
+	slapSound.Volume = 0.8
+	slapSound.RollOffMaxDistance = 150
+	slapSound.Parent = body
+
+	-- Name + Lebensbalken
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "InfoGui"
+	billboard.Adornee = body
+	billboard.Size = UDim2.new(math.max(10, cfg.Size * 1.2), 0, 3.5, 0)
+	billboard.StudsOffset = Vector3.new(0, cfg.Size / 2 + 2.5, 0)
+	billboard.MaxDistance = 250
+	billboard.LightInfluence = 0
+	billboard.Parent = body
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "NameLabel"
+	nameLabel.Size = UDim2.fromScale(1, 0.5)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Font = Enum.Font.FredokaOne
+	nameLabel.TextScaled = true
+	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nameLabel.TextStrokeTransparency = 0
+	local requirement = ""
+	if cfg.RequiredPower > 0 then
+		requirement = "  (💪 Lv " .. cfg.RequiredPower .. ")"
+	end
+	nameLabel.Text = cfg.DisplayName .. requirement
+	nameLabel.Parent = billboard
+
+	local barBack = Instance.new("Frame")
+	barBack.Name = "HealthBack"
+	barBack.Position = UDim2.fromScale(0, 0.55)
+	barBack.Size = UDim2.fromScale(1, 0.45)
+	barBack.BackgroundColor3 = Color3.fromRGB(40, 0, 20)
+	barBack.BorderSizePixel = 0
+	barBack.Parent = billboard
+	local backCorner = Instance.new("UICorner")
+	backCorner.CornerRadius = UDim.new(0.4, 0)
+	backCorner.Parent = barBack
+
+	local barFill = Instance.new("Frame")
+	barFill.Name = "HealthFill"
+	barFill.Size = UDim2.fromScale(1, 1)
+	barFill.BackgroundColor3 = Color3.fromRGB(255, 70, 140)
+	barFill.BorderSizePixel = 0
+	barFill.Parent = barBack
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(0.4, 0)
+	fillCorner.Parent = barFill
+
+	local hpText = Instance.new("TextLabel")
+	hpText.Name = "HealthText"
+	hpText.Size = UDim2.fromScale(1, 1)
+	hpText.BackgroundTransparency = 1
+	hpText.Font = Enum.Font.GothamBold
+	hpText.TextScaled = true
+	hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
+	hpText.TextStrokeTransparency = 0.3
+	hpText.ZIndex = 2
+	hpText.Parent = barBack
+
+	model.PrimaryPart = body
+	model.Parent = arena
+
+	local g = {
+		Config = cfg,
+		Model = model,
+		Body = body,
+		Face = face,
+		Highlight = highlight,
+		Sound = slapSound,
+		Billboard = billboard,
+		HealthFill = barFill,
+		HealthText = hpText,
+		Health = cfg.MaxHealth,
+		Alive = true,
+		BaseSize = body.Size,
+		BaseColor = body.Color,
+		Contributors = {},
+		CurrentTween = nil,
+	}
+	updateGyattGui(g)
+	table.insert(gyatts, g)
+	return g
+end
+
+for _, cfg in ipairs(Config.Gyatts) do
+	createGyatt(cfg)
+end
+
+local function wobbleGyatt(g)
+	if g.CurrentTween then
+		g.CurrentTween:Cancel()
+	end
+	g.Body.Size = g.BaseSize
+	g.Body.Color = g.BaseColor
+	local tween = TweenService:Create(
+		g.Body,
+		TweenInfo.new(0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true),
+		{ Size = g.BaseSize * 1.12, Color = Color3.fromRGB(255, 255, 255) }
+	)
+	g.CurrentTween = tween
+	tween.Completed:Connect(function(state)
+		if state == Enum.PlaybackState.Completed and g.CurrentTween == tween then
+			g.Body.Size = g.BaseSize
+			g.Body.Color = g.BaseColor
+			g.CurrentTween = nil
+		end
+	end)
+	tween:Play()
+end
+
+--------------------------------------------------------------------------
+-- Spielerdaten
+--------------------------------------------------------------------------
+local dataStore = nil
+do
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore(Config.DataStoreName)
+	end)
+	if ok then
+		dataStore = result
+	else
+		warn("[SlapTheGyatt] DataStore nicht verfuegbar, Fortschritt wird nicht gespeichert: " .. tostring(result))
+	end
+end
+
+local profiles = {} -- [Player] = profile
+
+local function defaultData()
+	local upgrades = {}
+	for _, id in ipairs(Config.UpgradeOrder) do
+		upgrades[id] = 0
+	end
+	return {
+		Slaps = 0,
+		Rebirths = 0,
+		TotalSlaps = 0,
+		Upgrades = upgrades,
+	}
+end
+
+-- Macht aus (eventuell kaputten/alten) gespeicherten Daten saubere Daten.
+local function sanitizeData(raw)
+	local data = defaultData()
+	if type(raw) ~= "table" then
+		return data
+	end
+	local function safeNumber(value)
+		value = tonumber(value)
+		if not value or value ~= value or value == math.huge or value < 0 then
+			return 0
+		end
+		return math.floor(value)
+	end
+	data.Slaps = safeNumber(raw.Slaps)
+	data.Rebirths = safeNumber(raw.Rebirths)
+	data.TotalSlaps = safeNumber(raw.TotalSlaps)
+	if type(raw.Upgrades) == "table" then
+		for _, id in ipairs(Config.UpgradeOrder) do
+			data.Upgrades[id] = Config.ClampLevel(id, raw.Upgrades[id])
+		end
+	end
+	return data
+end
+
+local function dataKey(player)
+	return "Player_" .. player.UserId
+end
+
+local function loadData(player)
+	if not dataStore then
+		return true, defaultData()
+	end
+	-- In Studio nur ein Versuch, damit man nicht lange warten muss
+	local maxAttempts = RunService:IsStudio() and 1 or 3
+	for attempt = 1, maxAttempts do
+		local ok, result = pcall(function()
+			return dataStore:GetAsync(dataKey(player))
+		end)
+		if ok then
+			return true, sanitizeData(result)
+		end
+		warn("[SlapTheGyatt] Laden fehlgeschlagen (Versuch " .. attempt .. "): " .. tostring(result))
+		if attempt < maxAttempts then
+			task.wait(2)
+		end
+	end
+	return false, defaultData()
+end
+
+local function saveProfile(player, profile)
+	if not dataStore or not profile or not profile.CanSave then
+		return
+	end
+	local snapshot = {
+		Slaps = profile.Data.Slaps,
+		Rebirths = profile.Data.Rebirths,
+		TotalSlaps = profile.Data.TotalSlaps,
+		Upgrades = {},
+	}
+	for _, id in ipairs(Config.UpgradeOrder) do
+		snapshot.Upgrades[id] = profile.Data.Upgrades[id]
+	end
+	for attempt = 1, 3 do
+		local ok, err = pcall(function()
+			dataStore:SetAsync(dataKey(player), snapshot)
+		end)
+		if ok then
+			return
+		end
+		warn("[SlapTheGyatt] Speichern fehlgeschlagen (Versuch " .. attempt .. "): " .. tostring(err))
+		task.wait(1)
+	end
+end
+
+local function getMultiplier(profile)
+	return Config.GetGreedMultiplier(profile.Data.Upgrades.Greed) * Config.GetRebirthMultiplier(profile.Data.Rebirths)
+end
+
+local function pushState(player)
+	local profile = profiles[player]
+	if not profile then
+		return
+	end
+	local data = profile.Data
+	if profile.Leaderstats then
+		profile.Leaderstats.Slaps.Value = data.Slaps
+		profile.Leaderstats.Rebirths.Value = data.Rebirths
+	end
+	local upgrades = {}
+	for _, id in ipairs(Config.UpgradeOrder) do
+		upgrades[id] = data.Upgrades[id]
+	end
+	StateUpdate:FireClient(player, {
+		Slaps = data.Slaps,
+		Rebirths = data.Rebirths,
+		TotalSlaps = data.TotalSlaps,
+		Upgrades = upgrades,
+	})
+end
+
+--------------------------------------------------------------------------
+-- Die Slap-Hand (Tool)
+--------------------------------------------------------------------------
+local HAND_TOOL_NAME = "Slap Hand"
+local onSlap -- wird weiter unten definiert
+
+local function makeHandPart(name, size, color, material)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.Color = color
+	part.Material = material
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+	part.Massless = true
+	part.Anchored = false
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	return part
+end
+
+local function buildHandTool(powerLevel)
+	local scale = Config.GetHandScale(powerLevel)
+	local tier = Config.GetHandTier(powerLevel)
+	local color = rgb(tier.Color)
+	local material = Enum.Material[tier.Material] or Enum.Material.SmoothPlastic
+
+	local tool = Instance.new("Tool")
+	tool.Name = HAND_TOOL_NAME
+	tool.ToolTip = tier.Name .. " - klicken zum Slappen!"
+	tool.CanBeDropped = false
+	tool.RequiresHandle = true
+	tool:SetAttribute("PowerLevel", powerLevel)
+
+	-- Handflaeche = Handle
+	local palm = makeHandPart("Handle", Vector3.new(1.4, 1.5, 0.5) * scale, color, material)
+	palm.CFrame = CFrame.new()
+	palm.Parent = tool
+
+	local function attach(part, offset)
+		part.CFrame = palm.CFrame * offset
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = palm
+		weld.Part1 = part
+		weld.Parent = part
+		part.Parent = tool
+	end
+
+	-- vier Finger
+	local fingerXs = { -0.51, -0.17, 0.17, 0.51 }
+	local fingerLengths = { 0.8, 1.0, 0.95, 0.75 }
+	for i, x in ipairs(fingerXs) do
+		local length = fingerLengths[i] * scale
+		local finger = makeHandPart("Finger" .. i, Vector3.new(0.3 * scale, length, 0.45 * scale), color, material)
+		attach(finger, CFrame.new(x * scale, 0.75 * scale + length / 2, 0))
+	end
+
+	-- Daumen
+	local thumb = makeHandPart("Thumb", Vector3.new(0.35 * scale, 0.75 * scale, 0.45 * scale), color, material)
+	attach(thumb, CFrame.new(0.85 * scale, 0.05 * scale, 0) * CFrame.Angles(0, 0, math.rad(-35)))
+
+	-- Glitzer fuer starke Haende
+	if powerLevel >= 20 then
+		local sparkles = Instance.new("Sparkles")
+		sparkles.SparkleColor = color
+		sparkles.Parent = palm
+	end
+
+	-- Griff: Hand sitzt vor der Faust, Finger zeigen nach vorne
+	local baseGrip = CFrame.new(0, 0, -0.4 * scale) * CFrame.Angles(math.rad(-90), 0, 0)
+	tool.Grip = baseGrip
+
+	local swingId = 0
+	tool.Activated:Connect(function()
+		local player = Players:GetPlayerFromCharacter(tool.Parent)
+		if not player then
+			return
+		end
+		if onSlap(player) then
+			-- kleine Schwung-Animation ueber den Griff
+			swingId = swingId + 1
+			local myId = swingId
+			tool.Grip = baseGrip * CFrame.Angles(math.rad(70), 0, 0)
+			task.delay(0.12, function()
+				if swingId == myId and tool.Parent then
+					tool.Grip = baseGrip
+				end
+			end)
+		end
+	end)
+
+	return tool
+end
+
+local function removeHandTools(player)
+	local containers = { player:FindFirstChildOfClass("Backpack"), player.Character }
+	for _, container in ipairs(containers) do
+		if container then
+			for _, child in ipairs(container:GetChildren()) do
+				if child:IsA("Tool") and child.Name == HAND_TOOL_NAME then
+					child:Destroy()
+				end
+			end
+		end
+	end
+end
+
+-- Gibt dem Spieler eine (neue) Hand passend zu seinem Staerke-Level.
+-- Wenn er die alte Hand gerade in der Hand hatte, wird die neue ausgeruestet.
+local function giveHand(player)
+	local profile = profiles[player]
+	if not profile then
+		return
+	end
+	local character = player.Character
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if not character or not backpack then
+		return
+	end
+
+	local wasEquipped = false
+	local equipped = character:FindFirstChildOfClass("Tool")
+	if equipped and equipped.Name == HAND_TOOL_NAME then
+		wasEquipped = true
+	end
+
+	removeHandTools(player)
+
+	local tool = buildHandTool(profile.Data.Upgrades.Power)
+	tool.Parent = backpack
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid.Health > 0 and (wasEquipped or profile.AutoEquip) then
+		profile.AutoEquip = false
+		humanoid:EquipTool(tool)
+	end
+end
+
+--------------------------------------------------------------------------
+-- Slap-Logik (alles serverseitig geprueft)
+--------------------------------------------------------------------------
+local function findTarget(rootPosition, reach)
+	local best, bestDistance = nil, math.huge
+	for _, g in ipairs(gyatts) do
+		if g.Alive then
+			local surfaceDistance = (g.Body.Position - rootPosition).Magnitude - g.BaseSize.X / 2
+			if surfaceDistance <= reach and surfaceDistance < bestDistance then
+				best = g
+				bestDistance = surfaceDistance
+			end
+		end
+	end
+	return best
+end
+
+local function defeatGyatt(g, killer)
+	g.Alive = false
+	g.Health = 0
+	updateGyattGui(g)
+	if g.CurrentTween then
+		g.CurrentTween:Cancel()
+		g.CurrentTween = nil
+	end
+	g.Body.Size = g.BaseSize
+	g.Body.Color = g.BaseColor
+	setGyattVisible(g, false)
+
+	-- kleine Explosion (ohne Schaden)
+	local explosion = Instance.new("Explosion")
+	explosion.BlastPressure = 0
+	explosion.BlastRadius = 0
+	explosion.DestroyJointRadiusPercent = 0
+	explosion.Position = g.Body.Position
+	explosion.Parent = workspace
+
+	notifyAll("💥 " .. killer.DisplayName .. " hat den " .. g.Config.DisplayName .. " besiegt!", { 255, 200, 80 })
+
+	-- Bonus fuer alle, die mitgeslappt haben
+	for userId in pairs(g.Contributors) do
+		local player = Players:GetPlayerByUserId(userId)
+		local profile = player and profiles[player]
+		if profile and profile.Loaded then
+			local bonus = math.floor(g.Config.DefeatBonus * getMultiplier(profile))
+			profile.Data.Slaps = profile.Data.Slaps + bonus
+			notify(player, "🎉 Besiegt-Bonus: +" .. Config.FormatNumber(bonus) .. " Slaps", { 120, 255, 140 })
+			pushState(player)
+		end
+	end
+	g.Contributors = {}
+
+	task.delay(Config.GyattRespawnTime, function()
+		g.Health = g.Config.MaxHealth
+		g.Alive = true
+		updateGyattGui(g)
+		setGyattVisible(g, true)
+	end)
+end
+
+-- Gibt true zurueck, wenn ein Slap ausgefuehrt wurde (fuer die Animation).
+onSlap = function(player)
+	local profile = profiles[player]
+	if not profile or not profile.Loaded then
+		return false
+	end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not root or humanoid.Health <= 0 then
+		return false
+	end
+
+	local upgrades = profile.Data.Upgrades
+	local now = os.clock()
+	-- kleine Toleranz (0.05 s) wegen Netzwerk-Schwankungen
+	if now - profile.LastSlap < Config.GetCooldown(upgrades.Speed) - 0.05 then
+		return false
+	end
+	profile.LastSlap = now
+
+	local target = findTarget(root.Position, Config.GetReach(upgrades.Reach))
+	if not target then
+		return true -- Luft-Slap
+	end
+
+	if upgrades.Power < target.Config.RequiredPower then
+		if now - profile.LastWarning > 2 then
+			profile.LastWarning = now
+			notify(
+				player,
+				"😤 Deine Hand ist zu schwach! " .. target.Config.DisplayName .. " braucht Hand-Staerke Lv " .. target.Config.RequiredPower,
+				{ 255, 120, 120 }
+			)
+		end
+		return true
+	end
+
+	local damage = Config.GetDamage(upgrades.Power)
+	local isCrit = math.random() < Config.GetCritChance(upgrades.Luck)
+	if isCrit then
+		damage = damage * Config.CritMultiplier
+	end
+
+	local reward = math.max(1, math.floor(damage * target.Config.RewardMultiplier * getMultiplier(profile)))
+	profile.Data.Slaps = profile.Data.Slaps + reward
+	profile.Data.TotalSlaps = profile.Data.TotalSlaps + 1
+	target.Contributors[player.UserId] = true
+
+	target.Health = target.Health - damage
+	target.Sound:Play()
+	SlapFx:FireAllClients(target.Body.Position, target.BaseSize.X / 2, damage, isCrit, reward, player.UserId)
+
+	if target.Health <= 0 then
+		defeatGyatt(target, player)
+	else
+		updateGyattGui(target)
+		wobbleGyatt(target)
+	end
+
+	pushState(player)
+	return true
+end
+
+--------------------------------------------------------------------------
+-- Shop: Upgrades & Rebirth
+--------------------------------------------------------------------------
+BuyUpgrade.OnServerEvent:Connect(function(player, upgradeId)
+	local profile = profiles[player]
+	if not profile or not profile.Loaded then
+		return
+	end
+	if type(upgradeId) ~= "string" or not Config.Upgrades[upgradeId] then
+		return
+	end
+	local level = profile.Data.Upgrades[upgradeId]
+	local cost = Config.GetUpgradeCost(upgradeId, level)
+	if not cost then
+		notify(player, "Dieses Upgrade ist schon auf Max-Level!", { 255, 220, 120 })
+		return
+	end
+	if profile.Data.Slaps < cost then
+		notify(player, "Nicht genug Slaps! Du brauchst " .. Config.FormatNumber(cost), { 255, 120, 120 })
+		return
+	end
+
+	profile.Data.Slaps = profile.Data.Slaps - cost
+	profile.Data.Upgrades[upgradeId] = level + 1
+
+	local upgrade = Config.Upgrades[upgradeId]
+	notify(player, upgrade.Icon .. " " .. upgrade.DisplayName .. " ist jetzt Level " .. (level + 1) .. "!", { 120, 255, 140 })
+
+	if upgradeId == "Power" then
+		local oldTier = Config.GetHandTier(level)
+		local newTier = Config.GetHandTier(level + 1)
+		if oldTier ~= newTier then
+			notify(player, "✨ Neue Hand freigeschaltet: " .. newTier.Name .. "!", newTier.Color)
+		end
+		giveHand(player) -- Hand waechst
+	end
+	pushState(player)
+end)
+
+DoRebirth.OnServerEvent:Connect(function(player)
+	local profile = profiles[player]
+	if not profile or not profile.Loaded then
+		return
+	end
+	local cost = Config.GetRebirthCost(profile.Data.Rebirths)
+	if profile.Data.Slaps < cost then
+		notify(player, "Fuer einen Rebirth brauchst du " .. Config.FormatNumber(cost) .. " Slaps!", { 255, 120, 120 })
+		return
+	end
+	profile.Data.Rebirths = profile.Data.Rebirths + 1
+	profile.Data.Slaps = 0
+	for _, id in ipairs(Config.UpgradeOrder) do
+		profile.Data.Upgrades[id] = 0
+	end
+	notifyAll(
+		"♻️ " .. player.DisplayName .. " hat Rebirth " .. profile.Data.Rebirths .. " gemacht!",
+		{ 200, 150, 255 }
+	)
+	giveHand(player)
+	pushState(player)
+	task.spawn(saveProfile, player, profile)
+end)
+
+RequestState.OnServerEvent:Connect(function(player)
+	local profile = profiles[player]
+	if profile and profile.Loaded then
+		pushState(player)
+	end
+end)
+
+--------------------------------------------------------------------------
+-- Spieler betreten / verlassen
+--------------------------------------------------------------------------
+local function onCharacterAdded(player, character)
+	local profile = profiles[player]
+	if not profile or not profile.Loaded then
+		return
+	end
+	-- warten bis Backpack/Humanoid bereit sind
+	character:WaitForChild("Humanoid", 10)
+	player:WaitForChild("Backpack", 10)
+	if player.Character ~= character or not player.Parent then
+		return
+	end
+	profile.AutoEquip = true
+	giveHand(player)
+end
+
+local function onPlayerAdded(player)
+	local profile = {
+		Data = defaultData(),
+		Loaded = false,
+		CanSave = false,
+		LastSlap = 0,
+		LastWarning = 0,
+		AutoEquip = true,
+		Leaderstats = nil,
+	}
+	profiles[player] = profile
+
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	local slaps = Instance.new("NumberValue")
+	slaps.Name = "Slaps"
+	slaps.Parent = leaderstats
+	local rebirths = Instance.new("IntValue")
+	rebirths.Name = "Rebirths"
+	rebirths.Parent = leaderstats
+	leaderstats.Parent = player
+	profile.Leaderstats = { Slaps = slaps, Rebirths = rebirths }
+
+	local ok, data = loadData(player)
+	if not player.Parent then
+		profiles[player] = nil
+		return -- Spieler hat das Spiel waehrend des Ladens verlassen
+	end
+	profile.Data = data
+	profile.Loaded = true
+	-- Nur speichern, wenn das Laden geklappt hat (sonst wuerden wir alte Daten ueberschreiben)
+	profile.CanSave = ok
+	if not ok then
+		if RunService:IsStudio() then
+			notify(player, "⚠️ Speichern aus: In Studio 'Game Settings > Security > Enable Studio Access to API Services' anschalten.", { 255, 200, 120 })
+		else
+			notify(player, "⚠️ Dein Spielstand konnte nicht geladen werden. Fortschritt wird diese Runde nicht gespeichert.", { 255, 120, 120 })
+		end
+	end
+
+	player.CharacterAdded:Connect(function(character)
+		onCharacterAdded(player, character)
+	end)
+	if player.Character then
+		task.spawn(onCharacterAdded, player, player.Character)
+	end
+
+	pushState(player)
+	notify(player, "👋 Willkommen bei Slap the Gyatt! Kauf Upgrades fuer deine Hand im Shop.", { 255, 170, 220 })
+end
+
+local function onPlayerRemoving(player)
+	local profile = profiles[player]
+	if profile then
+		profiles[player] = nil
+		saveProfile(player, profile)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+for _, player in ipairs(Players:GetPlayers()) do
+	task.spawn(onPlayerAdded, player)
+end
+
+-- Automatisch speichern
+task.spawn(function()
+	while true do
+		task.wait(Config.AutosaveInterval)
+		for player, profile in pairs(profiles) do
+			task.spawn(saveProfile, player, profile)
+		end
+	end
+end)
+
+-- Beim Herunterfahren des Servers alles speichern
+game:BindToClose(function()
+	if RunService:IsStudio() and not dataStore then
+		return
+	end
+	local pending = 0
+	for player, profile in pairs(profiles) do
+		pending = pending + 1
+		task.spawn(function()
+			saveProfile(player, profile)
+			pending = pending - 1
+		end)
+	end
+	local started = os.clock()
+	while pending > 0 and os.clock() - started < 25 do
+		task.wait(0.1)
+	end
+end)
+
+print("[SlapTheGyatt] Server gestartet - viel Spass beim Slappen!")
+]]></ProtectedString></Properties></Item></Item><Item class="StarterPlayer" referent="RBX00000007"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX00000006"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000005"><Properties><string name="Name">SlapClient</string><ProtectedString name="Source"><![CDATA[--[[
+	SlapClient (LocalScript in StarterPlayer > StarterPlayerScripts)
+
+	Die komplette Benutzeroberflaeche:
+	  * Anzeige von Slaps, Schaden und Rebirths
+	  * Upgrade-Shop fuer die Hand
+	  * Rebirth-Fenster
+	  * Schadenszahlen und Nachrichten
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local Config = require(ReplicatedStorage:WaitForChild("SlapConfig"))
+local remotes = ReplicatedStorage:WaitForChild("SlapRemotes")
+local StateUpdate = remotes:WaitForChild("StateUpdate")
+local RequestState = remotes:WaitForChild("RequestState")
+local BuyUpgrade = remotes:WaitForChild("BuyUpgrade")
+local DoRebirth = remotes:WaitForChild("DoRebirth")
+local SlapFx = remotes:WaitForChild("SlapFx")
+local Notify = remotes:WaitForChild("Notify")
+
+local state = nil -- letzter Spielstand vom Server
+
+--------------------------------------------------------------------------
+-- UI-Hilfen
+--------------------------------------------------------------------------
+local function create(className, props, children)
+	local instance = Instance.new(className)
+	local parent = nil
+	for key, value in pairs(props or {}) do
+		if key == "Parent" then
+			parent = value
+		else
+			instance[key] = value
+		end
+	end
+	for _, child in ipairs(children or {}) do
+		child.Parent = instance
+	end
+	if parent then
+		instance.Parent = parent
+	end
+	return instance
+end
+
+local function corner(radius)
+	return create("UICorner", { CornerRadius = UDim.new(0, radius or 12) })
+end
+
+local function stroke(thickness, color)
+	return create("UIStroke", {
+		Thickness = thickness or 3,
+		Color = color or Color3.fromRGB(40, 20, 40),
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	})
+end
+
+local function rgb(t)
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+local PINK = Color3.fromRGB(255, 110, 180)
+local DARK = Color3.fromRGB(45, 25, 55)
+local GREEN = Color3.fromRGB(70, 200, 100)
+local GRAY = Color3.fromRGB(120, 120, 130)
+local GOLD = Color3.fromRGB(255, 200, 60)
+
+-- Alte UI entfernen (falls das Skript neu gestartet wurde)
+local old = playerGui:FindFirstChild("SlapUI")
+if old then
+	old:Destroy()
+end
+
+local screen = create("ScreenGui", {
+	Name = "SlapUI",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = false,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	Parent = playerGui,
+})
+
+--------------------------------------------------------------------------
+-- Oben: Slaps-Anzeige
+--------------------------------------------------------------------------
+local topBar = create("Frame", {
+	Name = "TopBar",
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 8),
+	Size = UDim2.new(0, 320, 0, 70),
+	BackgroundColor3 = DARK,
+	BackgroundTransparency = 0.1,
+	Parent = screen,
+}, { corner(16), stroke(3, PINK) })
+
+local slapsLabel = create("TextLabel", {
+	Name = "Slaps",
+	Size = UDim2.new(1, -16, 0.6, 0),
+	Position = UDim2.new(0, 8, 0, 2),
+	BackgroundTransparency = 1,
+	Font = Enum.Font.FredokaOne,
+	TextScaled = true,
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Text = "👋 Laden...",
+	Parent = topBar,
+})
+
+local statsLabel = create("TextLabel", {
+	Name = "Stats",
+	Size = UDim2.new(1, -16, 0.35, 0),
+	Position = UDim2.new(0, 8, 0.6, 0),
+	BackgroundTransparency = 1,
+	Font = Enum.Font.GothamBold,
+	TextScaled = true,
+	TextColor3 = Color3.fromRGB(255, 190, 225),
+	Text = "",
+	Parent = topBar,
+})
+
+--------------------------------------------------------------------------
+-- Links: Knoepfe
+--------------------------------------------------------------------------
+local buttonColumn = create("Frame", {
+	Name = "Buttons",
+	AnchorPoint = Vector2.new(0, 0.5),
+	Position = UDim2.new(0, 10, 0.5, 0),
+	Size = UDim2.new(0, 130, 0, 130),
+	BackgroundTransparency = 1,
+	Parent = screen,
+}, {
+	create("UIListLayout", {
+		Padding = UDim.new(0, 10),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}),
+})
+
+local function makeSideButton(text, color, order)
+	return create("TextButton", {
+		Size = UDim2.new(1, 0, 0, 55),
+		LayoutOrder = order,
+		BackgroundColor3 = color,
+		Font = Enum.Font.FredokaOne,
+		TextScaled = true,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Text = text,
+		AutoButtonColor = true,
+		Parent = buttonColumn,
+	}, { corner(14), stroke(3), create("UIPadding", {
+		PaddingLeft = UDim.new(0, 6),
+		PaddingRight = UDim.new(0, 6),
+		PaddingTop = UDim.new(0, 6),
+		PaddingBottom = UDim.new(0, 6),
+	}) })
+end
+
+local shopButton = makeSideButton("🛒 Shop", PINK, 1)
+local rebirthButton = makeSideButton("♻️ Rebirth", Color3.fromRGB(150, 90, 255), 2)
+
+--------------------------------------------------------------------------
+-- Fenster-Vorlage
+--------------------------------------------------------------------------
+local openWindow = nil
+
+local function makeWindow(name, title, height)
+	local window = create("Frame", {
+		Name = name,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.52),
+		Size = UDim2.new(0.9, 0, 0, height),
+		BackgroundColor3 = DARK,
+		Visible = false,
+		Parent = screen,
+	}, {
+		corner(18),
+		stroke(4, PINK),
+		create("UISizeConstraint", { MaxSize = Vector2.new(520, height) }),
+	})
+
+	create("TextLabel", {
+		Name = "Title",
+		Size = UDim2.new(1, -70, 0, 44),
+		Position = UDim2.new(0, 14, 0, 8),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.FredokaOne,
+		TextScaled = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Text = title,
+		Parent = window,
+	})
+
+	local close = create("TextButton", {
+		Name = "Close",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 10),
+		Size = UDim2.new(0, 40, 0, 40),
+		BackgroundColor3 = Color3.fromRGB(230, 70, 90),
+		Font = Enum.Font.FredokaOne,
+		TextScaled = true,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Text = "X",
+		Parent = window,
+	}, { corner(10), stroke(2) })
+
+	close.Activated:Connect(function()
+		window.Visible = false
+		if openWindow == window then
+			openWindow = nil
+		end
+	end)
+
+	return window
+end
+
+local function toggleWindow(window)
+	if openWindow and openWindow ~= window then
+		openWindow.Visible = false
+	end
+	window.Visible = not window.Visible
+	if window.Visible then
+		openWindow = window
+	else
+		openWindow = nil
+	end
+end
+
+--------------------------------------------------------------------------
+-- Shop
+--------------------------------------------------------------------------
+local shopWindow = makeWindow("ShopWindow", "🛒 Hand-Upgrades", 430)
+
+local handInfo = create("TextLabel", {
+	Name = "HandInfo",
+	Size = UDim2.new(1, -28, 0, 26),
+	Position = UDim2.new(0, 14, 0, 54),
+	BackgroundTransparency = 1,
+	Font = Enum.Font.GothamBold,
+	TextScaled = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextColor3 = GOLD,
+	Text = "",
+	Parent = shopWindow,
+})
+
+local list = create("ScrollingFrame", {
+	Name = "List",
+	Size = UDim2.new(1, -20, 1, -96),
+	Position = UDim2.new(0, 10, 0, 86),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 8,
+	ScrollBarImageColor3 = PINK,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+	Parent = shopWindow,
+}, {
+	create("UIListLayout", {
+		Padding = UDim.new(0, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	}),
+	create("UIPadding", {
+		PaddingRight = UDim.new(0, 12),
+		PaddingTop = UDim.new(0, 2),
+		PaddingBottom = UDim.new(0, 2),
+		PaddingLeft = UDim.new(0, 2),
+	}),
+})
+
+local rows = {} -- [upgradeId] = { Level=, Stat=, Buy= }
+
+for order, id in ipairs(Config.UpgradeOrder) do
+	local upgrade = Config.Upgrades[id]
+	local row = create("Frame", {
+		Name = id,
+		LayoutOrder = order,
+		Size = UDim2.new(1, 0, 0, 78),
+		BackgroundColor3 = Color3.fromRGB(70, 40, 85),
+		Parent = list,
+	}, { corner(12) })
+
+	create("TextLabel", {
+		Name = "Name",
+		Size = UDim2.new(0.62, -10, 0, 28),
+		Position = UDim2.new(0, 10, 0, 4),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.FredokaOne,
+		TextScaled = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Text = upgrade.Icon .. " " .. upgrade.DisplayName,
+		Parent = row,
+	})
+
+	local levelLabel = create("TextLabel", {
+		Name = "Level",
+		Size = UDim2.new(0.62, -10, 0, 18),
+		Position = UDim2.new(0, 10, 0, 32),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.GothamBold,
+		TextScaled = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Color3.fromRGB(255, 190, 225),
+		Text = "",
+		Parent = row,
+	})
+
+	local statLabel = create("TextLabel", {
+		Name = "Stat",
+		Size = UDim2.new(0.62, -10, 0, 18),
+		Position = UDim2.new(0, 10, 0, 53),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.Gotham,
+		TextScaled = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Color3.fromRGB(220, 220, 230),
+		Text = upgrade.Description,
+		Parent = row,
+	})
+
+	local buy = create("TextButton", {
+		Name = "Buy",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -10, 0.5, 0),
+		Size = UDim2.new(0.36, 0, 0, 56),
+		BackgroundColor3 = GRAY,
+		Font = Enum.Font.FredokaOne,
+		TextScaled = true,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Text = "...",
+		Parent = row,
+	}, { corner(10), stroke(2), create("UIPadding", {
+		PaddingLeft = UDim.new(0, 6),
+		PaddingRight = UDim.new(0, 6),
+		PaddingTop = UDim.new(0, 4),
+		PaddingBottom = UDim.new(0, 4),
+	}) })
+
+	buy.Activated:Connect(function()
+		BuyUpgrade:FireServer(id)
+	end)
+
+	rows[id] = { Level = levelLabel, Stat = statLabel, Buy = buy }
+end
+
+--------------------------------------------------------------------------
+-- Rebirth-Fenster
+--------------------------------------------------------------------------
+local rebirthWindow = makeWindow("RebirthWindow", "♻️ Rebirth", 290)
+
+local rebirthText = create("TextLabel", {
+	Name = "Info",
+	Size = UDim2.new(1, -28, 0, 130),
+	Position = UDim2.new(0, 14, 0, 58),
+	BackgroundTransparency = 1,
+	Font = Enum.Font.GothamBold,
+	TextScaled = true,
+	TextWrapped = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	TextColor3 = Color3.fromRGB(240, 230, 255),
+	Text = "",
+	Parent = rebirthWindow,
+})
+
+local rebirthConfirm = create("TextButton", {
+	Name = "Confirm",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -14),
+	Size = UDim2.new(0.8, 0, 0, 60),
+	BackgroundColor3 = GRAY,
+	Font = Enum.Font.FredokaOne,
+	TextScaled = true,
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	Text = "Rebirth!",
+	Parent = rebirthWindow,
+}, { corner(12), stroke(3), create("UIPadding", {
+	PaddingTop = UDim.new(0, 6),
+	PaddingBottom = UDim.new(0, 6),
+}) })
+
+rebirthConfirm.Activated:Connect(function()
+	DoRebirth:FireServer()
+end)
+
+shopButton.Activated:Connect(function()
+	toggleWindow(shopWindow)
+end)
+rebirthButton.Activated:Connect(function()
+	toggleWindow(rebirthWindow)
+end)
+
+--------------------------------------------------------------------------
+-- UI aktualisieren
+--------------------------------------------------------------------------
+local function refresh()
+	if not state then
+		return
+	end
+	local upgrades = state.Upgrades or {}
+	local multiplier = Config.GetGreedMultiplier(upgrades.Greed) * Config.GetRebirthMultiplier(state.Rebirths)
+
+	slapsLabel.Text = "👋 " .. Config.FormatNumber(state.Slaps) .. " Slaps"
+	statsLabel.Text = "💪 " .. Config.FormatNumber(Config.GetDamage(upgrades.Power)) .. " Schaden   💰 x"
+		.. string.format("%.2f", multiplier) .. "   ♻️ " .. tostring(state.Rebirths)
+
+	local tier = Config.GetHandTier(upgrades.Power)
+	handInfo.Text = "Deine Hand: " .. tier.Name
+	handInfo.TextColor3 = rgb(tier.Color)
+
+	for _, id in ipairs(Config.UpgradeOrder) do
+		local row = rows[id]
+		local upgrade = Config.Upgrades[id]
+		local level = Config.ClampLevel(id, upgrades[id])
+		local cost = Config.GetUpgradeCost(id, level)
+		row.Level.Text = "Level " .. level .. " / " .. upgrade.MaxLevel
+		if cost then
+			row.Stat.Text = Config.DescribeStat(id, level) .. "  ➜  " .. Config.DescribeStat(id, level + 1)
+			row.Buy.Text = "👋 " .. Config.FormatNumber(cost)
+			if state.Slaps >= cost then
+				row.Buy.BackgroundColor3 = GREEN
+			else
+				row.Buy.BackgroundColor3 = GRAY
+			end
+		else
+			row.Stat.Text = Config.DescribeStat(id, level)
+			row.Buy.Text = "MAX"
+			row.Buy.BackgroundColor3 = GOLD
+		end
+	end
+
+	local rebirthCost = Config.GetRebirthCost(state.Rebirths)
+	local nextMultiplier = Config.GetRebirthMultiplier(state.Rebirths + 1)
+	rebirthText.Text = "Setzt deine Slaps und alle Hand-Upgrades zurueck.\n\n"
+		.. "Dafuer bekommst du fuer immer x" .. string.format("%.1f", nextMultiplier) .. " Slaps!\n\n"
+		.. "Kosten: " .. Config.FormatNumber(rebirthCost) .. " Slaps"
+	if state.Slaps >= rebirthCost then
+		rebirthConfirm.BackgroundColor3 = GREEN
+		rebirthConfirm.Text = "♻️ Rebirth machen!"
+	else
+		rebirthConfirm.BackgroundColor3 = GRAY
+		rebirthConfirm.Text = "Noch " .. Config.FormatNumber(rebirthCost - state.Slaps) .. " Slaps"
+	end
+end
+
+local lastSlaps = nil
+StateUpdate.OnClientEvent:Connect(function(newState)
+	if type(newState) ~= "table" then
+		return
+	end
+	state = newState
+	refresh()
+
+	-- Slaps-Zahl kurz "aufpoppen" lassen, wenn sie steigt
+	if lastSlaps and state.Slaps > lastSlaps then
+		slapsLabel.TextColor3 = Color3.fromRGB(150, 255, 160)
+		TweenService:Create(slapsLabel, TweenInfo.new(0.35), { TextColor3 = Color3.fromRGB(255, 255, 255) }):Play()
+	end
+	lastSlaps = state.Slaps
+end)
+
+--------------------------------------------------------------------------
+-- Nachrichten (unten in der Mitte)
+--------------------------------------------------------------------------
+local notifyHolder = create("Frame", {
+	Name = "Notifications",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -100),
+	Size = UDim2.new(0.8, 0, 0, 150),
+	BackgroundTransparency = 1,
+	Parent = screen,
+}, {
+	create("UIListLayout", {
+		Padding = UDim.new(0, 4),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		VerticalAlignment = Enum.VerticalAlignment.Bottom,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	}),
+	create("UISizeConstraint", { MaxSize = Vector2.new(600, 150) }),
+})
+
+local notifyCounter = 0
+Notify.OnClientEvent:Connect(function(text, color)
+	if type(text) ~= "string" then
+		return
+	end
+	local textColor = Color3.fromRGB(255, 255, 255)
+	if type(color) == "table" and #color == 3 then
+		textColor = rgb(color)
+	end
+	notifyCounter = notifyCounter + 1
+
+	-- maximal 4 Nachrichten gleichzeitig
+	local existing = {}
+	for _, child in ipairs(notifyHolder:GetChildren()) do
+		if child:IsA("TextLabel") then
+			table.insert(existing, child)
+		end
+	end
+	table.sort(existing, function(a, b)
+		return a.LayoutOrder < b.LayoutOrder
+	end)
+	while #existing >= 4 do
+		table.remove(existing, 1):Destroy()
+	end
+
+	local label = create("TextLabel", {
+		LayoutOrder = notifyCounter,
+		Size = UDim2.new(1, 0, 0, 32),
+		BackgroundColor3 = DARK,
+		BackgroundTransparency = 0.25,
+		Font = Enum.Font.GothamBold,
+		TextScaled = true,
+		TextColor3 = textColor,
+		TextStrokeTransparency = 0.5,
+		Text = text,
+		Parent = notifyHolder,
+	}, { corner(8), create("UIPadding", {
+		PaddingLeft = UDim.new(0, 8),
+		PaddingRight = UDim.new(0, 8),
+		PaddingTop = UDim.new(0, 4),
+		PaddingBottom = UDim.new(0, 4),
+	}) })
+
+	task.delay(3.5, function()
+		if label.Parent then
+			local fade = TweenService:Create(label, TweenInfo.new(0.5), {
+				TextTransparency = 1,
+				TextStrokeTransparency = 1,
+				BackgroundTransparency = 1,
+			})
+			fade:Play()
+			task.delay(0.55, function()
+				label:Destroy()
+			end)
+		end
+	end)
+end)
+
+--------------------------------------------------------------------------
+-- Schadenszahlen ueber dem Gyatt
+--------------------------------------------------------------------------
+-- Attachments im Terrain dienen als unsichtbare Ankerpunkte (nur lokal)
+local fxAnchor = workspace.Terrain
+
+SlapFx.OnClientEvent:Connect(function(position, radius, damage, isCrit, reward, slapperId)
+	if typeof(position) ~= "Vector3" or type(damage) ~= "number" then
+		return
+	end
+	radius = type(radius) == "number" and radius or 3
+	local isMine = slapperId == player.UserId
+
+	-- Zahlen von anderen Spielern kleiner und blasser anzeigen
+	local attachment = Instance.new("Attachment")
+	local offset = Vector3.new((math.random() - 0.5) * radius, radius * 0.4 + math.random() * radius * 0.5, -radius - 0.5)
+	attachment.Parent = fxAnchor
+	attachment.WorldPosition = position + offset
+
+	local text = "-" .. Config.FormatNumber(damage)
+	if isCrit then
+		text = "💥 KRIT " .. text
+	end
+	if isMine and type(reward) == "number" then
+		text = text .. "\n+" .. Config.FormatNumber(reward) .. " 👋"
+	end
+
+	local size = isMine and 5 or 3
+	if isCrit then
+		size = size * 1.4
+	end
+
+	local billboard = create("BillboardGui", {
+		Adornee = attachment,
+		Size = UDim2.new(size * 1.6, 0, size, 0),
+		AlwaysOnTop = true,
+		LightInfluence = 0,
+		MaxDistance = 200,
+		Parent = attachment,
+	})
+	local label = create("TextLabel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.FredokaOne,
+		TextScaled = true,
+		TextColor3 = isCrit and GOLD or Color3.fromRGB(255, 255, 255),
+		TextStrokeTransparency = 0,
+		TextTransparency = isMine and 0 or 0.4,
+		Text = text,
+		Parent = billboard,
+	})
+
+	local rise = TweenService:Create(billboard, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		StudsOffset = Vector3.new(0, 3, 0),
+	})
+	local fade = TweenService:Create(label, TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0.4), {
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	})
+	rise:Play()
+	fade:Play()
+	task.delay(1, function()
+		attachment:Destroy()
+	end)
+end)
+
+--------------------------------------------------------------------------
+-- Start
+--------------------------------------------------------------------------
+RequestState:FireServer()
+]]></ProtectedString></Properties></Item></Item></Item></roblox>
