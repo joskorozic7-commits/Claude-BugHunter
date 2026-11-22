@@ -1,0 +1,230 @@
+--[[
+	Hands: baut das Slap-Hand-Tool (Aussehen je nach Hand + Staerke-Level)
+	und gibt es dem Spieler.
+]]
+
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("SlapShared")
+local Calc = require(Shared:WaitForChild("Calc"))
+
+local Hands = {}
+Hands.ToolName = "Slap Hand"
+
+local ctx
+
+local function rgb(t)
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+local function material(name)
+	local ok, result = pcall(function()
+		return Enum.Material[name]
+	end)
+	if ok and result then
+		return result
+	end
+	return Enum.Material.SmoothPlastic
+end
+
+local function handPart(name, size, color, mat, shape)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.Color = color
+	p.Material = mat
+	p.CanCollide = false
+	p.CanTouch = false
+	p.CanQuery = false
+	p.Massless = true
+	p.Anchored = false
+	p.CastShadow = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if shape then
+		p.Shape = shape
+	end
+	return p
+end
+
+function Hands.Build(data)
+	local powerLevel = data.Upgrades.Power
+	local hand = Calc.GetHand(data.Hand)
+	local scale = Calc.GetHandScale(powerLevel)
+	local color = rgb(hand.Color)
+	local mat = material(hand.Material)
+
+	local tool = Instance.new("Tool")
+	tool.Name = Hands.ToolName
+	tool.ToolTip = hand.DisplayName .. " (x" .. hand.Damage .. " Schaden) - klicken zum Slappen!"
+	tool.CanBeDropped = false
+	tool.RequiresHandle = true
+	tool:SetAttribute("HandId", hand.Id)
+	tool:SetAttribute("PowerLevel", powerLevel)
+
+	local palm = handPart("Handle", Vector3.new(1.4, 1.5, 0.55) * scale, color, mat)
+	palm.CFrame = CFrame.new()
+	palm.Parent = tool
+
+	local parts = { palm }
+	local function attach(p, offset)
+		p.CFrame = palm.CFrame * offset
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = palm
+		weld.Part1 = p
+		weld.Parent = p
+		p.Parent = tool
+		table.insert(parts, p)
+		return p
+	end
+
+	-- Finger mit Fingerkuppen
+	local fingerXs = { -0.51, -0.17, 0.17, 0.51 }
+	local fingerLengths = { 0.8, 1.0, 0.95, 0.75 }
+	for i, x in ipairs(fingerXs) do
+		local length = fingerLengths[i] * scale
+		attach(handPart("Finger" .. i, Vector3.new(0.3 * scale, length, 0.45 * scale), color, mat),
+			CFrame.new(x * scale, 0.75 * scale + length / 2, 0))
+		attach(handPart("Tip" .. i, Vector3.new(0.3 * scale, 0.3 * scale, 0.3 * scale), color, mat, Enum.PartType.Ball),
+			CFrame.new(x * scale, 0.75 * scale + length, 0))
+	end
+	-- Daumen
+	attach(handPart("Thumb", Vector3.new(0.35 * scale, 0.75 * scale, 0.45 * scale), color, mat),
+		CFrame.new(0.85 * scale, 0.05 * scale, 0) * CFrame.Angles(0, 0, math.rad(-35)))
+	-- Armband in Kontrastfarbe
+	attach(handPart("Cuff", Vector3.new(1.55 * scale, 0.35 * scale, 0.7 * scale), Color3.fromRGB(255, 110, 180), Enum.Material.Neon),
+		CFrame.new(0, -0.8 * scale, 0))
+
+	-- Effekte
+	if hand.Effect == "sparkles" then
+		local s = Instance.new("Sparkles")
+		s.SparkleColor = color
+		s.Parent = palm
+	elseif hand.Effect == "fire" then
+		local f = Instance.new("Fire")
+		f.Size = 3 * scale
+		f.Heat = 4
+		f.Color = color
+		f.SecondaryColor = Color3.fromRGB(255, 240, 120)
+		f.Parent = palm
+	elseif hand.Effect == "smoke" then
+		local s = Instance.new("Smoke")
+		s.Size = 1.5 * scale
+		s.Opacity = 0.12
+		s.RiseVelocity = 1
+		s.Color = Color3.fromRGB(220, 240, 255)
+		s.Parent = palm
+	elseif hand.Effect == "rainbow" then
+		for _, p in ipairs(parts) do
+			if p.Name ~= "Cuff" then
+				CollectionService:AddTag(p, "RainbowHand")
+			end
+		end
+		local s = Instance.new("Sparkles")
+		s.Parent = palm
+	end
+	if hand.Material == "Neon" then
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = 8
+		light.Brightness = 1
+		light.Parent = palm
+	end
+
+	-- Griff: Handflaeche nach vorne, Finger nach oben
+	local baseGrip = CFrame.new(0, 0, -0.45 * scale) * CFrame.Angles(math.rad(-90), 0, 0)
+	tool.Grip = baseGrip
+	tool:SetAttribute("BaseGrip", baseGrip)
+
+	tool.Activated:Connect(function()
+		local player = ctx.Players:GetPlayerFromCharacter(tool.Parent)
+		if not player then
+			return
+		end
+		if ctx.Combat.TrySlap(player) then
+			Hands.SwingTool(tool)
+		end
+	end)
+
+	return tool
+end
+
+local function removeHands(player)
+	local containers = { player:FindFirstChildOfClass("Backpack"), player.Character }
+	for _, container in ipairs(containers) do
+		if container then
+			for _, child in ipairs(container:GetChildren()) do
+				if child:IsA("Tool") and child.Name == Hands.ToolName then
+					child:Destroy()
+				end
+			end
+		end
+	end
+end
+
+-- Gibt dem Spieler eine neue Hand. Ausgeruestet, wenn sie es vorher war
+-- (oder forceEquip gesetzt ist).
+function Hands.Give(player, forceEquip)
+	local profile = ctx.Data.Get(player)
+	if not profile then
+		return
+	end
+	local character = player.Character
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if not character or not backpack then
+		return
+	end
+	local current = character:FindFirstChildOfClass("Tool")
+	local wasEquipped = current ~= nil and current.Name == Hands.ToolName
+
+	removeHands(player)
+	local tool = Hands.Build(profile.Data)
+	tool.Parent = backpack
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid.Health > 0 and (wasEquipped or forceEquip) then
+		humanoid:EquipTool(tool)
+	end
+end
+
+-- Hat der Spieler die Hand gerade in der Hand?
+function Hands.IsEquipped(player)
+	local character = player.Character
+	if not character then
+		return false
+	end
+	local tool = character:FindFirstChildOfClass("Tool")
+	return tool ~= nil and tool.Name == Hands.ToolName
+end
+
+-- Kurze Schwung-Animation ueber den Griff
+function Hands.SwingTool(tool)
+	local base = tool:GetAttribute("BaseGrip")
+	if typeof(base) ~= "CFrame" then
+		return
+	end
+	local swingId = (tool:GetAttribute("SwingId") or 0) + 1
+	tool:SetAttribute("SwingId", swingId)
+	tool.Grip = base * CFrame.Angles(math.rad(75), 0, 0)
+	task.delay(0.1, function()
+		if tool.Parent and tool:GetAttribute("SwingId") == swingId then
+			tool.Grip = base
+		end
+	end)
+end
+
+-- Schwung fuer Auto-Slap
+function Hands.Swing(player)
+	local character = player.Character
+	local tool = character and character:FindFirstChildOfClass("Tool")
+	if tool and tool.Name == Hands.ToolName then
+		Hands.SwingTool(tool)
+	end
+end
+
+function Hands.Init(context)
+	ctx = context
+end
+
+return Hands

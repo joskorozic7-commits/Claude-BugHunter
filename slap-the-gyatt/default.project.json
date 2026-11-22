@@ -3,19 +3,19 @@
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
-      "SlapConfig": {
-        "$path": "src/shared/SlapConfig.lua"
+      "SlapShared": {
+        "$path": "src/shared"
       }
     },
     "ServerScriptService": {
       "SlapServer": {
-        "$path": "src/server/SlapServer.server.lua"
+        "$path": "src/server/SlapServer"
       }
     },
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "SlapClient": {
-          "$path": "src/client/SlapClient.client.lua"
+          "$path": "src/client/SlapClient"
         }
       }
     }
