@@ -490,7 +490,7 @@ function Hud.Init(context)
 				if remaining < 0 then
 					remaining = 0
 				end
-				eventLabel.Text = "⭐ GOLDEN GYATT in Zone " .. golden.ZoneIndex .. "!  " .. Calc.FormatTime(remaining)
+				eventLabel.Text = "⭐ GOLDEN BLOB in Zone " .. golden.ZoneIndex .. "!  " .. Calc.FormatTime(remaining)
 			end
 			if ctx.State then
 				refreshBoosts(ctx.State)

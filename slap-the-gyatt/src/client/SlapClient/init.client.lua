@@ -1,7 +1,7 @@
 --[[
 	SlapClient (LocalScript in StarterPlayer > StarterPlayerScripts)
 
-	Startet die komplette Client-Seite von "Slap the Gyatt":
+	Startet die komplette Client-Seite von "Slap the Blob":
 	Menues, HUD, Effekte, Pets, Welt-Animationen.
 ]]
 
@@ -150,7 +150,7 @@ remotes.State.OnClientEvent:Connect(function(payload)
 	for _, fn in ipairs(listeners) do
 		local ok, err = pcall(fn, ctx.State, payload.Full == true)
 		if not ok then
-			warn("[SlapTheGyatt] UI error: " .. tostring(err))
+			warn("[SlapTheBlob] UI error: " .. tostring(err))
 		end
 	end
 end)

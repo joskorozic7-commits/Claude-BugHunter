@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Baut SlapTheGyatt.rbxlx aus default.project.json (ohne Rojo).
+"""Baut SlapTheBlob.rbxlx aus default.project.json (ohne Rojo).
 
 Unterstuetzt dieselben Regeln wie Rojo:
   Ordner            -> Folder (oder Skript, wenn init.*.lua darin liegt)
@@ -13,7 +13,7 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "SlapTheGyatt.rbxlx"
+OUT = ROOT / "SlapTheBlob.rbxlx"
 _ref = [0]
 
 

@@ -23,7 +23,7 @@ do
 	if ok then
 		store = result
 	else
-		warn("[SlapTheGyatt] DataStore not available: " .. tostring(result))
+		warn("[SlapTheBlob] DataStore not available: " .. tostring(result))
 	end
 end
 
@@ -227,7 +227,7 @@ function Data.Load(player)
 		if ok then
 			return true, Data.Sanitize(result)
 		end
-		warn("[SlapTheGyatt] Load failed (" .. attempt .. "/" .. attempts .. "): " .. tostring(result))
+		warn("[SlapTheBlob] Load failed (" .. attempt .. "/" .. attempts .. "): " .. tostring(result))
 		if attempt < attempts then
 			task.wait(2)
 		end
@@ -247,7 +247,7 @@ function Data.Save(profile)
 		if ok then
 			return true
 		end
-		warn("[SlapTheGyatt] Save failed (" .. attempt .. "/3): " .. tostring(err))
+		warn("[SlapTheBlob] Save failed (" .. attempt .. "/3): " .. tostring(err))
 		if attempt < 3 then
 			task.wait(1)
 		end

@@ -1,6 +1,6 @@
 --[[
 	Gyatts: baut die Gyatt-Modelle, verwaltet Leben, Besiegen, Respawn,
-	Belohnungen und das "Goldener Gyatt"-Event.
+	Belohnungen und das "Goldener Blob"-Event.
 
 	Animationen (Wackeln, Hinschauen, Gesicht) macht der Client.
 ]]
@@ -50,13 +50,17 @@ local function detail(model, name, size, cframe, color, mat, shape)
 end
 
 
+local function unit(x, y, z)
+	return Vector3.new(x, y, z).Unit
+end
+
 local function buildModel(spec)
 	local S = spec.Size
+	local r = S / 2
 	local base = spec.BaseCFrame -- Mitte des Koerpers, Vorderseite = -Z
 	local model = Instance.new("Model")
 	model.Name = "Gyatt_" .. spec.Key
 
-	-- Unsichtbarer Kern: Kollision, Pivot und Treffer-Ziel
 	local body = Instance.new("Part")
 	body.Name = "Body"
 	body.Shape = Enum.PartType.Ball
@@ -64,137 +68,121 @@ local function buildModel(spec)
 	body.CFrame = base
 	body.Anchored = true
 	body.CanCollide = true
-	body.Transparency = 1
+	body.Color = rgb(spec.Color)
+	body.Material = spec.Material or Enum.Material.SmoothPlastic
 	body.TopSurface = Enum.SurfaceType.Smooth
 	body.BottomSurface = Enum.SurfaceType.Smooth
 	body.Parent = model
 
-	local color = rgb(spec.Color)
-	local mat = spec.Material or Enum.Material.SmoothPlastic
-	local function darker(c, amount)
-		return Color3.new(math.clamp(c.R - amount, 0, 1), math.clamp(c.G - amount, 0, 1), math.clamp(c.B - amount, 0, 1))
+	local function onSurface(direction, extra)
+		return base * CFrame.new(direction * (r + (extra or 0)))
 	end
-	local function at(x, y, z)
-		return base * CFrame.new(x * S, y * S, z * S)
-	end
-	local function oval(name, size, cframe, c, m)
-		local p = detail(model, name, size, cframe, c, m)
-		local mesh = Instance.new("SpecialMesh")
-		mesh.MeshType = Enum.MeshType.Sphere
-		mesh.Parent = p
-		return p
+	local function facing(position, outward)
+		-- Teil, das von der Kugel nach aussen schaut
+		local worldPos = (base * CFrame.new(position)).Position
+		local worldOut = base:VectorToWorldSpace(outward)
+		return CFrame.lookAt(worldPos, worldPos + worldOut)
 	end
 
-	-- Die zwei runden Backen (Vorderseite -Z zeigt zum Spieler)
-	local cheekD = S * 0.64
-	local cheekX = 0.25
+	local black = Color3.fromRGB(25, 15, 25)
+	local white = Color3.fromRGB(255, 255, 255)
+
+	-- kleine Fuesse
 	for _, side in ipairs({ -1, 1 }) do
-		detail(model, side < 0 and "CheekLeft" or "CheekRight", Vector3.new(cheekD, cheekD, cheekD), at(side * cheekX, -0.02, 0), color, mat, Enum.PartType.Ball)
-		-- Glanzpunkt auf jeder Backe
-		local shine = detail(model, "Shine", Vector3.new(S * 0.1, S * 0.1, S * 0.1), at(side * cheekX - 0.08, 0.14, -0.27), Color3.fromRGB(255, 255, 255), Enum.Material.Neon, Enum.PartType.Ball)
-		shine.Transparency = 0.45
+		local foot = detail(model, "Foot", Vector3.new(S * 0.3, S * 0.15, S * 0.38),
+			base * CFrame.new(side * S * 0.22, -r * 0.97, -S * 0.05),
+			Color3.new(math.clamp(body.Color.R - 0.18, 0, 1), math.clamp(body.Color.G - 0.18, 0, 1), math.clamp(body.Color.B - 0.18, 0, 1)), body.Material)
+		local footMesh = Instance.new("SpecialMesh")
+		footMesh.MeshType = Enum.MeshType.Sphere
+		footMesh.Parent = foot
 	end
-	-- Huefte verbindet die Backen oben
-	oval("Hips", Vector3.new(S * 1.12, S * 0.5, S * 0.66), at(0, 0.2, 0.04), color, mat)
-	-- Naht der Shorts in der Mitte
-	detail(model, "Seam", Vector3.new(S * 0.035, S * 0.42, S * 0.04), at(0, -0.06, -0.165), darker(color, 0.25), mat)
 
-	-- Hosenbund mit "GYATT"-Etikett
-	local band = oval("Waistband", Vector3.new(S * 1.14, S * 0.14, S * 0.7), at(0, 0.38, 0.04), Color3.fromRGB(255, 255, 255), Enum.Material.Fabric)
-	local tag = detail(model, "Tag", Vector3.new(S * 0.42, S * 0.1, S * 0.03), at(0, 0.38, -0.31), Color3.fromRGB(255, 80, 160), Enum.Material.SmoothPlastic)
-	local tagGui = Instance.new("SurfaceGui")
-	tagGui.Face = Enum.NormalId.Front
-	tagGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	tagGui.PixelsPerStud = 40
-	tagGui.LightInfluence = 0
-	tagGui.Parent = tag
-	local tagText = Instance.new("TextLabel")
-	tagText.Size = UDim2.fromScale(1, 1)
-	tagText.BackgroundTransparency = 1
-	tagText.Font = Enum.Font.FredokaOne
-	tagText.TextScaled = true
-	tagText.TextColor3 = Color3.fromRGB(255, 255, 255)
-	tagText.Text = "GYATT"
-	tagText.Parent = tagGui
-
-	-- Beine und Turnschuhe
-	local skin = Color3.fromRGB(255, 205, 170)
+	-- Augen
 	for _, side in ipairs({ -1, 1 }) do
-		detail(model, "Leg", Vector3.new(S * 0.32, S * 0.19, S * 0.19), at(side * 0.24, -0.45, 0.05) * CFrame.Angles(0, 0, math.rad(90)), skin, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
-		detail(model, "Sock", Vector3.new(S * 0.06, S * 0.2, S * 0.2), at(side * 0.24, -0.57, 0.05) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 255, 255), Enum.Material.Fabric, Enum.PartType.Cylinder)
-		oval("Shoe", Vector3.new(S * 0.26, S * 0.13, S * 0.36), at(side * 0.24, -0.6, -0.02), Color3.fromRGB(240, 60, 90), Enum.Material.SmoothPlastic)
-		detail(model, "Sole", Vector3.new(S * 0.25, S * 0.04, S * 0.34), at(side * 0.24, -0.645, -0.02), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic)
+		local dir = unit(side * 0.34, 0.24, -0.91)
+		detail(model, "EyeWhite", Vector3.new(S * 0.3, S * 0.3, S * 0.3), onSurface(dir, -S * 0.08), white, Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+		detail(model, "Pupil", Vector3.new(S * 0.15, S * 0.15, S * 0.15), onSurface(dir, S * 0.02), black, Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+		detail(model, "Shine", Vector3.new(S * 0.05, S * 0.05, S * 0.05), onSurface(unit(side * 0.34 + 0.05, 0.3, -0.9), S * 0.07), white, Enum.Material.Neon, Enum.PartType.Ball)
+		-- Augenbraue
+		local browDir = unit(side * 0.33, 0.5, -0.8)
+		detail(model, "Brow", Vector3.new(S * 0.22, S * 0.045, S * 0.05),
+			facing(browDir * (r + S * 0.01), browDir) * CFrame.Angles(0, 0, math.rad(side * -12)), black)
+		-- Baeckchen
+		local blush = detail(model, "Blush", Vector3.new(S * 0.13, S * 0.13, S * 0.13), onSurface(unit(side * 0.55, -0.05, -0.83), -S * 0.045),
+			Color3.fromRGB(255, 110, 150), Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+		blush.Transparency = 0.25
 	end
+
+	-- Mund: Laecheln (3 Teile) und "O" (versteckt, Client zeigt es beim Treffer)
+	for i = -1, 1 do
+		local dir = unit(i * 0.13, -0.27 + math.abs(i) * 0.05, -0.95)
+		detail(model, "MouthSmile", Vector3.new(S * 0.11, S * 0.045, S * 0.05),
+			facing(dir * (r + S * 0.005), dir) * CFrame.Angles(0, 0, math.rad(i * 25)), black)
+	end
+	local mouthO = detail(model, "MouthO", Vector3.new(S * 0.16, S * 0.16, S * 0.16), onSurface(unit(0, -0.28, -0.96), -S * 0.06),
+		Color3.fromRGB(120, 20, 50), Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+	mouthO.Transparency = 1
 
 	-- Accessoires
 	local accessories = {}
 	for _, a in ipairs(spec.Accessories or {}) do
 		accessories[a] = true
 	end
-	local topY = 0.46
 
 	if accessories.bow then
 		local pink = Color3.fromRGB(255, 80, 150)
-		local c = at(0.38, topY, -0.12)
+		local c = onSurface(unit(0.45, 0.85, 0), -S * 0.02)
 		detail(model, "BowCenter", Vector3.new(S * 0.1, S * 0.1, S * 0.1), c, pink, nil, Enum.PartType.Ball)
 		detail(model, "BowLeft", Vector3.new(S * 0.16, S * 0.16, S * 0.16), c * CFrame.new(-S * 0.1, S * 0.03, 0), pink, nil, Enum.PartType.Ball)
 		detail(model, "BowRight", Vector3.new(S * 0.16, S * 0.16, S * 0.16), c * CFrame.new(S * 0.1, -S * 0.03, 0), pink, nil, Enum.PartType.Ball)
 	end
 
 	if accessories.glasses then
-		-- Herz-Aufdruck auf beiden Backen
 		for _, side in ipairs({ -1, 1 }) do
-			local heartColor = Color3.fromRGB(255, 70, 140)
-			local center = at(side * (cheekX + 0.02), -0.02, -0.315)
-			detail(model, "HeartTop", Vector3.new(S * 0.09, S * 0.09, S * 0.05), center * CFrame.new(-S * 0.035, S * 0.025, 0), heartColor, Enum.Material.Neon, Enum.PartType.Ball)
-			detail(model, "HeartTop", Vector3.new(S * 0.09, S * 0.09, S * 0.05), center * CFrame.new(S * 0.035, S * 0.025, 0), heartColor, Enum.Material.Neon, Enum.PartType.Ball)
-			detail(model, "HeartTip", Vector3.new(S * 0.075, S * 0.075, S * 0.03), center * CFrame.new(0, -S * 0.02, 0) * CFrame.Angles(0, 0, math.rad(45)), heartColor, Enum.Material.Neon)
+			local dir = unit(side * 0.34, 0.24, -0.91)
+			local lens = detail(model, "Lens", Vector3.new(S * 0.3, S * 0.2, S * 0.04), facing(dir * (r + S * 0.09), dir), Color3.fromRGB(20, 20, 30), Enum.Material.Glass)
+			lens.Transparency = 0.1
 		end
+		local bridgeDir = unit(0, 0.26, -0.96)
+		detail(model, "Bridge", Vector3.new(S * 0.14, S * 0.03, S * 0.03), facing(bridgeDir * (r + S * 0.06), bridgeDir), Color3.fromRGB(20, 20, 30))
 	end
 
 	if accessories.cowboy then
 		local brown = Color3.fromRGB(140, 90, 50)
-		local top = at(0, topY + 0.02, 0.04)
+		local top = base * CFrame.new(0, r * 0.92, 0)
 		detail(model, "HatBrim", Vector3.new(S * 0.04, S * 0.95, S * 0.95), top * CFrame.Angles(0, 0, math.rad(90)), brown, Enum.Material.Fabric, Enum.PartType.Cylinder)
 		detail(model, "HatTop", Vector3.new(S * 0.3, S * 0.5, S * 0.5), top * CFrame.new(0, S * 0.15, 0) * CFrame.Angles(0, 0, math.rad(90)), brown, Enum.Material.Fabric, Enum.PartType.Cylinder)
 		detail(model, "HatBand", Vector3.new(S * 0.06, S * 0.52, S * 0.52), top * CFrame.new(0, S * 0.04, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(200, 40, 40), Enum.Material.Fabric, Enum.PartType.Cylinder)
 	end
 
 	if accessories.scarf then
-		-- Winter-Look: Strickbund rot statt weiss, mit Bommeln
-		band.Color = Color3.fromRGB(220, 40, 60)
-		for _, side in ipairs({ -1, 1 }) do
-			detail(model, "Pompom", Vector3.new(S * 0.13, S * 0.13, S * 0.13), at(side * 0.5, 0.38, -0.12), Color3.fromRGB(255, 255, 255), Enum.Material.Fabric, Enum.PartType.Ball)
+		local red = Color3.fromRGB(220, 40, 60)
+		for i = 0, 15 do
+			local angle = (i / 16) * math.pi * 2
+			local dir = Vector3.new(math.cos(angle) * 0.86, -0.5, math.sin(angle) * 0.86)
+			detail(model, "Scarf", Vector3.new(S * 0.17, S * 0.17, S * 0.17), base * CFrame.new(dir * r), (i % 2 == 0) and red or Color3.fromRGB(255, 255, 255), Enum.Material.Fabric, Enum.PartType.Ball)
 		end
 	end
 
 	if accessories.horns then
 		for _, side in ipairs({ -1, 1 }) do
-			local hornBase = at(side * 0.35, topY, 0.04)
+			local hornBase = onSurface(unit(side * 0.5, 0.82, 0), -S * 0.05)
 			detail(model, "Horn", Vector3.new(S * 0.12, S * 0.32, S * 0.12), hornBase * CFrame.Angles(0, 0, math.rad(side * -25)) * CFrame.new(0, S * 0.12, 0), Color3.fromRGB(60, 20, 20), Enum.Material.Basalt)
 			detail(model, "HornTip", Vector3.new(S * 0.08, S * 0.12, S * 0.08), hornBase * CFrame.Angles(0, 0, math.rad(side * -25)) * CFrame.new(0, S * 0.32, 0), Color3.fromRGB(255, 120, 20), Enum.Material.Neon)
 		end
-		-- kleiner Teufelsschwanz
-		detail(model, "Tail", Vector3.new(S * 0.05, S * 0.05, S * 0.3), at(0, 0.3, 0.42) * CFrame.Angles(math.rad(-30), 0, 0), Color3.fromRGB(200, 30, 30))
-		detail(model, "TailTip", Vector3.new(S * 0.1, S * 0.1, S * 0.1), at(0, 0.38, 0.55), Color3.fromRGB(200, 30, 30), nil, Enum.PartType.Ball)
 	end
 
 	if accessories.halo then
 		local gold = Color3.fromRGB(255, 230, 100)
 		for i = 0, 17 do
 			local angle = (i / 18) * math.pi * 2
-			detail(model, "Halo", Vector3.new(S * 0.08, S * 0.08, S * 0.08), base * CFrame.new(math.cos(angle) * S * 0.3, S * 0.78, S * 0.04 + math.sin(angle) * S * 0.3), gold, Enum.Material.Neon, Enum.PartType.Ball)
-		end
-		-- Engelsfluegel
-		for _, side in ipairs({ -1, 1 }) do
-			local wing = oval("Wing", Vector3.new(S * 0.55, S * 0.35, S * 0.08), at(side * 0.62, 0.3, 0.2) * CFrame.Angles(0, math.rad(side * 25), math.rad(side * -20)), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic)
-			wing.Transparency = 0.1
+			detail(model, "Halo", Vector3.new(S * 0.08, S * 0.08, S * 0.08), base * CFrame.new(math.cos(angle) * r * 0.55, r * 1.3, math.sin(angle) * r * 0.55), gold, Enum.Material.Neon, Enum.PartType.Ball)
 		end
 	end
 
 	if accessories.antenna then
 		for _, side in ipairs({ -1, 1 }) do
-			local start = at(side * 0.3, topY, 0.04)
+			local start = base * CFrame.new(side * r * 0.35, r * 0.88, 0)
 			detail(model, "AntennaStick", Vector3.new(S * 0.04, S * 0.4, S * 0.04), start * CFrame.Angles(0, 0, math.rad(side * -20)) * CFrame.new(0, S * 0.18, 0), Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
 			detail(model, "AntennaBall", Vector3.new(S * 0.12, S * 0.12, S * 0.12), start * CFrame.Angles(0, 0, math.rad(side * -20)) * CFrame.new(0, S * 0.4, 0), Color3.fromRGB(120, 255, 120), Enum.Material.Neon, Enum.PartType.Ball)
 		end
@@ -202,7 +190,7 @@ local function buildModel(spec)
 
 	if accessories.crown then
 		local gold = Color3.fromRGB(255, 200, 40)
-		local top = at(0, accessories.cowboy and topY + 0.32 or topY + 0.06, 0.04)
+		local top = base * CFrame.new(0, r * (accessories.cowboy and 1.25 or 0.9), 0)
 		detail(model, "CrownBase", Vector3.new(S * 0.14, S * 0.45, S * 0.45), top * CFrame.Angles(0, 0, math.rad(90)), gold, Enum.Material.Foil, Enum.PartType.Cylinder)
 		for i = 0, 4 do
 			local angle = (i / 5) * math.pi * 2
@@ -237,7 +225,7 @@ local function buildModel(spec)
 	billboard.Name = "InfoGui"
 	billboard.Adornee = body
 	billboard.Size = UDim2.new(math.max(12, S * 1.3), 0, 4, 0)
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, S * 0.5 + 3.5, 0)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, r + 3.5, 0)
 	billboard.MaxDistance = 220
 	billboard.LightInfluence = 0
 	billboard.Parent = body
@@ -368,7 +356,7 @@ function Gyatts.BuildAll()
 				RewardMultiplier = cfg.RewardMultiplier,
 				DefeatBonus = math.floor(cfg.MaxHealth * cfg.RewardMultiplier * 0.25),
 				Gems = cfg.Gems,
-				BaseCFrame = CFrame.new(spot.Position + Vector3.new(0, 0.4 + cfg.Size * 0.66, 0)),
+				BaseCFrame = CFrame.new(spot.Position + Vector3.new(0, 0.4 + cfg.Size * 0.56, 0)),
 			})
 		end
 	end
@@ -409,7 +397,7 @@ local function rewardContributors(g, killer)
 	end
 	g.Contributors = {}
 	if g.IsGolden and killer then
-		ctx.Remotes.NotifyAll("⭐ " .. killer.DisplayName .. " defeated the GOLDEN GYATT! ⭐", { 255, 215, 0 })
+		ctx.Remotes.NotifyAll("⭐ " .. killer.DisplayName .. " defeated the GOLDEN BLOB! ⭐", { 255, 215, 0 })
 	end
 end
 
@@ -484,7 +472,7 @@ function Gyatts.EndGolden(defeated)
 	g.Model:Destroy()
 	ctx.Remotes.FireAll("Event", "GoldenEnd", defeated == true)
 	if not defeated then
-		ctx.Remotes.NotifyAll("⭐ The Golden Gyatt escaped... next time!", { 255, 200, 120 })
+		ctx.Remotes.NotifyAll("⭐ The Golden Blob escaped... next time!", { 255, 200, 120 })
 	end
 end
 
@@ -514,7 +502,7 @@ function Gyatts.SpawnGolden(zoneIndex)
 		DefeatBonus = math.floor(maxHealth * bigGyatt.RewardMultiplier * golden.RewardFactor * 0.25),
 		Gems = golden.Gems,
 		IsGolden = true,
-		BaseCFrame = CFrame.new(zoneInfo.GoldenSpot.Position + Vector3.new(0, 0.4 + golden.Size * 0.66, 0)),
+		BaseCFrame = CFrame.new(zoneInfo.GoldenSpot.Position + Vector3.new(0, 0.4 + golden.Size * 0.56, 0)),
 	})
 	local sparkles = Instance.new("Sparkles")
 	sparkles.SparkleColor = Color3.fromRGB(255, 230, 120)
@@ -529,7 +517,7 @@ function Gyatts.SpawnGolden(zoneIndex)
 	local endsAt = os.time() + golden.Duration
 	Gyatts.GoldenState = { Active = true, ZoneIndex = zoneIndex, EndsAt = endsAt }
 	ctx.Remotes.FireAll("Event", "GoldenStart", zoneIndex, endsAt)
-	ctx.Remotes.NotifyAll("⭐ A GOLDEN GYATT appeared in Zone " .. zoneIndex .. " (" .. zone.Name .. ")! ⭐", { 255, 215, 0 })
+	ctx.Remotes.NotifyAll("⭐ A GOLDEN BLOB appeared in Zone " .. zoneIndex .. " (" .. zone.Name .. ")! ⭐", { 255, 215, 0 })
 
 	task.delay(golden.Duration, function()
 		if Gyatts.Golden == g then

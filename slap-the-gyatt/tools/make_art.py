@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Draws the Roblox icon (512x512) and thumbnails (1920x1080) for Slap the Gyatt.
+"""Draws the Roblox icon (512x512), thumbnails (1920x1080) and pass icons for Slap the Blob.
 
 Usage:  python3 tools/make_art.py      (needs Pillow: pip install pillow)
-Output: marketing/icon.png, marketing/thumbnail_1.png, marketing/thumbnail_2.png
+Output: marketing/*.png
 """
 import math
 import random
@@ -54,51 +54,59 @@ def ellipse(d, box, fill, width):
     d.ellipse(box, fill=fill, outline=OUTLINE, width=width)
 
 
-def draw_gyatt(img, cx, cy, s, color, accessory=None):
-    """Cartoon booty in shorts, same design as the in-game Gyatts. (cx, cy) = middle of the cheeks."""
-    d = ImageDraw.Draw(img)
+def draw_blob(img, cx, cy, s, color, accessory=None, shocked=True):
+    """Round cartoon blob monster, same design as the in-game Blobs. (cx, cy) = body center, s = diameter."""
     ow = max(3, int(s * 0.018))
-    skin = (255, 205, 170)
-    # shadow
+    r = s / 2
     sh = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    ImageDraw.Draw(sh).ellipse([cx - s * 0.55, cy + s * 0.58, cx + s * 0.55, cy + s * 0.72], fill=(0, 0, 0, 70))
+    ImageDraw.Draw(sh).ellipse([cx - r * 0.95, cy + r * 0.88, cx + r * 0.95, cy + r * 1.12], fill=(0, 0, 0, 70))
     img.alpha_composite(sh.filter(ImageFilter.GaussianBlur(s * 0.03)))
     d = ImageDraw.Draw(img)
-    # legs + socks + shoes
+    # feet
     for side in (-1, 1):
-        lx = cx + side * s * 0.24
-        d.rounded_rectangle([lx - s * 0.095, cy + s * 0.2, lx + s * 0.095, cy + s * 0.58], radius=s * 0.05, fill=skin, outline=OUTLINE, width=ow)
-        d.rectangle([lx - s * 0.1, cy + s * 0.5, lx + s * 0.1, cy + s * 0.57], fill=(255, 255, 255), outline=OUTLINE, width=ow)
-        ellipse(d, [lx - s * 0.16, cy + s * 0.53, lx + s * 0.16, cy + s * 0.68], (240, 60, 90), ow)
-        d.rounded_rectangle([lx - s * 0.16, cy + s * 0.62, lx + s * 0.16, cy + s * 0.68], radius=s * 0.03, fill=(255, 255, 255), outline=OUTLINE, width=ow)
-    # hips
-    ellipse(d, [cx - s * 0.57, cy - s * 0.4, cx + s * 0.57, cy + s * 0.1], color, ow)
-    # cheeks
-    r = s * 0.32
+        fx = cx + side * s * 0.22
+        ellipse(d, [fx - s * 0.16, cy + r * 0.82, fx + s * 0.16, cy + r * 1.08], darker(color, 0.8), ow)
+    # body
+    ellipse(d, [cx - r, cy - r, cx + r, cy + r], color, ow)
+    # body shine
+    d.ellipse([cx - r * 0.62, cy - r * 0.7, cx - r * 0.3, cy - r * 0.42], fill=(255, 255, 255, 170))
+    # eyes
     for side in (-1, 1):
-        x = cx + side * s * 0.25
-        ellipse(d, [x - r, cy - r, x + r, cy + r], color, ow)
-    # seam
-    d.line([(cx, cy - s * 0.2), (cx, cy + s * 0.15)], fill=darker(color, 0.7), width=int(ow * 1.6))
-    # shine
-    for side in (-1, 1):
-        x = cx + side * s * 0.25 - s * 0.09
-        d.ellipse([x - s * 0.055, cy - s * 0.2, x + s * 0.055, cy - s * 0.09], fill=(255, 255, 255, 200))
-    # waistband + tag
-    d.rounded_rectangle([cx - s * 0.6, cy - s * 0.44, cx + s * 0.6, cy - s * 0.27], radius=s * 0.085, fill=(255, 255, 255), outline=OUTLINE, width=ow)
-    tw, th = s * 0.42, s * 0.11
-    ty = cy - s * 0.41
-    d.rounded_rectangle([cx - tw / 2, ty, cx + tw / 2, ty + th], radius=s * 0.03, fill=(255, 80, 160), outline=OUTLINE, width=max(2, ow // 2))
-    f = font(FONT_BLACK, th * 0.78)
-    d.text((cx, ty + th / 2), "GYATT", font=f, fill=(255, 255, 255), anchor="mm")
+        ex, ey = cx + side * s * 0.17, cy - s * 0.08
+        er = s * 0.12
+        ellipse(d, [ex - er, ey - er, ex + er, ey + er], (255, 255, 255), ow)
+        pr = s * 0.06
+        px = ex + (s * 0.01 if side < 0 else -s * 0.01)
+        d.ellipse([px - pr, ey - pr + s * 0.01, px + pr, ey + pr + s * 0.01], fill=OUTLINE)
+        d.ellipse([px - pr * 0.35 - s * 0.015, ey - pr * 0.6, px - pr * 0.35 + s * 0.015, ey - pr * 0.6 + s * 0.03], fill=(255, 255, 255))
+        # brows (surprised)
+        bx = ex
+        d.line([(bx - s * 0.08, ey - s * 0.17 - side * s * 0.0), (bx + s * 0.08, ey - s * 0.19)], fill=OUTLINE, width=int(ow * 1.8)) if side < 0 else \
+            d.line([(bx - s * 0.08, ey - s * 0.19), (bx + s * 0.08, ey - s * 0.17)], fill=OUTLINE, width=int(ow * 1.8))
+        # blush
+        bl = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        ImageDraw.Draw(bl).ellipse([cx + side * s * 0.3 - s * 0.07, cy + s * 0.06 - s * 0.045, cx + side * s * 0.3 + s * 0.07, cy + s * 0.06 + s * 0.045], fill=(255, 100, 150, 150))
+        img.alpha_composite(bl)
+        d = ImageDraw.Draw(img)
+    # mouth
+    if shocked:
+        ellipse(d, [cx - s * 0.07, cy + s * 0.1, cx + s * 0.07, cy + s * 0.25], (130, 25, 60), ow)
+    else:
+        d.arc([cx - s * 0.12, cy + s * 0.02, cx + s * 0.12, cy + s * 0.2], 20, 160, fill=OUTLINE, width=int(ow * 1.6))
     if accessory == "crown":
         gold = (255, 200, 40)
-        base_y = cy - s * 0.44
+        base_y = cy - r * 0.86
         pts = [(cx - s * 0.2, base_y), (cx - s * 0.2, base_y - s * 0.14), (cx - s * 0.12, base_y - s * 0.06), (cx - s * 0.05, base_y - s * 0.2),
                (cx, base_y - s * 0.07), (cx + s * 0.05, base_y - s * 0.2), (cx + s * 0.12, base_y - s * 0.06), (cx + s * 0.2, base_y - s * 0.14), (cx + s * 0.2, base_y)]
         d.polygon(pts, fill=gold, outline=OUTLINE, width=ow)
         for gx, col in ((-0.12, (255, 40, 80)), (0, (60, 160, 255)), (0.12, (255, 40, 80))):
             d.ellipse([cx + gx * s - s * 0.022, base_y - s * 0.05, cx + gx * s + s * 0.022, base_y - s * 0.006], fill=col)
+    if accessory == "bow":
+        pink = (255, 80, 150)
+        bx, by = cx + r * 0.5, cy - r * 0.82
+        for dx in (-1, 1):
+            ellipse(d, [bx + dx * s * 0.1 - s * 0.08, by - s * 0.06, bx + dx * s * 0.1 + s * 0.08, by + s * 0.06], pink, ow)
+        ellipse(d, [bx - s * 0.04, by - s * 0.04, bx + s * 0.04, by + s * 0.04], pink, ow)
 
 
 def hand_layer(size, color, kind="normal"):
@@ -231,7 +239,7 @@ def make_icon():
     img = background(W, H, (255, 120, 190), (140, 70, 230), (255, 255, 255, 38), (W * 0.62, H * 0.42))
     rng = random.Random(3)
     sparkles(img, rng, (0, 0, W, H * 0.5), 10, W * 0.025)
-    draw_gyatt(img, W * 0.42, H * 0.6, W * 0.62, (255, 125, 170))
+    draw_blob(img, W * 0.42, H * 0.58, W * 0.66, (255, 125, 170), accessory="bow")
     motion_lines(img, (W * 0.84, H * 0.42), (1, -0.9), 4, W * 0.14, W * 0.045, int(W * 0.016))
     paste_hand(img, (255, 205, 170), (W * 0.72, H * 0.27), int(W * 0.46), 38)
     burst(img, (W * 0.71, H * 0.6), W * 0.17, "SLAP!", rot=0.1)
@@ -256,8 +264,8 @@ def make_thumb1():
         d.ellipse([x - 14, y - 14, x + 14, y + 14], fill=c, outline=OUTLINE, width=3)
     sparkles(img, rng, (W * 0.45, 0, W, H * 0.4), 16, W * 0.012)
     # big gyatt + small gyatt
-    draw_gyatt(img, W * 0.95, H * 0.76, H * 0.3, (130, 220, 110))
-    draw_gyatt(img, W * 0.73, H * 0.6, H * 0.64, (255, 125, 170), accessory="crown")
+    draw_blob(img, W * 0.93, H * 0.8, H * 0.26, (130, 220, 110), shocked=False)
+    draw_blob(img, W * 0.73, H * 0.58, H * 0.6, (255, 125, 170), accessory="crown")
     motion_lines(img, (W * 0.5, H * 0.42), (-0.6, -1), 5, H * 0.16, H * 0.05, int(H * 0.012))
     paste_hand(img, (220, 170, 40), (W * 0.52, H * 0.3), int(H * 0.5), 28, kind="thanos", glow_color=(170, 90, 255))
     burst(img, (W * 0.6, H * 0.62), H * 0.13, "SLAP!", rot=0.2)
@@ -267,7 +275,7 @@ def make_thumb1():
     title(img, (W * 0.47, H * 0.82), "+50K", H * 0.06, (140, 255, 160), anchor="mm")
     # title
     title(img, (W * 0.04, H * 0.06), "SLAP THE", H * 0.15, (255, 255, 255))
-    title(img, (W * 0.04, H * 0.22), "GYATT!", H * 0.22, (255, 90, 170))
+    title(img, (W * 0.04, H * 0.22), "BLOB!", H * 0.22, (255, 90, 170))
     pill(img, (W * 0.2, H * 0.58), "6 WORLDS", H * 0.05, (70, 170, 255))
     pill(img, (W * 0.2, H * 0.7), "28 PETS", H * 0.05, (60, 200, 100))
     pill(img, (W * 0.2, H * 0.82), "LEGENDARY HANDS", H * 0.05, (160, 90, 255))
@@ -295,7 +303,7 @@ def make_thumb2():
     paste_hand(img, (220, 170, 40), (W * 0.28, H * 0.58), int(H * 0.72), 12, kind="thanos", glow_color=(170, 90, 255))
     paste_hand(img, (255, 250, 220), (W * 0.72, H * 0.58), int(H * 0.78), -12, kind="ultragod", glow_color=(255, 240, 150))
     title(img, (W * 0.5, H * 0.1), "LEGENDARY HANDS", H * 0.12, (255, 220, 70), anchor="mm")
-    title(img, (W * 0.28, H * 0.93), "THANOS GAUNTLET", H * 0.062, (200, 140, 255), anchor="mm")
+    title(img, (W * 0.28, H * 0.93), "TITAN GAUNTLET", H * 0.062, (200, 140, 255), anchor="mm")
     title(img, (W * 0.72, H * 0.93), "ULTRA GOD HAND", H * 0.062, (255, 245, 170), anchor="mm")
     burst(img, (W * 0.12, H * 0.3), H * 0.1, "SNAP!", fill=(190, 120, 255), text_color=(255, 255, 255), rot=0.3)
     burst(img, (W * 0.9, H * 0.28), H * 0.11, "x2500", fill=(255, 230, 60), text_color=(255, 70, 140), rot=0.1)
@@ -315,7 +323,7 @@ def make_pass_icon(name, hand_kind, hand_color, top, bottom, glow_color, label, 
 
 
 def make_pass_icons():
-    make_pass_icon("pass_thanos.png", "thanos", (220, 170, 40), (60, 20, 110), (150, 50, 200), (170, 90, 255), "THANOS", (150, 70, 230))
+    make_pass_icon("pass_titan.png", "thanos", (220, 170, 40), (60, 20, 110), (150, 50, 200), (170, 90, 255), "TITAN", (150, 70, 230))
     make_pass_icon("pass_ultragod.png", "ultragod", (255, 250, 220), (255, 200, 80), (230, 90, 200), (255, 240, 150), "ULTRA GOD", (235, 160, 30))
 
 

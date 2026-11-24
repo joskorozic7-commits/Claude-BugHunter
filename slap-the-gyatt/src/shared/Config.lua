@@ -1,15 +1,15 @@
 --[[
 	SlapShared/Config  (ModuleScript)
 
-	ALLE Spielwerte von "Slap the Gyatt" an einem Ort.
+	ALLE Spielwerte von "Slap the Blob" an einem Ort.
 	Keine Roblox-APIs hier drin -> funktioniert auf Server und Client gleich.
 	Farben sind { R, G, B } Tabellen (0-255).
 ]]
 
 local Config = {}
 
-Config.GameName = "Slap the Gyatt"
-Config.Version = "2.2"
+Config.GameName = "Slap the Blob"
+Config.Version = "3.0"
 
 --------------------------------------------------------------------------
 -- Speichern
@@ -65,7 +65,7 @@ Config.Upgrades = {
 	Reach = {
 		DisplayName = "Reach",
 		Icon = "📏",
-		Description = "Hit the Gyatt from farther away.",
+		Description = "Hit the Blob from farther away.",
 		MaxLevel = 20,
 		BaseCost = 60,
 		CostGrowth = 1.6,
@@ -112,7 +112,7 @@ Config.Hands = {
 	{ Id = "Cloud", DisplayName = "Cloud Hand", Rarity = "Legendary", Damage = 27, Price = 20000000000, Currency = "Slaps", Color = { 250, 250, 255 }, Material = "SmoothPlastic", Effect = "sparkles" },
 	{ Id = "Galaxy", DisplayName = "Galaxy Hand", Rarity = "Legendary", Damage = 40, Price = 400000000000, Currency = "Slaps", Color = { 120, 50, 220 }, Material = "Neon", Effect = "sparkles" },
 	{ Id = "Rainbow", DisplayName = "Rainbow Hand", Rarity = "Legendary", Damage = 60, Price = 8000000000000, Currency = "Slaps", Color = { 255, 80, 200 }, Material = "Neon", Effect = "rainbow" },
-	{ Id = "GyattGod", DisplayName = "Gyatt God Hand", Rarity = "Legendary", Damage = 100, Price = 2500, Currency = "Gems", Color = { 255, 235, 120 }, Material = "Neon", Effect = "fire",
+	{ Id = "GyattGod", DisplayName = "Blob God Hand", Rarity = "Legendary", Damage = 100, Price = 2500, Currency = "Gems", Color = { 255, 235, 120 }, Material = "Neon", Effect = "fire",
 		SlapMultiplier = 1.25 },
 	{ Id = "DragonClaw", DisplayName = "Dragon Claw", Rarity = "Mythic", Damage = 180, Price = 6000, Currency = "Gems", Color = { 200, 30, 40 }, Material = "Neon", Effect = "dragon",
 		SlapMultiplier = 1.5, CritBonus = 0.05 },
@@ -122,10 +122,10 @@ Config.Hands = {
 	--   2. Preis einstellen (Thanos 299, Ultra God 1999) und "Item for Sale" anschalten
 	--   3. Die Pass-ID (Zahl in der Adresse) hier bei GamePassId eintragen
 	-- Solange GamePassId = 0 ist, kann man die Hand nur in Studio zum Testen kostenlos benutzen.
-	{ Id = "Thanos", DisplayName = "Thanos Gauntlet", Rarity = "Ultra", Damage = 500, Price = 299, Currency = "Robux", GamePassId = 0,
+	{ Id = "Thanos", DisplayName = "Titan Gauntlet", Rarity = "Ultra", Damage = 500, Price = 299, Currency = "Robux", GamePassId = 0,
 		Color = { 220, 170, 40 }, Material = "Foil", Effect = "thanos",
 		SlapMultiplier = 3, CritBonus = 0.1, ReachBonus = 5, SpeedMultiplier = 0.8, Snap = 0.05,
-		Perk = "🫰 SNAP: 5% chance to erase a Gyatt instantly" },
+		Perk = "🫰 SNAP: 5% chance to erase a Blob instantly" },
 	{ Id = "UltraGod", DisplayName = "ULTRA GOD HAND", Rarity = "Ultra", Damage = 2500, Price = 1999, Currency = "Robux", GamePassId = 0,
 		Color = { 255, 250, 220 }, Material = "Neon", Effect = "ultragod",
 		SlapMultiplier = 10, CritBonus = 0.25, ReachBonus = 15, SpeedMultiplier = 0.5, Snap = 0.1,
@@ -180,7 +180,7 @@ Config.Pets = {
 	Alien = { DisplayName = "Alien", Rarity = "Common", Boost = 49, Color = { 120, 255, 120 }, Style = "alien" },
 	RoboDog = { DisplayName = "Robo Dog", Rarity = "Rare", Boost = 69, Color = { 170, 180, 200 }, Style = "robot" },
 	StarWhale = { DisplayName = "Star Whale", Rarity = "Epic", Boost = 119, Color = { 60, 80, 200 }, Style = "whale" },
-	GyattGodPet = { DisplayName = "Gyatt God", Rarity = "Mythic", Boost = 299, Color = { 255, 220, 90 }, Style = "ghost" },
+	GyattGodPet = { DisplayName = "Blob God", Rarity = "Mythic", Boost = 299, Color = { 255, 220, 90 }, Style = "ghost" },
 	-- Gem-Ei
 	GoldenDog = { DisplayName = "Golden Dog", Rarity = "Rare", Boost = 3, Color = { 255, 210, 50 }, Style = "dog" },
 	GoldenCat = { DisplayName = "Golden Cat", Rarity = "Epic", Boost = 9, Color = { 255, 200, 30 }, Style = "cat" },
@@ -223,64 +223,64 @@ Config.ZoneWidth = 120
 
 Config.Zones = {
 	{
-		Name = "Gyatt Meadow", Price = 0, Decor = "meadow",
+		Name = "Blob Meadow", Price = 0, Decor = "meadow",
 		Floor = { 105, 200, 105 }, FloorMaterial = "Grass", Accent = { 255, 120, 180 }, Path = { 230, 210, 160 },
 		Egg = "Basic",
 		Gyatts = {
-			{ Id = "Baby", DisplayName = "Baby Gyatt", MaxHealth = 40, Size = 7, Color = { 255, 175, 205 }, RewardMultiplier = 1, Gems = 1, Accessories = { "bow" } },
-			{ Id = "Big", DisplayName = "Big Gyatt", MaxHealth = 400, Size = 11, Color = { 255, 125, 165 }, RewardMultiplier = 2, Gems = 2, Accessories = { "bow", "glasses" } },
+			{ Id = "Baby", DisplayName = "Baby Blob", MaxHealth = 40, Size = 7, Color = { 255, 175, 205 }, RewardMultiplier = 1, Gems = 1, Accessories = { "bow" } },
+			{ Id = "Big", DisplayName = "Big Blob", MaxHealth = 400, Size = 11, Color = { 255, 125, 165 }, RewardMultiplier = 2, Gems = 2, Accessories = { "bow", "glasses" } },
 		},
 	},
 	{
-		Name = "Gyatt Desert", Price = 2500, Decor = "desert",
+		Name = "Blob Desert", Price = 2500, Decor = "desert",
 		Floor = { 235, 205, 140 }, FloorMaterial = "Sand", Accent = { 255, 170, 60 }, Path = { 200, 160, 100 },
 		Egg = "Desert",
 		Gyatts = {
-			{ Id = "Cactus", DisplayName = "Cactus Gyatt", MaxHealth = 4000, Size = 9, Color = { 120, 200, 90 }, RewardMultiplier = 4, Gems = 2, Accessories = { "cowboy" } },
-			{ Id = "Pharao", DisplayName = "Pharaoh Gyatt", MaxHealth = 20000, Size = 13, Color = { 240, 190, 70 }, RewardMultiplier = 8, Gems = 4, Accessories = { "crown", "glasses" } },
+			{ Id = "Cactus", DisplayName = "Cactus Blob", MaxHealth = 4000, Size = 9, Color = { 120, 200, 90 }, RewardMultiplier = 4, Gems = 2, Accessories = { "cowboy" } },
+			{ Id = "Pharao", DisplayName = "Pharaoh Blob", MaxHealth = 20000, Size = 13, Color = { 240, 190, 70 }, RewardMultiplier = 8, Gems = 4, Accessories = { "crown", "glasses" } },
 		},
 	},
 	{
-		Name = "Gyatt Ice Land", Price = 150000, Decor = "ice",
+		Name = "Blob Ice Land", Price = 150000, Decor = "ice",
 		Floor = { 225, 240, 255 }, FloorMaterial = "Snow", Accent = { 120, 200, 255 }, Path = { 170, 215, 245 },
 		Egg = "Ice",
 		Gyatts = {
-			{ Id = "Snow", DisplayName = "Snow Gyatt", MaxHealth = 150000, Size = 10, Color = { 240, 248, 255 }, RewardMultiplier = 15, Gems = 3, Accessories = { "scarf" } },
-			{ Id = "Frost", DisplayName = "Frost Gyatt", MaxHealth = 750000, Size = 15, Color = { 140, 210, 255 }, RewardMultiplier = 30, Gems = 6, Accessories = { "scarf", "crown" } },
+			{ Id = "Snow", DisplayName = "Snow Blob", MaxHealth = 150000, Size = 10, Color = { 240, 248, 255 }, RewardMultiplier = 15, Gems = 3, Accessories = { "scarf" } },
+			{ Id = "Frost", DisplayName = "Frost Blob", MaxHealth = 750000, Size = 15, Color = { 140, 210, 255 }, RewardMultiplier = 30, Gems = 6, Accessories = { "scarf", "crown" } },
 		},
 	},
 	{
-		Name = "Gyatt Volcano", Price = 10000000, Decor = "lava",
+		Name = "Blob Volcano", Price = 10000000, Decor = "lava",
 		Floor = { 70, 45, 40 }, FloorMaterial = "Basalt", Accent = { 255, 90, 20 }, Path = { 120, 60, 40 },
 		Egg = "Lava",
 		Gyatts = {
-			{ Id = "Magma", DisplayName = "Magma Gyatt", MaxHealth = 5000000, Size = 11, Color = { 255, 100, 40 }, RewardMultiplier = 60, Gems = 4, Accessories = { "horns" } },
-			{ Id = "Inferno", DisplayName = "Inferno Gyatt", MaxHealth = 25000000, Size = 17, Color = { 200, 30, 20 }, RewardMultiplier = 120, Gems = 8, Accessories = { "horns", "crown" } },
+			{ Id = "Magma", DisplayName = "Magma Blob", MaxHealth = 5000000, Size = 11, Color = { 255, 100, 40 }, RewardMultiplier = 60, Gems = 4, Accessories = { "horns" } },
+			{ Id = "Inferno", DisplayName = "Inferno Blob", MaxHealth = 25000000, Size = 17, Color = { 200, 30, 20 }, RewardMultiplier = 120, Gems = 8, Accessories = { "horns", "crown" } },
 		},
 	},
 	{
-		Name = "Gyatt Cloud Heaven", Price = 750000000, Decor = "cloud",
+		Name = "Blob Cloud Heaven", Price = 750000000, Decor = "cloud",
 		Floor = { 245, 245, 255 }, FloorMaterial = "SmoothPlastic", Accent = { 255, 220, 120 }, Path = { 255, 235, 170 },
 		Egg = "Cloud",
 		Gyatts = {
-			{ Id = "Angel", DisplayName = "Angel Gyatt", MaxHealth = 150000000, Size = 12, Color = { 255, 250, 235 }, RewardMultiplier = 250, Gems = 5, Accessories = { "halo" } },
-			{ Id = "Heaven", DisplayName = "Heaven Gyatt", MaxHealth = 750000000, Size = 18, Color = { 255, 225, 150 }, RewardMultiplier = 500, Gems = 10, Accessories = { "halo", "crown" } },
+			{ Id = "Angel", DisplayName = "Angel Blob", MaxHealth = 150000000, Size = 12, Color = { 255, 250, 235 }, RewardMultiplier = 250, Gems = 5, Accessories = { "halo" } },
+			{ Id = "Heaven", DisplayName = "Heaven Blob", MaxHealth = 750000000, Size = 18, Color = { 255, 225, 150 }, RewardMultiplier = 500, Gems = 10, Accessories = { "halo", "crown" } },
 		},
 	},
 	{
-		Name = "Gyatt Galaxy", Price = 50000000000, Decor = "space",
+		Name = "Blob Galaxy", Price = 50000000000, Decor = "space",
 		Floor = { 35, 25, 70 }, FloorMaterial = "SmoothPlastic", Accent = { 160, 90, 255 }, Path = { 80, 60, 140 },
 		Egg = "Galaxy",
 		Gyatts = {
-			{ Id = "Alien", DisplayName = "Alien Gyatt", MaxHealth = 5000000000, Size = 14, Color = { 130, 255, 140 }, RewardMultiplier = 1000, Gems = 6, Accessories = { "antenna" } },
-			{ Id = "God", DisplayName = "GYATT GOD", MaxHealth = 25000000000, Size = 24, Color = { 90, 230, 255 }, RewardMultiplier = 2000, Gems = 15, Accessories = { "halo", "crown", "glasses" } },
+			{ Id = "Alien", DisplayName = "Alien Blob", MaxHealth = 5000000000, Size = 14, Color = { 130, 255, 140 }, RewardMultiplier = 1000, Gems = 6, Accessories = { "antenna" } },
+			{ Id = "God", DisplayName = "BLOB GOD", MaxHealth = 25000000000, Size = 24, Color = { 90, 230, 255 }, RewardMultiplier = 2000, Gems = 15, Accessories = { "halo", "crown", "glasses" } },
 		},
 	},
 }
 
 -- Goldener Gyatt (Server-Event)
 Config.GoldenGyatt = {
-	DisplayName = "⭐ GOLDEN GYATT ⭐",
+	DisplayName = "⭐ GOLDEN BLOB ⭐",
 	MinInterval = 240,
 	MaxInterval = 420,
 	Duration = 90,
@@ -295,7 +295,7 @@ Config.GoldenGyatt = {
 -- Gem-Shop
 --------------------------------------------------------------------------
 Config.GemShop = {
-	{ Id = "AutoSlap", DisplayName = "Auto-Slap", Icon = "🤖", Description = "Slaps automatically when you are close to a Gyatt.", Prices = { 200 } },
+	{ Id = "AutoSlap", DisplayName = "Auto-Slap", Icon = "🤖", Description = "Slaps automatically when you are close to a Blob.", Prices = { 200 } },
 	{ Id = "PetSlot", DisplayName = "+1 Pet Slot", Icon = "🐾", Description = "Equip one more pet at the same time.", Prices = { 150, 400, 900 } },
 	{ Id = "Inventory", DisplayName = "+20 Pet Storage", Icon = "🎒", Description = "More room for your pets.", Prices = { 80, 200, 450 } },
 	{ Id = "DoubleSlaps", DisplayName = "2x Slaps (15 min)", Icon = "⏫", Description = "Double Slaps for 15 minutes.", Prices = { 60 }, Boost = "DoubleSlaps", Duration = 900, Repeatable = true },
@@ -332,7 +332,7 @@ Config.DailyRewards = {
 Config.QuestsPerDay = 3
 Config.QuestPool = {
 	{ Id = "Slap", Stat = "Slaps", Text = "Slap %s times", Amounts = { 150, 400, 800 }, Gems = { 10, 20, 35 } },
-	{ Id = "Defeat", Stat = "Defeats", Text = "Defeat %s Gyatts", Amounts = { 3, 8, 15 }, Gems = { 12, 25, 40 } },
+	{ Id = "Defeat", Stat = "Defeats", Text = "Defeat %s Blobs", Amounts = { 3, 8, 15 }, Gems = { 12, 25, 40 } },
 	{ Id = "Combo", Stat = "BestCombo", Text = "Reach a %s combo", Amounts = { 20, 50, 100 }, Gems = { 10, 20, 40 } },
 	{ Id = "Eggs", Stat = "Eggs", Text = "Hatch %s eggs", Amounts = { 2, 5, 10 }, Gems = { 10, 20, 35 } },
 	{ Id = "Upgrades", Stat = "Upgrades", Text = "Buy %s upgrades", Amounts = { 3, 8, 15 }, Gems = { 8, 18, 30 } },
@@ -344,7 +344,7 @@ Config.QuestPool = {
 -- Codes (Gross-/Kleinschreibung egal)
 --------------------------------------------------------------------------
 Config.Codes = {
-	GYATT = { Gems = 50 },
+	BLOB = { Gems = 50 },
 	SLAP = { Gems = 25, Boost = "DoubleSlaps", Duration = 600 },
 	RELEASE = { Gems = 100 },
 	BIGHAND = { Boost = "DoubleDamage", Duration = 900 },

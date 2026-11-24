@@ -1,7 +1,7 @@
 --[[
 	SlapServer (Script in ServerScriptService)
 
-	Startet alle Server-Module von "Slap the Gyatt" und verbindet sie.
+	Startet alle Server-Module von "Slap the Blob" und verbindet sie.
 	Die einzelnen Systeme liegen als ModuleScripts unter diesem Skript.
 ]]
 
@@ -90,7 +90,7 @@ Remotes.Events.Request.OnServerEvent:Connect(function(player, action, a, b)
 	end
 	local ok, err = pcall(handler, player, a, b)
 	if not ok then
-		warn("[SlapTheGyatt] Error in action '" .. action .. "': " .. tostring(err))
+		warn("[SlapTheBlob] Error in action '" .. action .. "': " .. tostring(err))
 	end
 end)
 
@@ -143,9 +143,9 @@ local function onPlayerAdded(player)
 	Pets.UpdateAttribute(player)
 	Data.Push(player, true)
 	Gyatts.SendEventState(player)
-	Remotes.Notify(player, "👋 Welcome to " .. Config.GameName .. "! Slap the Gyatts and become the strongest!", { 255, 170, 220 })
+	Remotes.Notify(player, "👋 Welcome to " .. Config.GameName .. "! Slap the Blobs and become the strongest!", { 255, 170, 220 })
 	if data.TotalSlaps == 0 then
-		Remotes.Popup(player, "WELCOME!", "Walk to the Baby Gyatt and click to slap it!", { 255, 170, 220 })
+		Remotes.Popup(player, "WELCOME!", "Walk to the Baby Blob and click to slap it!", { 255, 170, 220 })
 	end
 end
 
@@ -168,4 +168,4 @@ game:BindToClose(function()
 	Data.SaveAllBlocking()
 end)
 
-print("[SlapTheGyatt] Server v" .. Config.Version .. " started - have fun slapping!")
+print("[SlapTheBlob] Server v" .. Config.Version .. " started - have fun slapping!")

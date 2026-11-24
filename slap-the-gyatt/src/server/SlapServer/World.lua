@@ -498,20 +498,12 @@ local function buildHub()
 	water.Transparency = 0.25
 	water.CanCollide = false
 	pillar(hub, Vector3.new(fx, FLOOR, fz), 5, 2, Color3.fromRGB(230, 230, 240), Enum.Material.Marble)
-	-- Mini-Gyatt-Statue (zwei Backen + Hosenbund)
-	local statue = ball(hub, Vector3.new(fx - 1.3, FLOOR + 7.4, fz), 3.6, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
-	ball(hub, Vector3.new(fx + 1.3, FLOOR + 7.4, fz), 3.6, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
-	local statueBand = part({
-		Name = "StatueBand",
-		Size = Vector3.new(6.2, 0.7, 3.6),
-		CFrame = CFrame.new(fx, FLOOR + 9.1, fz + 0.2),
-		Color = Color3.fromRGB(255, 255, 255),
-		Material = Enum.Material.Marble,
-		Parent = hub,
-	})
-	local statueMesh = Instance.new("SpecialMesh")
-	statueMesh.MeshType = Enum.MeshType.Sphere
-	statueMesh.Parent = statueBand
+	-- Mini-Blob-Statue mit Gesicht
+	local statue = ball(hub, Vector3.new(fx, FLOOR + 7.5, fz), 5, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
+	local face = Instance.new("Decal")
+	face.Texture = "rbxasset://textures/face.png"
+	face.Face = Enum.NormalId.Front
+	face.Parent = statue
 	local sparkle = Instance.new("Sparkles")
 	sparkle.SparkleColor = Color3.fromRGB(255, 200, 230)
 	sparkle.Parent = statue
@@ -526,11 +518,11 @@ local function buildHub()
 
 	-- Schilder
 	sign(hub, CFrame.new(-8, FLOOR + 8, -12) * CFrame.Angles(0, math.rad(-20), 0), Vector3.new(16, 7, 0.8),
-		"👋 SLAP THE GYATT 👋\nClick the Gyatts with your hand!", Color3.fromRGB(255, 170, 220), nil, Enum.NormalId.Front)
+		"👋 SLAP THE BLOB 👋\nClick the Blobs with your hand!", Color3.fromRGB(255, 170, 220), nil, Enum.NormalId.Front)
 	pillar(hub, Vector3.new(-8, FLOOR, -12), 4.5, 0.8, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
 
 	sign(hub, CFrame.new(28, FLOOR + 7, -12) * CFrame.Angles(0, math.rad(20), 0), Vector3.new(16, 9, 0.8),
-		"📖 HOW TO PLAY\n1. Slap Gyatts = Slaps\n2. Upgrade your hand in the Shop\n3. New zones & eggs\n4. Rebirth for a mega bonus!",
+		"📖 HOW TO PLAY\n1. Slap Blobs = Slaps\n2. Upgrade your hand in the Shop\n3. New zones & eggs\n4. Rebirth for a mega bonus!",
 		Color3.fromRGB(255, 255, 255), Color3.fromRGB(70, 40, 90), Enum.NormalId.Front)
 	pillar(hub, Vector3.new(28, FLOOR, -12), 2.6, 0.8, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
 
@@ -804,7 +796,7 @@ local function buildZone(index, zone)
 		eggStand("Golden", Vector3.new(42, FLOOR, startZ + 56))
 	end
 	if egg == nil then
-		warn("[SlapTheGyatt] Zone " .. index .. " has no valid egg")
+		warn("[SlapTheBlob] Zone " .. index .. " has no valid egg")
 	end
 
 	-- Deko
@@ -1035,23 +1027,30 @@ local function buildBackground()
 	end
 	ground("BackGround", Vector3.new(Config.ZoneWidth + outer * 2, 2, outer), Vector3.new(0, FLOOR - 1.2, -Config.HubLength - outer / 2), hubColor, Enum.Material.Grass)
 
-	-- Riesige Gyatt-Statue hinter dem Hub ("Mount Gyatt")
+	-- Riesige Blob-Statue hinter dem Hub ("Mount Blob"), schaut zum Spawn (+Z)
 	local mx, mz = 0, -Config.HubLength - 120
 	local pink = Color3.fromRGB(255, 160, 200)
+	local my = FLOOR + 42
+	local giant = ball(bg, Vector3.new(mx, my, mz), 84, pink, Enum.Material.Marble)
+	giant.CastShadow = false
+	local white = Color3.fromRGB(255, 255, 255)
+	local black = Color3.fromRGB(30, 20, 35)
 	for _, side in ipairs({ -1, 1 }) do
-		local cheek = ball(bg, Vector3.new(mx + side * 26, FLOOR + 38, mz), 66, pink, Enum.Material.Marble)
-		cheek.CastShadow = false
+		local eye = ball(bg, Vector3.new(mx + side * 14, my + 10, mz + 36), 22, white, Enum.Material.SmoothPlastic)
+		eye.CastShadow = false
+		local pupil = ball(bg, Vector3.new(mx + side * 14, my + 10, mz + 45), 11, black, Enum.Material.SmoothPlastic)
+		pupil.CastShadow = false
+		local blush = ball(bg, Vector3.new(mx + side * 25, my - 4, mz + 33), 12, Color3.fromRGB(255, 110, 150), Enum.Material.SmoothPlastic)
+		blush.CastShadow = false
+		local foot = ball(bg, Vector3.new(mx + side * 20, FLOOR + 3, mz + 8), 26, Color3.fromRGB(220, 120, 160), Enum.Material.Marble)
+		foot.CastShadow = false
 	end
-	local band = part({ Name = "MountGyattBand", Size = Vector3.new(118, 12, 70), CFrame = CFrame.new(mx, FLOOR + 68, mz + 4), Color = Color3.fromRGB(255, 255, 255), Material = Enum.Material.Marble, Parent = bg })
-	band.CastShadow = false
-	local bandMesh = Instance.new("SpecialMesh")
-	bandMesh.MeshType = Enum.MeshType.Sphere
-	bandMesh.Parent = band
-	local monumentSign = sign(bg, CFrame.new(mx, FLOOR + 68, mz - 34), Vector3.new(60, 10, 1), "MOUNT GYATT", Color3.fromRGB(255, 80, 160), Color3.fromRGB(255, 255, 255), Enum.NormalId.Back)
+	local mouth = part({ Name = "MountBlobMouth", Size = Vector3.new(18, 3, 2), CFrame = CFrame.new(mx, my - 8, mz + 41), Color = black, Parent = bg })
+	mouth.CastShadow = false
+	local crownBase = pillar(bg, Vector3.new(mx, my + 38, mz), 6, 30, Color3.fromRGB(255, 200, 40), Enum.Material.Foil)
+	crownBase.CastShadow = false
+	local monumentSign = sign(bg, CFrame.new(mx, FLOOR + 92, mz + 2), Vector3.new(60, 10, 1), "MOUNT BLOB", Color3.fromRGB(255, 80, 160), Color3.fromRGB(255, 255, 255), Enum.NormalId.Back)
 	monumentSign.CastShadow = false
-	for _, side in ipairs({ -1, 1 }) do
-		pillar(bg, Vector3.new(mx + side * 24, FLOOR - 1, mz + 4), 10, 18, Color3.fromRGB(255, 205, 170), Enum.Material.SmoothPlastic).CastShadow = false
-	end
 	for _ = 1, 8 do
 		backdropMountain(bg, "mountain", Vector3.new(rng:NextNumber(-260, 260), FLOOR - 1, -Config.HubLength - rng:NextNumber(170, 320)), rng, BACKDROPS.meadow)
 	end

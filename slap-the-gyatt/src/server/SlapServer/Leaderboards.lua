@@ -153,7 +153,7 @@ function Leaderboards.Start()
 		while true do
 			local ok, err = pcall(Leaderboards.Refresh)
 			if not ok then
-				warn("[SlapTheGyatt] Leaderboard: " .. tostring(err))
+				warn("[SlapTheBlob] Leaderboard: " .. tostring(err))
 			end
 			task.wait(Config.LeaderboardRefresh)
 		end

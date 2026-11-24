@@ -483,15 +483,15 @@ return Calc
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000002"><Properties><string name="Name">Config</string><ProtectedString name="Source"><![CDATA[--[[
 	SlapShared/Config  (ModuleScript)
 
-	ALLE Spielwerte von "Slap the Gyatt" an einem Ort.
+	ALLE Spielwerte von "Slap the Blob" an einem Ort.
 	Keine Roblox-APIs hier drin -> funktioniert auf Server und Client gleich.
 	Farben sind { R, G, B } Tabellen (0-255).
 ]]
 
 local Config = {}
 
-Config.GameName = "Slap the Gyatt"
-Config.Version = "2.2"
+Config.GameName = "Slap the Blob"
+Config.Version = "3.0"
 
 --------------------------------------------------------------------------
 -- Speichern
@@ -547,7 +547,7 @@ Config.Upgrades = {
 	Reach = {
 		DisplayName = "Reach",
 		Icon = "📏",
-		Description = "Hit the Gyatt from farther away.",
+		Description = "Hit the Blob from farther away.",
 		MaxLevel = 20,
 		BaseCost = 60,
 		CostGrowth = 1.6,
@@ -594,7 +594,7 @@ Config.Hands = {
 	{ Id = "Cloud", DisplayName = "Cloud Hand", Rarity = "Legendary", Damage = 27, Price = 20000000000, Currency = "Slaps", Color = { 250, 250, 255 }, Material = "SmoothPlastic", Effect = "sparkles" },
 	{ Id = "Galaxy", DisplayName = "Galaxy Hand", Rarity = "Legendary", Damage = 40, Price = 400000000000, Currency = "Slaps", Color = { 120, 50, 220 }, Material = "Neon", Effect = "sparkles" },
 	{ Id = "Rainbow", DisplayName = "Rainbow Hand", Rarity = "Legendary", Damage = 60, Price = 8000000000000, Currency = "Slaps", Color = { 255, 80, 200 }, Material = "Neon", Effect = "rainbow" },
-	{ Id = "GyattGod", DisplayName = "Gyatt God Hand", Rarity = "Legendary", Damage = 100, Price = 2500, Currency = "Gems", Color = { 255, 235, 120 }, Material = "Neon", Effect = "fire",
+	{ Id = "GyattGod", DisplayName = "Blob God Hand", Rarity = "Legendary", Damage = 100, Price = 2500, Currency = "Gems", Color = { 255, 235, 120 }, Material = "Neon", Effect = "fire",
 		SlapMultiplier = 1.25 },
 	{ Id = "DragonClaw", DisplayName = "Dragon Claw", Rarity = "Mythic", Damage = 180, Price = 6000, Currency = "Gems", Color = { 200, 30, 40 }, Material = "Neon", Effect = "dragon",
 		SlapMultiplier = 1.5, CritBonus = 0.05 },
@@ -604,10 +604,10 @@ Config.Hands = {
 	--   2. Preis einstellen (Thanos 299, Ultra God 1999) und "Item for Sale" anschalten
 	--   3. Die Pass-ID (Zahl in der Adresse) hier bei GamePassId eintragen
 	-- Solange GamePassId = 0 ist, kann man die Hand nur in Studio zum Testen kostenlos benutzen.
-	{ Id = "Thanos", DisplayName = "Thanos Gauntlet", Rarity = "Ultra", Damage = 500, Price = 299, Currency = "Robux", GamePassId = 0,
+	{ Id = "Thanos", DisplayName = "Titan Gauntlet", Rarity = "Ultra", Damage = 500, Price = 299, Currency = "Robux", GamePassId = 0,
 		Color = { 220, 170, 40 }, Material = "Foil", Effect = "thanos",
 		SlapMultiplier = 3, CritBonus = 0.1, ReachBonus = 5, SpeedMultiplier = 0.8, Snap = 0.05,
-		Perk = "🫰 SNAP: 5% chance to erase a Gyatt instantly" },
+		Perk = "🫰 SNAP: 5% chance to erase a Blob instantly" },
 	{ Id = "UltraGod", DisplayName = "ULTRA GOD HAND", Rarity = "Ultra", Damage = 2500, Price = 1999, Currency = "Robux", GamePassId = 0,
 		Color = { 255, 250, 220 }, Material = "Neon", Effect = "ultragod",
 		SlapMultiplier = 10, CritBonus = 0.25, ReachBonus = 15, SpeedMultiplier = 0.5, Snap = 0.1,
@@ -662,7 +662,7 @@ Config.Pets = {
 	Alien = { DisplayName = "Alien", Rarity = "Common", Boost = 49, Color = { 120, 255, 120 }, Style = "alien" },
 	RoboDog = { DisplayName = "Robo Dog", Rarity = "Rare", Boost = 69, Color = { 170, 180, 200 }, Style = "robot" },
 	StarWhale = { DisplayName = "Star Whale", Rarity = "Epic", Boost = 119, Color = { 60, 80, 200 }, Style = "whale" },
-	GyattGodPet = { DisplayName = "Gyatt God", Rarity = "Mythic", Boost = 299, Color = { 255, 220, 90 }, Style = "ghost" },
+	GyattGodPet = { DisplayName = "Blob God", Rarity = "Mythic", Boost = 299, Color = { 255, 220, 90 }, Style = "ghost" },
 	-- Gem-Ei
 	GoldenDog = { DisplayName = "Golden Dog", Rarity = "Rare", Boost = 3, Color = { 255, 210, 50 }, Style = "dog" },
 	GoldenCat = { DisplayName = "Golden Cat", Rarity = "Epic", Boost = 9, Color = { 255, 200, 30 }, Style = "cat" },
@@ -705,64 +705,64 @@ Config.ZoneWidth = 120
 
 Config.Zones = {
 	{
-		Name = "Gyatt Meadow", Price = 0, Decor = "meadow",
+		Name = "Blob Meadow", Price = 0, Decor = "meadow",
 		Floor = { 105, 200, 105 }, FloorMaterial = "Grass", Accent = { 255, 120, 180 }, Path = { 230, 210, 160 },
 		Egg = "Basic",
 		Gyatts = {
-			{ Id = "Baby", DisplayName = "Baby Gyatt", MaxHealth = 40, Size = 7, Color = { 255, 175, 205 }, RewardMultiplier = 1, Gems = 1, Accessories = { "bow" } },
-			{ Id = "Big", DisplayName = "Big Gyatt", MaxHealth = 400, Size = 11, Color = { 255, 125, 165 }, RewardMultiplier = 2, Gems = 2, Accessories = { "bow", "glasses" } },
+			{ Id = "Baby", DisplayName = "Baby Blob", MaxHealth = 40, Size = 7, Color = { 255, 175, 205 }, RewardMultiplier = 1, Gems = 1, Accessories = { "bow" } },
+			{ Id = "Big", DisplayName = "Big Blob", MaxHealth = 400, Size = 11, Color = { 255, 125, 165 }, RewardMultiplier = 2, Gems = 2, Accessories = { "bow", "glasses" } },
 		},
 	},
 	{
-		Name = "Gyatt Desert", Price = 2500, Decor = "desert",
+		Name = "Blob Desert", Price = 2500, Decor = "desert",
 		Floor = { 235, 205, 140 }, FloorMaterial = "Sand", Accent = { 255, 170, 60 }, Path = { 200, 160, 100 },
 		Egg = "Desert",
 		Gyatts = {
-			{ Id = "Cactus", DisplayName = "Cactus Gyatt", MaxHealth = 4000, Size = 9, Color = { 120, 200, 90 }, RewardMultiplier = 4, Gems = 2, Accessories = { "cowboy" } },
-			{ Id = "Pharao", DisplayName = "Pharaoh Gyatt", MaxHealth = 20000, Size = 13, Color = { 240, 190, 70 }, RewardMultiplier = 8, Gems = 4, Accessories = { "crown", "glasses" } },
+			{ Id = "Cactus", DisplayName = "Cactus Blob", MaxHealth = 4000, Size = 9, Color = { 120, 200, 90 }, RewardMultiplier = 4, Gems = 2, Accessories = { "cowboy" } },
+			{ Id = "Pharao", DisplayName = "Pharaoh Blob", MaxHealth = 20000, Size = 13, Color = { 240, 190, 70 }, RewardMultiplier = 8, Gems = 4, Accessories = { "crown", "glasses" } },
 		},
 	},
 	{
-		Name = "Gyatt Ice Land", Price = 150000, Decor = "ice",
+		Name = "Blob Ice Land", Price = 150000, Decor = "ice",
 		Floor = { 225, 240, 255 }, FloorMaterial = "Snow", Accent = { 120, 200, 255 }, Path = { 170, 215, 245 },
 		Egg = "Ice",
 		Gyatts = {
-			{ Id = "Snow", DisplayName = "Snow Gyatt", MaxHealth = 150000, Size = 10, Color = { 240, 248, 255 }, RewardMultiplier = 15, Gems = 3, Accessories = { "scarf" } },
-			{ Id = "Frost", DisplayName = "Frost Gyatt", MaxHealth = 750000, Size = 15, Color = { 140, 210, 255 }, RewardMultiplier = 30, Gems = 6, Accessories = { "scarf", "crown" } },
+			{ Id = "Snow", DisplayName = "Snow Blob", MaxHealth = 150000, Size = 10, Color = { 240, 248, 255 }, RewardMultiplier = 15, Gems = 3, Accessories = { "scarf" } },
+			{ Id = "Frost", DisplayName = "Frost Blob", MaxHealth = 750000, Size = 15, Color = { 140, 210, 255 }, RewardMultiplier = 30, Gems = 6, Accessories = { "scarf", "crown" } },
 		},
 	},
 	{
-		Name = "Gyatt Volcano", Price = 10000000, Decor = "lava",
+		Name = "Blob Volcano", Price = 10000000, Decor = "lava",
 		Floor = { 70, 45, 40 }, FloorMaterial = "Basalt", Accent = { 255, 90, 20 }, Path = { 120, 60, 40 },
 		Egg = "Lava",
 		Gyatts = {
-			{ Id = "Magma", DisplayName = "Magma Gyatt", MaxHealth = 5000000, Size = 11, Color = { 255, 100, 40 }, RewardMultiplier = 60, Gems = 4, Accessories = { "horns" } },
-			{ Id = "Inferno", DisplayName = "Inferno Gyatt", MaxHealth = 25000000, Size = 17, Color = { 200, 30, 20 }, RewardMultiplier = 120, Gems = 8, Accessories = { "horns", "crown" } },
+			{ Id = "Magma", DisplayName = "Magma Blob", MaxHealth = 5000000, Size = 11, Color = { 255, 100, 40 }, RewardMultiplier = 60, Gems = 4, Accessories = { "horns" } },
+			{ Id = "Inferno", DisplayName = "Inferno Blob", MaxHealth = 25000000, Size = 17, Color = { 200, 30, 20 }, RewardMultiplier = 120, Gems = 8, Accessories = { "horns", "crown" } },
 		},
 	},
 	{
-		Name = "Gyatt Cloud Heaven", Price = 750000000, Decor = "cloud",
+		Name = "Blob Cloud Heaven", Price = 750000000, Decor = "cloud",
 		Floor = { 245, 245, 255 }, FloorMaterial = "SmoothPlastic", Accent = { 255, 220, 120 }, Path = { 255, 235, 170 },
 		Egg = "Cloud",
 		Gyatts = {
-			{ Id = "Angel", DisplayName = "Angel Gyatt", MaxHealth = 150000000, Size = 12, Color = { 255, 250, 235 }, RewardMultiplier = 250, Gems = 5, Accessories = { "halo" } },
-			{ Id = "Heaven", DisplayName = "Heaven Gyatt", MaxHealth = 750000000, Size = 18, Color = { 255, 225, 150 }, RewardMultiplier = 500, Gems = 10, Accessories = { "halo", "crown" } },
+			{ Id = "Angel", DisplayName = "Angel Blob", MaxHealth = 150000000, Size = 12, Color = { 255, 250, 235 }, RewardMultiplier = 250, Gems = 5, Accessories = { "halo" } },
+			{ Id = "Heaven", DisplayName = "Heaven Blob", MaxHealth = 750000000, Size = 18, Color = { 255, 225, 150 }, RewardMultiplier = 500, Gems = 10, Accessories = { "halo", "crown" } },
 		},
 	},
 	{
-		Name = "Gyatt Galaxy", Price = 50000000000, Decor = "space",
+		Name = "Blob Galaxy", Price = 50000000000, Decor = "space",
 		Floor = { 35, 25, 70 }, FloorMaterial = "SmoothPlastic", Accent = { 160, 90, 255 }, Path = { 80, 60, 140 },
 		Egg = "Galaxy",
 		Gyatts = {
-			{ Id = "Alien", DisplayName = "Alien Gyatt", MaxHealth = 5000000000, Size = 14, Color = { 130, 255, 140 }, RewardMultiplier = 1000, Gems = 6, Accessories = { "antenna" } },
-			{ Id = "God", DisplayName = "GYATT GOD", MaxHealth = 25000000000, Size = 24, Color = { 90, 230, 255 }, RewardMultiplier = 2000, Gems = 15, Accessories = { "halo", "crown", "glasses" } },
+			{ Id = "Alien", DisplayName = "Alien Blob", MaxHealth = 5000000000, Size = 14, Color = { 130, 255, 140 }, RewardMultiplier = 1000, Gems = 6, Accessories = { "antenna" } },
+			{ Id = "God", DisplayName = "BLOB GOD", MaxHealth = 25000000000, Size = 24, Color = { 90, 230, 255 }, RewardMultiplier = 2000, Gems = 15, Accessories = { "halo", "crown", "glasses" } },
 		},
 	},
 }
 
 -- Goldener Gyatt (Server-Event)
 Config.GoldenGyatt = {
-	DisplayName = "⭐ GOLDEN GYATT ⭐",
+	DisplayName = "⭐ GOLDEN BLOB ⭐",
 	MinInterval = 240,
 	MaxInterval = 420,
 	Duration = 90,
@@ -777,7 +777,7 @@ Config.GoldenGyatt = {
 -- Gem-Shop
 --------------------------------------------------------------------------
 Config.GemShop = {
-	{ Id = "AutoSlap", DisplayName = "Auto-Slap", Icon = "🤖", Description = "Slaps automatically when you are close to a Gyatt.", Prices = { 200 } },
+	{ Id = "AutoSlap", DisplayName = "Auto-Slap", Icon = "🤖", Description = "Slaps automatically when you are close to a Blob.", Prices = { 200 } },
 	{ Id = "PetSlot", DisplayName = "+1 Pet Slot", Icon = "🐾", Description = "Equip one more pet at the same time.", Prices = { 150, 400, 900 } },
 	{ Id = "Inventory", DisplayName = "+20 Pet Storage", Icon = "🎒", Description = "More room for your pets.", Prices = { 80, 200, 450 } },
 	{ Id = "DoubleSlaps", DisplayName = "2x Slaps (15 min)", Icon = "⏫", Description = "Double Slaps for 15 minutes.", Prices = { 60 }, Boost = "DoubleSlaps", Duration = 900, Repeatable = true },
@@ -814,7 +814,7 @@ Config.DailyRewards = {
 Config.QuestsPerDay = 3
 Config.QuestPool = {
 	{ Id = "Slap", Stat = "Slaps", Text = "Slap %s times", Amounts = { 150, 400, 800 }, Gems = { 10, 20, 35 } },
-	{ Id = "Defeat", Stat = "Defeats", Text = "Defeat %s Gyatts", Amounts = { 3, 8, 15 }, Gems = { 12, 25, 40 } },
+	{ Id = "Defeat", Stat = "Defeats", Text = "Defeat %s Blobs", Amounts = { 3, 8, 15 }, Gems = { 12, 25, 40 } },
 	{ Id = "Combo", Stat = "BestCombo", Text = "Reach a %s combo", Amounts = { 20, 50, 100 }, Gems = { 10, 20, 40 } },
 	{ Id = "Eggs", Stat = "Eggs", Text = "Hatch %s eggs", Amounts = { 2, 5, 10 }, Gems = { 10, 20, 35 } },
 	{ Id = "Upgrades", Stat = "Upgrades", Text = "Buy %s upgrades", Amounts = { 3, 8, 15 }, Gems = { 8, 18, 30 } },
@@ -826,7 +826,7 @@ Config.QuestPool = {
 -- Codes (Gross-/Kleinschreibung egal)
 --------------------------------------------------------------------------
 Config.Codes = {
-	GYATT = { Gems = 50 },
+	BLOB = { Gems = 50 },
 	SLAP = { Gems = 25, Boost = "DoubleSlaps", Duration = 600 },
 	RELEASE = { Gems = 100 },
 	BIGHAND = { Boost = "DoubleDamage", Duration = 900 },
@@ -854,7 +854,7 @@ return Config
 ]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000016"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000015"><Properties><string name="Name">SlapServer</string><ProtectedString name="Source"><![CDATA[--[[
 	SlapServer (Script in ServerScriptService)
 
-	Startet alle Server-Module von "Slap the Gyatt" und verbindet sie.
+	Startet alle Server-Module von "Slap the Blob" und verbindet sie.
 	Die einzelnen Systeme liegen als ModuleScripts unter diesem Skript.
 ]]
 
@@ -943,7 +943,7 @@ Remotes.Events.Request.OnServerEvent:Connect(function(player, action, a, b)
 	end
 	local ok, err = pcall(handler, player, a, b)
 	if not ok then
-		warn("[SlapTheGyatt] Error in action '" .. action .. "': " .. tostring(err))
+		warn("[SlapTheBlob] Error in action '" .. action .. "': " .. tostring(err))
 	end
 end)
 
@@ -996,9 +996,9 @@ local function onPlayerAdded(player)
 	Pets.UpdateAttribute(player)
 	Data.Push(player, true)
 	Gyatts.SendEventState(player)
-	Remotes.Notify(player, "👋 Welcome to " .. Config.GameName .. "! Slap the Gyatts and become the strongest!", { 255, 170, 220 })
+	Remotes.Notify(player, "👋 Welcome to " .. Config.GameName .. "! Slap the Blobs and become the strongest!", { 255, 170, 220 })
 	if data.TotalSlaps == 0 then
-		Remotes.Popup(player, "WELCOME!", "Walk to the Baby Gyatt and click to slap it!", { 255, 170, 220 })
+		Remotes.Popup(player, "WELCOME!", "Walk to the Baby Blob and click to slap it!", { 255, 170, 220 })
 	end
 end
 
@@ -1021,7 +1021,7 @@ game:BindToClose(function()
 	Data.SaveAllBlocking()
 end)
 
-print("[SlapTheGyatt] Server v" .. Config.Version .. " started - have fun slapping!")
+print("[SlapTheBlob] Server v" .. Config.Version .. " started - have fun slapping!")
 ]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000005"><Properties><string name="Name">Combat</string><ProtectedString name="Source"><![CDATA[--[[
 	Combat: jeder Slap wird hier auf dem Server geprueft und berechnet.
 	  * Cooldown, Reichweite, freigeschaltete Zone
@@ -1294,7 +1294,7 @@ do
 	if ok then
 		store = result
 	else
-		warn("[SlapTheGyatt] DataStore not available: " .. tostring(result))
+		warn("[SlapTheBlob] DataStore not available: " .. tostring(result))
 	end
 end
 
@@ -1498,7 +1498,7 @@ function Data.Load(player)
 		if ok then
 			return true, Data.Sanitize(result)
 		end
-		warn("[SlapTheGyatt] Load failed (" .. attempt .. "/" .. attempts .. "): " .. tostring(result))
+		warn("[SlapTheBlob] Load failed (" .. attempt .. "/" .. attempts .. "): " .. tostring(result))
 		if attempt < attempts then
 			task.wait(2)
 		end
@@ -1518,7 +1518,7 @@ function Data.Save(profile)
 		if ok then
 			return true
 		end
-		warn("[SlapTheGyatt] Save failed (" .. attempt .. "/3): " .. tostring(err))
+		warn("[SlapTheBlob] Save failed (" .. attempt .. "/3): " .. tostring(err))
 		if attempt < 3 then
 			task.wait(1)
 		end
@@ -1749,7 +1749,7 @@ end
 return Data
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000007"><Properties><string name="Name">Gyatts</string><ProtectedString name="Source"><![CDATA[--[[
 	Gyatts: baut die Gyatt-Modelle, verwaltet Leben, Besiegen, Respawn,
-	Belohnungen und das "Goldener Gyatt"-Event.
+	Belohnungen und das "Goldener Blob"-Event.
 
 	Animationen (Wackeln, Hinschauen, Gesicht) macht der Client.
 ]]
@@ -1799,13 +1799,17 @@ local function detail(model, name, size, cframe, color, mat, shape)
 end
 
 
+local function unit(x, y, z)
+	return Vector3.new(x, y, z).Unit
+end
+
 local function buildModel(spec)
 	local S = spec.Size
+	local r = S / 2
 	local base = spec.BaseCFrame -- Mitte des Koerpers, Vorderseite = -Z
 	local model = Instance.new("Model")
 	model.Name = "Gyatt_" .. spec.Key
 
-	-- Unsichtbarer Kern: Kollision, Pivot und Treffer-Ziel
 	local body = Instance.new("Part")
 	body.Name = "Body"
 	body.Shape = Enum.PartType.Ball
@@ -1813,137 +1817,121 @@ local function buildModel(spec)
 	body.CFrame = base
 	body.Anchored = true
 	body.CanCollide = true
-	body.Transparency = 1
+	body.Color = rgb(spec.Color)
+	body.Material = spec.Material or Enum.Material.SmoothPlastic
 	body.TopSurface = Enum.SurfaceType.Smooth
 	body.BottomSurface = Enum.SurfaceType.Smooth
 	body.Parent = model
 
-	local color = rgb(spec.Color)
-	local mat = spec.Material or Enum.Material.SmoothPlastic
-	local function darker(c, amount)
-		return Color3.new(math.clamp(c.R - amount, 0, 1), math.clamp(c.G - amount, 0, 1), math.clamp(c.B - amount, 0, 1))
+	local function onSurface(direction, extra)
+		return base * CFrame.new(direction * (r + (extra or 0)))
 	end
-	local function at(x, y, z)
-		return base * CFrame.new(x * S, y * S, z * S)
-	end
-	local function oval(name, size, cframe, c, m)
-		local p = detail(model, name, size, cframe, c, m)
-		local mesh = Instance.new("SpecialMesh")
-		mesh.MeshType = Enum.MeshType.Sphere
-		mesh.Parent = p
-		return p
+	local function facing(position, outward)
+		-- Teil, das von der Kugel nach aussen schaut
+		local worldPos = (base * CFrame.new(position)).Position
+		local worldOut = base:VectorToWorldSpace(outward)
+		return CFrame.lookAt(worldPos, worldPos + worldOut)
 	end
 
-	-- Die zwei runden Backen (Vorderseite -Z zeigt zum Spieler)
-	local cheekD = S * 0.64
-	local cheekX = 0.25
+	local black = Color3.fromRGB(25, 15, 25)
+	local white = Color3.fromRGB(255, 255, 255)
+
+	-- kleine Fuesse
 	for _, side in ipairs({ -1, 1 }) do
-		detail(model, side < 0 and "CheekLeft" or "CheekRight", Vector3.new(cheekD, cheekD, cheekD), at(side * cheekX, -0.02, 0), color, mat, Enum.PartType.Ball)
-		-- Glanzpunkt auf jeder Backe
-		local shine = detail(model, "Shine", Vector3.new(S * 0.1, S * 0.1, S * 0.1), at(side * cheekX - 0.08, 0.14, -0.27), Color3.fromRGB(255, 255, 255), Enum.Material.Neon, Enum.PartType.Ball)
-		shine.Transparency = 0.45
+		local foot = detail(model, "Foot", Vector3.new(S * 0.3, S * 0.15, S * 0.38),
+			base * CFrame.new(side * S * 0.22, -r * 0.97, -S * 0.05),
+			Color3.new(math.clamp(body.Color.R - 0.18, 0, 1), math.clamp(body.Color.G - 0.18, 0, 1), math.clamp(body.Color.B - 0.18, 0, 1)), body.Material)
+		local footMesh = Instance.new("SpecialMesh")
+		footMesh.MeshType = Enum.MeshType.Sphere
+		footMesh.Parent = foot
 	end
-	-- Huefte verbindet die Backen oben
-	oval("Hips", Vector3.new(S * 1.12, S * 0.5, S * 0.66), at(0, 0.2, 0.04), color, mat)
-	-- Naht der Shorts in der Mitte
-	detail(model, "Seam", Vector3.new(S * 0.035, S * 0.42, S * 0.04), at(0, -0.06, -0.165), darker(color, 0.25), mat)
 
-	-- Hosenbund mit "GYATT"-Etikett
-	local band = oval("Waistband", Vector3.new(S * 1.14, S * 0.14, S * 0.7), at(0, 0.38, 0.04), Color3.fromRGB(255, 255, 255), Enum.Material.Fabric)
-	local tag = detail(model, "Tag", Vector3.new(S * 0.42, S * 0.1, S * 0.03), at(0, 0.38, -0.31), Color3.fromRGB(255, 80, 160), Enum.Material.SmoothPlastic)
-	local tagGui = Instance.new("SurfaceGui")
-	tagGui.Face = Enum.NormalId.Front
-	tagGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	tagGui.PixelsPerStud = 40
-	tagGui.LightInfluence = 0
-	tagGui.Parent = tag
-	local tagText = Instance.new("TextLabel")
-	tagText.Size = UDim2.fromScale(1, 1)
-	tagText.BackgroundTransparency = 1
-	tagText.Font = Enum.Font.FredokaOne
-	tagText.TextScaled = true
-	tagText.TextColor3 = Color3.fromRGB(255, 255, 255)
-	tagText.Text = "GYATT"
-	tagText.Parent = tagGui
-
-	-- Beine und Turnschuhe
-	local skin = Color3.fromRGB(255, 205, 170)
+	-- Augen
 	for _, side in ipairs({ -1, 1 }) do
-		detail(model, "Leg", Vector3.new(S * 0.32, S * 0.19, S * 0.19), at(side * 0.24, -0.45, 0.05) * CFrame.Angles(0, 0, math.rad(90)), skin, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
-		detail(model, "Sock", Vector3.new(S * 0.06, S * 0.2, S * 0.2), at(side * 0.24, -0.57, 0.05) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(255, 255, 255), Enum.Material.Fabric, Enum.PartType.Cylinder)
-		oval("Shoe", Vector3.new(S * 0.26, S * 0.13, S * 0.36), at(side * 0.24, -0.6, -0.02), Color3.fromRGB(240, 60, 90), Enum.Material.SmoothPlastic)
-		detail(model, "Sole", Vector3.new(S * 0.25, S * 0.04, S * 0.34), at(side * 0.24, -0.645, -0.02), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic)
+		local dir = unit(side * 0.34, 0.24, -0.91)
+		detail(model, "EyeWhite", Vector3.new(S * 0.3, S * 0.3, S * 0.3), onSurface(dir, -S * 0.08), white, Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+		detail(model, "Pupil", Vector3.new(S * 0.15, S * 0.15, S * 0.15), onSurface(dir, S * 0.02), black, Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+		detail(model, "Shine", Vector3.new(S * 0.05, S * 0.05, S * 0.05), onSurface(unit(side * 0.34 + 0.05, 0.3, -0.9), S * 0.07), white, Enum.Material.Neon, Enum.PartType.Ball)
+		-- Augenbraue
+		local browDir = unit(side * 0.33, 0.5, -0.8)
+		detail(model, "Brow", Vector3.new(S * 0.22, S * 0.045, S * 0.05),
+			facing(browDir * (r + S * 0.01), browDir) * CFrame.Angles(0, 0, math.rad(side * -12)), black)
+		-- Baeckchen
+		local blush = detail(model, "Blush", Vector3.new(S * 0.13, S * 0.13, S * 0.13), onSurface(unit(side * 0.55, -0.05, -0.83), -S * 0.045),
+			Color3.fromRGB(255, 110, 150), Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+		blush.Transparency = 0.25
 	end
+
+	-- Mund: Laecheln (3 Teile) und "O" (versteckt, Client zeigt es beim Treffer)
+	for i = -1, 1 do
+		local dir = unit(i * 0.13, -0.27 + math.abs(i) * 0.05, -0.95)
+		detail(model, "MouthSmile", Vector3.new(S * 0.11, S * 0.045, S * 0.05),
+			facing(dir * (r + S * 0.005), dir) * CFrame.Angles(0, 0, math.rad(i * 25)), black)
+	end
+	local mouthO = detail(model, "MouthO", Vector3.new(S * 0.16, S * 0.16, S * 0.16), onSurface(unit(0, -0.28, -0.96), -S * 0.06),
+		Color3.fromRGB(120, 20, 50), Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+	mouthO.Transparency = 1
 
 	-- Accessoires
 	local accessories = {}
 	for _, a in ipairs(spec.Accessories or {}) do
 		accessories[a] = true
 	end
-	local topY = 0.46
 
 	if accessories.bow then
 		local pink = Color3.fromRGB(255, 80, 150)
-		local c = at(0.38, topY, -0.12)
+		local c = onSurface(unit(0.45, 0.85, 0), -S * 0.02)
 		detail(model, "BowCenter", Vector3.new(S * 0.1, S * 0.1, S * 0.1), c, pink, nil, Enum.PartType.Ball)
 		detail(model, "BowLeft", Vector3.new(S * 0.16, S * 0.16, S * 0.16), c * CFrame.new(-S * 0.1, S * 0.03, 0), pink, nil, Enum.PartType.Ball)
 		detail(model, "BowRight", Vector3.new(S * 0.16, S * 0.16, S * 0.16), c * CFrame.new(S * 0.1, -S * 0.03, 0), pink, nil, Enum.PartType.Ball)
 	end
 
 	if accessories.glasses then
-		-- Herz-Aufdruck auf beiden Backen
 		for _, side in ipairs({ -1, 1 }) do
-			local heartColor = Color3.fromRGB(255, 70, 140)
-			local center = at(side * (cheekX + 0.02), -0.02, -0.315)
-			detail(model, "HeartTop", Vector3.new(S * 0.09, S * 0.09, S * 0.05), center * CFrame.new(-S * 0.035, S * 0.025, 0), heartColor, Enum.Material.Neon, Enum.PartType.Ball)
-			detail(model, "HeartTop", Vector3.new(S * 0.09, S * 0.09, S * 0.05), center * CFrame.new(S * 0.035, S * 0.025, 0), heartColor, Enum.Material.Neon, Enum.PartType.Ball)
-			detail(model, "HeartTip", Vector3.new(S * 0.075, S * 0.075, S * 0.03), center * CFrame.new(0, -S * 0.02, 0) * CFrame.Angles(0, 0, math.rad(45)), heartColor, Enum.Material.Neon)
+			local dir = unit(side * 0.34, 0.24, -0.91)
+			local lens = detail(model, "Lens", Vector3.new(S * 0.3, S * 0.2, S * 0.04), facing(dir * (r + S * 0.09), dir), Color3.fromRGB(20, 20, 30), Enum.Material.Glass)
+			lens.Transparency = 0.1
 		end
+		local bridgeDir = unit(0, 0.26, -0.96)
+		detail(model, "Bridge", Vector3.new(S * 0.14, S * 0.03, S * 0.03), facing(bridgeDir * (r + S * 0.06), bridgeDir), Color3.fromRGB(20, 20, 30))
 	end
 
 	if accessories.cowboy then
 		local brown = Color3.fromRGB(140, 90, 50)
-		local top = at(0, topY + 0.02, 0.04)
+		local top = base * CFrame.new(0, r * 0.92, 0)
 		detail(model, "HatBrim", Vector3.new(S * 0.04, S * 0.95, S * 0.95), top * CFrame.Angles(0, 0, math.rad(90)), brown, Enum.Material.Fabric, Enum.PartType.Cylinder)
 		detail(model, "HatTop", Vector3.new(S * 0.3, S * 0.5, S * 0.5), top * CFrame.new(0, S * 0.15, 0) * CFrame.Angles(0, 0, math.rad(90)), brown, Enum.Material.Fabric, Enum.PartType.Cylinder)
 		detail(model, "HatBand", Vector3.new(S * 0.06, S * 0.52, S * 0.52), top * CFrame.new(0, S * 0.04, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(200, 40, 40), Enum.Material.Fabric, Enum.PartType.Cylinder)
 	end
 
 	if accessories.scarf then
-		-- Winter-Look: Strickbund rot statt weiss, mit Bommeln
-		band.Color = Color3.fromRGB(220, 40, 60)
-		for _, side in ipairs({ -1, 1 }) do
-			detail(model, "Pompom", Vector3.new(S * 0.13, S * 0.13, S * 0.13), at(side * 0.5, 0.38, -0.12), Color3.fromRGB(255, 255, 255), Enum.Material.Fabric, Enum.PartType.Ball)
+		local red = Color3.fromRGB(220, 40, 60)
+		for i = 0, 15 do
+			local angle = (i / 16) * math.pi * 2
+			local dir = Vector3.new(math.cos(angle) * 0.86, -0.5, math.sin(angle) * 0.86)
+			detail(model, "Scarf", Vector3.new(S * 0.17, S * 0.17, S * 0.17), base * CFrame.new(dir * r), (i % 2 == 0) and red or Color3.fromRGB(255, 255, 255), Enum.Material.Fabric, Enum.PartType.Ball)
 		end
 	end
 
 	if accessories.horns then
 		for _, side in ipairs({ -1, 1 }) do
-			local hornBase = at(side * 0.35, topY, 0.04)
+			local hornBase = onSurface(unit(side * 0.5, 0.82, 0), -S * 0.05)
 			detail(model, "Horn", Vector3.new(S * 0.12, S * 0.32, S * 0.12), hornBase * CFrame.Angles(0, 0, math.rad(side * -25)) * CFrame.new(0, S * 0.12, 0), Color3.fromRGB(60, 20, 20), Enum.Material.Basalt)
 			detail(model, "HornTip", Vector3.new(S * 0.08, S * 0.12, S * 0.08), hornBase * CFrame.Angles(0, 0, math.rad(side * -25)) * CFrame.new(0, S * 0.32, 0), Color3.fromRGB(255, 120, 20), Enum.Material.Neon)
 		end
-		-- kleiner Teufelsschwanz
-		detail(model, "Tail", Vector3.new(S * 0.05, S * 0.05, S * 0.3), at(0, 0.3, 0.42) * CFrame.Angles(math.rad(-30), 0, 0), Color3.fromRGB(200, 30, 30))
-		detail(model, "TailTip", Vector3.new(S * 0.1, S * 0.1, S * 0.1), at(0, 0.38, 0.55), Color3.fromRGB(200, 30, 30), nil, Enum.PartType.Ball)
 	end
 
 	if accessories.halo then
 		local gold = Color3.fromRGB(255, 230, 100)
 		for i = 0, 17 do
 			local angle = (i / 18) * math.pi * 2
-			detail(model, "Halo", Vector3.new(S * 0.08, S * 0.08, S * 0.08), base * CFrame.new(math.cos(angle) * S * 0.3, S * 0.78, S * 0.04 + math.sin(angle) * S * 0.3), gold, Enum.Material.Neon, Enum.PartType.Ball)
-		end
-		-- Engelsfluegel
-		for _, side in ipairs({ -1, 1 }) do
-			local wing = oval("Wing", Vector3.new(S * 0.55, S * 0.35, S * 0.08), at(side * 0.62, 0.3, 0.2) * CFrame.Angles(0, math.rad(side * 25), math.rad(side * -20)), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic)
-			wing.Transparency = 0.1
+			detail(model, "Halo", Vector3.new(S * 0.08, S * 0.08, S * 0.08), base * CFrame.new(math.cos(angle) * r * 0.55, r * 1.3, math.sin(angle) * r * 0.55), gold, Enum.Material.Neon, Enum.PartType.Ball)
 		end
 	end
 
 	if accessories.antenna then
 		for _, side in ipairs({ -1, 1 }) do
-			local start = at(side * 0.3, topY, 0.04)
+			local start = base * CFrame.new(side * r * 0.35, r * 0.88, 0)
 			detail(model, "AntennaStick", Vector3.new(S * 0.04, S * 0.4, S * 0.04), start * CFrame.Angles(0, 0, math.rad(side * -20)) * CFrame.new(0, S * 0.18, 0), Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
 			detail(model, "AntennaBall", Vector3.new(S * 0.12, S * 0.12, S * 0.12), start * CFrame.Angles(0, 0, math.rad(side * -20)) * CFrame.new(0, S * 0.4, 0), Color3.fromRGB(120, 255, 120), Enum.Material.Neon, Enum.PartType.Ball)
 		end
@@ -1951,7 +1939,7 @@ local function buildModel(spec)
 
 	if accessories.crown then
 		local gold = Color3.fromRGB(255, 200, 40)
-		local top = at(0, accessories.cowboy and topY + 0.32 or topY + 0.06, 0.04)
+		local top = base * CFrame.new(0, r * (accessories.cowboy and 1.25 or 0.9), 0)
 		detail(model, "CrownBase", Vector3.new(S * 0.14, S * 0.45, S * 0.45), top * CFrame.Angles(0, 0, math.rad(90)), gold, Enum.Material.Foil, Enum.PartType.Cylinder)
 		for i = 0, 4 do
 			local angle = (i / 5) * math.pi * 2
@@ -1986,7 +1974,7 @@ local function buildModel(spec)
 	billboard.Name = "InfoGui"
 	billboard.Adornee = body
 	billboard.Size = UDim2.new(math.max(12, S * 1.3), 0, 4, 0)
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, S * 0.5 + 3.5, 0)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, r + 3.5, 0)
 	billboard.MaxDistance = 220
 	billboard.LightInfluence = 0
 	billboard.Parent = body
@@ -2117,7 +2105,7 @@ function Gyatts.BuildAll()
 				RewardMultiplier = cfg.RewardMultiplier,
 				DefeatBonus = math.floor(cfg.MaxHealth * cfg.RewardMultiplier * 0.25),
 				Gems = cfg.Gems,
-				BaseCFrame = CFrame.new(spot.Position + Vector3.new(0, 0.4 + cfg.Size * 0.66, 0)),
+				BaseCFrame = CFrame.new(spot.Position + Vector3.new(0, 0.4 + cfg.Size * 0.56, 0)),
 			})
 		end
 	end
@@ -2158,7 +2146,7 @@ local function rewardContributors(g, killer)
 	end
 	g.Contributors = {}
 	if g.IsGolden and killer then
-		ctx.Remotes.NotifyAll("⭐ " .. killer.DisplayName .. " defeated the GOLDEN GYATT! ⭐", { 255, 215, 0 })
+		ctx.Remotes.NotifyAll("⭐ " .. killer.DisplayName .. " defeated the GOLDEN BLOB! ⭐", { 255, 215, 0 })
 	end
 end
 
@@ -2233,7 +2221,7 @@ function Gyatts.EndGolden(defeated)
 	g.Model:Destroy()
 	ctx.Remotes.FireAll("Event", "GoldenEnd", defeated == true)
 	if not defeated then
-		ctx.Remotes.NotifyAll("⭐ The Golden Gyatt escaped... next time!", { 255, 200, 120 })
+		ctx.Remotes.NotifyAll("⭐ The Golden Blob escaped... next time!", { 255, 200, 120 })
 	end
 end
 
@@ -2263,7 +2251,7 @@ function Gyatts.SpawnGolden(zoneIndex)
 		DefeatBonus = math.floor(maxHealth * bigGyatt.RewardMultiplier * golden.RewardFactor * 0.25),
 		Gems = golden.Gems,
 		IsGolden = true,
-		BaseCFrame = CFrame.new(zoneInfo.GoldenSpot.Position + Vector3.new(0, 0.4 + golden.Size * 0.66, 0)),
+		BaseCFrame = CFrame.new(zoneInfo.GoldenSpot.Position + Vector3.new(0, 0.4 + golden.Size * 0.56, 0)),
 	})
 	local sparkles = Instance.new("Sparkles")
 	sparkles.SparkleColor = Color3.fromRGB(255, 230, 120)
@@ -2278,7 +2266,7 @@ function Gyatts.SpawnGolden(zoneIndex)
 	local endsAt = os.time() + golden.Duration
 	Gyatts.GoldenState = { Active = true, ZoneIndex = zoneIndex, EndsAt = endsAt }
 	ctx.Remotes.FireAll("Event", "GoldenStart", zoneIndex, endsAt)
-	ctx.Remotes.NotifyAll("⭐ A GOLDEN GYATT appeared in Zone " .. zoneIndex .. " (" .. zone.Name .. ")! ⭐", { 255, 215, 0 })
+	ctx.Remotes.NotifyAll("⭐ A GOLDEN BLOB appeared in Zone " .. zoneIndex .. " (" .. zone.Name .. ")! ⭐", { 255, 215, 0 })
 
 	task.delay(golden.Duration, function()
 		if Gyatts.Golden == g then
@@ -2785,7 +2773,7 @@ function Leaderboards.Start()
 		while true do
 			local ok, err = pcall(Leaderboards.Refresh)
 			if not ok then
-				warn("[SlapTheGyatt] Leaderboard: " .. tostring(err))
+				warn("[SlapTheBlob] Leaderboard: " .. tostring(err))
 			end
 			task.wait(Config.LeaderboardRefresh)
 		end
@@ -3355,7 +3343,7 @@ function Shop.BuyHand(player, handId)
 			MarketplaceService:PromptGamePassPurchase(player, passId)
 		end)
 		if not ok then
-			warn("[SlapTheGyatt] Game pass prompt failed: " .. tostring(err))
+			warn("[SlapTheBlob] Game pass prompt failed: " .. tostring(err))
 		end
 		return
 	end
@@ -3514,7 +3502,7 @@ function Shop.BuyGemItem(player, itemId)
 		data.GemShop[itemId] = owned + 1
 		if itemId == "AutoSlap" then
 			data.AutoSlapOn = true
-			ctx.Remotes.Popup(player, "AUTO-SLAP!", "Hold your hand and stand next to a Gyatt.", { 120, 220, 255 })
+			ctx.Remotes.Popup(player, "AUTO-SLAP!", "Hold your hand and stand next to a Blob.", { 120, 220, 255 })
 		else
 			ctx.Remotes.Notify(player, item.Icon .. " " .. item.DisplayName .. " bought!", GREEN)
 		end
@@ -4092,20 +4080,12 @@ local function buildHub()
 	water.Transparency = 0.25
 	water.CanCollide = false
 	pillar(hub, Vector3.new(fx, FLOOR, fz), 5, 2, Color3.fromRGB(230, 230, 240), Enum.Material.Marble)
-	-- Mini-Gyatt-Statue (zwei Backen + Hosenbund)
-	local statue = ball(hub, Vector3.new(fx - 1.3, FLOOR + 7.4, fz), 3.6, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
-	ball(hub, Vector3.new(fx + 1.3, FLOOR + 7.4, fz), 3.6, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
-	local statueBand = part({
-		Name = "StatueBand",
-		Size = Vector3.new(6.2, 0.7, 3.6),
-		CFrame = CFrame.new(fx, FLOOR + 9.1, fz + 0.2),
-		Color = Color3.fromRGB(255, 255, 255),
-		Material = Enum.Material.Marble,
-		Parent = hub,
-	})
-	local statueMesh = Instance.new("SpecialMesh")
-	statueMesh.MeshType = Enum.MeshType.Sphere
-	statueMesh.Parent = statueBand
+	-- Mini-Blob-Statue mit Gesicht
+	local statue = ball(hub, Vector3.new(fx, FLOOR + 7.5, fz), 5, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
+	local face = Instance.new("Decal")
+	face.Texture = "rbxasset://textures/face.png"
+	face.Face = Enum.NormalId.Front
+	face.Parent = statue
 	local sparkle = Instance.new("Sparkles")
 	sparkle.SparkleColor = Color3.fromRGB(255, 200, 230)
 	sparkle.Parent = statue
@@ -4120,11 +4100,11 @@ local function buildHub()
 
 	-- Schilder
 	sign(hub, CFrame.new(-8, FLOOR + 8, -12) * CFrame.Angles(0, math.rad(-20), 0), Vector3.new(16, 7, 0.8),
-		"👋 SLAP THE GYATT 👋\nClick the Gyatts with your hand!", Color3.fromRGB(255, 170, 220), nil, Enum.NormalId.Front)
+		"👋 SLAP THE BLOB 👋\nClick the Blobs with your hand!", Color3.fromRGB(255, 170, 220), nil, Enum.NormalId.Front)
 	pillar(hub, Vector3.new(-8, FLOOR, -12), 4.5, 0.8, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
 
 	sign(hub, CFrame.new(28, FLOOR + 7, -12) * CFrame.Angles(0, math.rad(20), 0), Vector3.new(16, 9, 0.8),
-		"📖 HOW TO PLAY\n1. Slap Gyatts = Slaps\n2. Upgrade your hand in the Shop\n3. New zones & eggs\n4. Rebirth for a mega bonus!",
+		"📖 HOW TO PLAY\n1. Slap Blobs = Slaps\n2. Upgrade your hand in the Shop\n3. New zones & eggs\n4. Rebirth for a mega bonus!",
 		Color3.fromRGB(255, 255, 255), Color3.fromRGB(70, 40, 90), Enum.NormalId.Front)
 	pillar(hub, Vector3.new(28, FLOOR, -12), 2.6, 0.8, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
 
@@ -4398,7 +4378,7 @@ local function buildZone(index, zone)
 		eggStand("Golden", Vector3.new(42, FLOOR, startZ + 56))
 	end
 	if egg == nil then
-		warn("[SlapTheGyatt] Zone " .. index .. " has no valid egg")
+		warn("[SlapTheBlob] Zone " .. index .. " has no valid egg")
 	end
 
 	-- Deko
@@ -4629,23 +4609,30 @@ local function buildBackground()
 	end
 	ground("BackGround", Vector3.new(Config.ZoneWidth + outer * 2, 2, outer), Vector3.new(0, FLOOR - 1.2, -Config.HubLength - outer / 2), hubColor, Enum.Material.Grass)
 
-	-- Riesige Gyatt-Statue hinter dem Hub ("Mount Gyatt")
+	-- Riesige Blob-Statue hinter dem Hub ("Mount Blob"), schaut zum Spawn (+Z)
 	local mx, mz = 0, -Config.HubLength - 120
 	local pink = Color3.fromRGB(255, 160, 200)
+	local my = FLOOR + 42
+	local giant = ball(bg, Vector3.new(mx, my, mz), 84, pink, Enum.Material.Marble)
+	giant.CastShadow = false
+	local white = Color3.fromRGB(255, 255, 255)
+	local black = Color3.fromRGB(30, 20, 35)
 	for _, side in ipairs({ -1, 1 }) do
-		local cheek = ball(bg, Vector3.new(mx + side * 26, FLOOR + 38, mz), 66, pink, Enum.Material.Marble)
-		cheek.CastShadow = false
+		local eye = ball(bg, Vector3.new(mx + side * 14, my + 10, mz + 36), 22, white, Enum.Material.SmoothPlastic)
+		eye.CastShadow = false
+		local pupil = ball(bg, Vector3.new(mx + side * 14, my + 10, mz + 45), 11, black, Enum.Material.SmoothPlastic)
+		pupil.CastShadow = false
+		local blush = ball(bg, Vector3.new(mx + side * 25, my - 4, mz + 33), 12, Color3.fromRGB(255, 110, 150), Enum.Material.SmoothPlastic)
+		blush.CastShadow = false
+		local foot = ball(bg, Vector3.new(mx + side * 20, FLOOR + 3, mz + 8), 26, Color3.fromRGB(220, 120, 160), Enum.Material.Marble)
+		foot.CastShadow = false
 	end
-	local band = part({ Name = "MountGyattBand", Size = Vector3.new(118, 12, 70), CFrame = CFrame.new(mx, FLOOR + 68, mz + 4), Color = Color3.fromRGB(255, 255, 255), Material = Enum.Material.Marble, Parent = bg })
-	band.CastShadow = false
-	local bandMesh = Instance.new("SpecialMesh")
-	bandMesh.MeshType = Enum.MeshType.Sphere
-	bandMesh.Parent = band
-	local monumentSign = sign(bg, CFrame.new(mx, FLOOR + 68, mz - 34), Vector3.new(60, 10, 1), "MOUNT GYATT", Color3.fromRGB(255, 80, 160), Color3.fromRGB(255, 255, 255), Enum.NormalId.Back)
+	local mouth = part({ Name = "MountBlobMouth", Size = Vector3.new(18, 3, 2), CFrame = CFrame.new(mx, my - 8, mz + 41), Color = black, Parent = bg })
+	mouth.CastShadow = false
+	local crownBase = pillar(bg, Vector3.new(mx, my + 38, mz), 6, 30, Color3.fromRGB(255, 200, 40), Enum.Material.Foil)
+	crownBase.CastShadow = false
+	local monumentSign = sign(bg, CFrame.new(mx, FLOOR + 92, mz + 2), Vector3.new(60, 10, 1), "MOUNT BLOB", Color3.fromRGB(255, 80, 160), Color3.fromRGB(255, 255, 255), Enum.NormalId.Back)
 	monumentSign.CastShadow = false
-	for _, side in ipairs({ -1, 1 }) do
-		pillar(bg, Vector3.new(mx + side * 24, FLOOR - 1, mz + 4), 10, 18, Color3.fromRGB(255, 205, 170), Enum.Material.SmoothPlastic).CastShadow = false
-	end
 	for _ = 1, 8 do
 		backdropMountain(bg, "mountain", Vector3.new(rng:NextNumber(-260, 260), FLOOR - 1, -Config.HubLength - rng:NextNumber(170, 320)), rng, BACKDROPS.meadow)
 	end
@@ -4716,7 +4703,7 @@ return World
 ]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000026"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX00000025"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000024"><Properties><string name="Name">SlapClient</string><ProtectedString name="Source"><![CDATA[--[[
 	SlapClient (LocalScript in StarterPlayer > StarterPlayerScripts)
 
-	Startet die komplette Client-Seite von "Slap the Gyatt":
+	Startet die komplette Client-Seite von "Slap the Blob":
 	Menues, HUD, Effekte, Pets, Welt-Animationen.
 ]]
 
@@ -4865,7 +4852,7 @@ remotes.State.OnClientEvent:Connect(function(payload)
 	for _, fn in ipairs(listeners) do
 		local ok, err = pcall(fn, ctx.State, payload.Full == true)
 		if not ok then
-			warn("[SlapTheGyatt] UI error: " .. tostring(err))
+			warn("[SlapTheBlob] UI error: " .. tostring(err))
 		end
 	end
 end)
@@ -5871,7 +5858,7 @@ function Hud.Init(context)
 				if remaining < 0 then
 					remaining = 0
 				end
-				eventLabel.Text = "⭐ GOLDEN GYATT in Zone " .. golden.ZoneIndex .. "!  " .. Calc.FormatTime(remaining)
+				eventLabel.Text = "⭐ GOLDEN BLOB in Zone " .. golden.ZoneIndex .. "!  " .. Calc.FormatTime(remaining)
 			end
 			if ctx.State then
 				refreshBoosts(ctx.State)
@@ -5989,7 +5976,7 @@ local function buildHands()
 	local win = UI.CreateWindow(ctx.Screen, "Hands", "Hands", "✋", Vector2.new(600, 490))
 	local list = UI.ScrollList(win.Content, {})
 	local rows = {}
-	local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow", dragon = "Dragon Fire", thanos = "Infinity Stones", ultragod = "Divine Aura" }
+	local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow", dragon = "Dragon Fire", thanos = "Cosmic Stones", ultragod = "Divine Aura" }
 	for order, hand in ipairs(Config.Hands) do
 		local rarity = Config.Rarities[hand.Rarity] or Config.Rarities.Common
 		local rarityColor = UI.rgb(rarity.Color)
@@ -6328,7 +6315,7 @@ local function buildGems()
 		rows[item.Id] = { Button = button, Desc = desc }
 	end
 	smallLabel({ Size = UDim2.new(1, -10, 0, 40), LayoutOrder = 100, TextWrapped = true, TextColor3 = UI.Colors.SubText,
-		Text = "💡 You get Gems from defeated Gyatts, quests, daily rewards, codes, rebirths and the Golden Gyatt!", Parent = list })
+		Text = "💡 You get Gems from defeated Blobs, quests, daily rewards, codes, rebirths and the Golden Blob!", Parent = list })
 
 	win.Refresh = function()
 		local s = state()
@@ -6557,7 +6544,7 @@ local function buildCodes()
 		end
 	end)
 	smallLabel({ Position = UDim2.new(0, 0, 0, 172), Size = UDim2.new(1, 0, 0, 40), TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, TextColor3 = UI.Colors.Gold,
-		Text = "💡 Tip: Try GYATT, SLAP or RELEASE!", Parent = win.Content })
+		Text = "💡 Tip: Try BLOB, SLAP or RELEASE!", Parent = win.Content })
 	return win
 end
 
@@ -6599,7 +6586,7 @@ local function buildSettings()
 		stats.Text = "📊 YOUR STATS\n"
 			.. "👋 Total slaps: " .. Calc.FormatNumber(s.TotalSlaps) .. "\n"
 			.. "💰 Total earned: " .. Calc.FormatNumber(s.TotalEarned) .. "\n"
-			.. "💥 Gyatts defeated: " .. Calc.FormatNumber(s.TotalDefeats) .. "\n"
+			.. "💥 Blobs defeated: " .. Calc.FormatNumber(s.TotalDefeats) .. "\n"
 			.. "🔥 Best combo: " .. Calc.FormatNumber(s.BestCombo) .. "\n"
 			.. "♻️ Rebirths: " .. tostring(s.Rebirths) .. "\n"
 			.. "✋ Hand: " .. hand.DisplayName .. "   🐾 Pets: " .. #(s.Pets or {}) .. "\n"

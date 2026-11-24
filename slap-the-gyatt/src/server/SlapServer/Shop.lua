@@ -156,7 +156,7 @@ function Shop.BuyHand(player, handId)
 			MarketplaceService:PromptGamePassPurchase(player, passId)
 		end)
 		if not ok then
-			warn("[SlapTheGyatt] Game pass prompt failed: " .. tostring(err))
+			warn("[SlapTheBlob] Game pass prompt failed: " .. tostring(err))
 		end
 		return
 	end
@@ -315,7 +315,7 @@ function Shop.BuyGemItem(player, itemId)
 		data.GemShop[itemId] = owned + 1
 		if itemId == "AutoSlap" then
 			data.AutoSlapOn = true
-			ctx.Remotes.Popup(player, "AUTO-SLAP!", "Hold your hand and stand next to a Gyatt.", { 120, 220, 255 })
+			ctx.Remotes.Popup(player, "AUTO-SLAP!", "Hold your hand and stand next to a Blob.", { 120, 220, 255 })
 		else
 			ctx.Remotes.Notify(player, item.Icon .. " " .. item.DisplayName .. " bought!", GREEN)
 		end

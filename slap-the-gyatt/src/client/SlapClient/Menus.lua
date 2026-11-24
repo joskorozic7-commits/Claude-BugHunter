@@ -105,7 +105,7 @@ local function buildHands()
 	local win = UI.CreateWindow(ctx.Screen, "Hands", "Hands", "✋", Vector2.new(600, 490))
 	local list = UI.ScrollList(win.Content, {})
 	local rows = {}
-	local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow", dragon = "Dragon Fire", thanos = "Infinity Stones", ultragod = "Divine Aura" }
+	local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow", dragon = "Dragon Fire", thanos = "Cosmic Stones", ultragod = "Divine Aura" }
 	for order, hand in ipairs(Config.Hands) do
 		local rarity = Config.Rarities[hand.Rarity] or Config.Rarities.Common
 		local rarityColor = UI.rgb(rarity.Color)
@@ -444,7 +444,7 @@ local function buildGems()
 		rows[item.Id] = { Button = button, Desc = desc }
 	end
 	smallLabel({ Size = UDim2.new(1, -10, 0, 40), LayoutOrder = 100, TextWrapped = true, TextColor3 = UI.Colors.SubText,
-		Text = "💡 You get Gems from defeated Gyatts, quests, daily rewards, codes, rebirths and the Golden Gyatt!", Parent = list })
+		Text = "💡 You get Gems from defeated Blobs, quests, daily rewards, codes, rebirths and the Golden Blob!", Parent = list })
 
 	win.Refresh = function()
 		local s = state()
@@ -673,7 +673,7 @@ local function buildCodes()
 		end
 	end)
 	smallLabel({ Position = UDim2.new(0, 0, 0, 172), Size = UDim2.new(1, 0, 0, 40), TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, TextColor3 = UI.Colors.Gold,
-		Text = "💡 Tip: Try GYATT, SLAP or RELEASE!", Parent = win.Content })
+		Text = "💡 Tip: Try BLOB, SLAP or RELEASE!", Parent = win.Content })
 	return win
 end
 
@@ -715,7 +715,7 @@ local function buildSettings()
 		stats.Text = "📊 YOUR STATS\n"
 			.. "👋 Total slaps: " .. Calc.FormatNumber(s.TotalSlaps) .. "\n"
 			.. "💰 Total earned: " .. Calc.FormatNumber(s.TotalEarned) .. "\n"
-			.. "💥 Gyatts defeated: " .. Calc.FormatNumber(s.TotalDefeats) .. "\n"
+			.. "💥 Blobs defeated: " .. Calc.FormatNumber(s.TotalDefeats) .. "\n"
 			.. "🔥 Best combo: " .. Calc.FormatNumber(s.BestCombo) .. "\n"
 			.. "♻️ Rebirths: " .. tostring(s.Rebirths) .. "\n"
 			.. "✋ Hand: " .. hand.DisplayName .. "   🐾 Pets: " .. #(s.Pets or {}) .. "\n"
