@@ -302,7 +302,25 @@ def make_thumb2():
     finish(img, (1920, 1080), "thumbnail_2.png")
 
 
+# ---------------------------------------------------------------- game pass icons
+def make_pass_icon(name, hand_kind, hand_color, top, bottom, glow_color, label, label_color):
+    W = H = 512 * SS
+    img = background(W, H, top, bottom, (255, 255, 255, 30), (W * 0.5, H * 0.48), rays=20)
+    rng = random.Random(hash(name) % 1000)
+    sparkles(img, rng, (W * 0.15, H * 0.12, W * 0.85, H * 0.6), 9, W * 0.025)
+    paste_hand(img, hand_color, (W * 0.5, H * 0.46), int(W * 0.62), 0, kind=hand_kind, glow_color=glow_color)
+    # label in the lower middle (stays inside the circle crop)
+    pill(img, (W * 0.5, H * 0.8), label, H * 0.07, label_color)
+    finish(img, (512, 512), name)
+
+
+def make_pass_icons():
+    make_pass_icon("pass_thanos.png", "thanos", (220, 170, 40), (60, 20, 110), (150, 50, 200), (170, 90, 255), "THANOS", (150, 70, 230))
+    make_pass_icon("pass_ultragod.png", "ultragod", (255, 250, 220), (255, 200, 80), (230, 90, 200), (255, 240, 150), "ULTRA GOD", (235, 160, 30))
+
+
 if __name__ == "__main__":
     make_icon()
     make_thumb1()
     make_thumb2()
+    make_pass_icons()
