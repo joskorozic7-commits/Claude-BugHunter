@@ -1,4 +1,4 @@
-# 👋 Slap the Gyatt 2.1
+# 👋 Slap the Gyatt 2.2
 
 A complete Roblox simulator game: slap the Gyatts, collect **Slaps** and **Gems**,
 upgrade your hand, hatch pets, unlock 6 worlds and become the strongest!
@@ -47,6 +47,26 @@ Every 4–7 minutes a Golden Gyatt appears with huge rewards and Gems, with a co
 Wood → Stone → Iron → Gold → Emerald → Diamond → Frost → Lava → Cloud → Galaxy → Rainbow → **Gyatt God Hand**.
 Upgrades: Hand Power, Slap Speed, Reach, Crit Luck, Slap Greed, Combo Master (with "Buy MAX").
 Crits (x3), rare MEGA crits (x30) and a combo system up to +225 % Slaps.
+
+### 👑 Legendary hands
+| Hand | Price | Power |
+|---|---|---|
+| Gyatt God Hand | 💎 2,500 | x100 damage, x1.25 Slaps |
+| Dragon Claw | 💎 6,000 | x180 damage, x1.5 Slaps, +5% crit, claws + dragon fire |
+| **Thanos Gauntlet** | **R$ 299** | x500 damage, x3 Slaps, +10% crit, +5 reach, +25% speed, **🫰 SNAP: 5% chance to erase a Gyatt instantly**, 6 Infinity Stones |
+| **ULTRA GOD HAND** | **R$ 1999** | x2500 damage, x10 Slaps, +25% crit, +15 reach, +100% speed, **⚡ DIVINE SMITE every 5th slap (x25, hits all Gyatts nearby)** + 10% SNAP, rainbow halo |
+
+#### Setting up the Robux hands (Game Passes)
+Robux items must be created on the Roblox website, the code only needs their ID:
+1. Publish the game, then go to **create.roblox.com → your game → Monetization → Passes → Create a Pass**.
+2. Create "Thanos Gauntlet", set **Item for Sale** to on and the price to **299**.
+3. Create "Ultra God Hand" with price **1999**.
+4. Copy each pass ID (the number in the pass page address) into `src/shared/Config.lua`
+   at `GamePassId = 0` of the matching hand, then run `python3 tools/build_place.py`
+   (or paste the ID directly into the `Config` ModuleScript in Studio).
+
+While `GamePassId` is `0`, the hand is **free in Studio only** (for testing, never saved).
+In the real game it shows "coming soon" until you add the ID.
 
 ### 🐾 Pets
 7 eggs, 28 pets in 5 rarities, hatch animation, pets follow you around.

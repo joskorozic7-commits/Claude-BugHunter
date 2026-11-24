@@ -102,33 +102,62 @@ end
 -- Haende
 --------------------------------------------------------------------------
 local function buildHands()
-	local win = UI.CreateWindow(ctx.Screen, "Hands", "Hands", "✋", Vector2.new(580, 470))
+	local win = UI.CreateWindow(ctx.Screen, "Hands", "Hands", "✋", Vector2.new(600, 490))
 	local list = UI.ScrollList(win.Content, {})
 	local rows = {}
+	local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow", dragon = "Dragon Fire", thanos = "Infinity Stones", ultragod = "Divine Aura" }
 	for order, hand in ipairs(Config.Hands) do
-		local row = UI.Row(list, 70, order)
+		local rarity = Config.Rarities[hand.Rarity] or Config.Rarities.Common
+		local rarityColor = UI.rgb(rarity.Color)
+		local isUltra = hand.Currency == "Robux"
+		local height = (hand.Perk and 104) or 84
+		local row = UI.Row(list, height, order)
+		if isUltra then
+			row.BackgroundColor3 = Color3.fromRGB(70, 40, 20)
+			UI.Create("UIGradient", {
+				Color = ColorSequence.new(Color3.fromRGB(255, 230, 150), Color3.fromRGB(200, 120, 255)),
+				Rotation = 0,
+				Transparency = NumberSequence.new(0.6),
+				Parent = row,
+			})
+		end
 		local swatch = Create("Frame", {
-			Position = UDim2.new(0, 10, 0.5, -24),
-			Size = UDim2.new(0, 48, 0, 48),
+			Position = UDim2.new(0, 10, 0, 12),
+			Size = UDim2.new(0, 56, 0, 56),
 			BackgroundColor3 = UI.rgb(hand.Color),
 			ZIndex = 6,
 			Parent = row,
-		}, { UI.Corner(12), UI.Stroke(2) })
-		UI.Label({ Size = UDim2.fromScale(1, 1), Text = "✋", ZIndex = 7, Parent = swatch })
-		title({ Position = UDim2.new(0, 68, 0, 8), Size = UDim2.new(0.55, -68, 0, 28), Text = hand.DisplayName, Parent = row })
-		local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow" }
+		}, { UI.Corner(12), UI.Stroke(isUltra and 3.5 or 2, isUltra and UI.Colors.Gold or nil) })
+		UI.Label({ Size = UDim2.fromScale(1, 1), Text = isUltra and (hand.Effect == "thanos" and "🫰" or "👑") or "✋", ZIndex = 7, Parent = swatch })
+
+		title({ Position = UDim2.new(0, 76, 0, 6), Size = UDim2.new(0.58, -76, 0, 26), Text = hand.DisplayName, Parent = row })
+		local badge = UI.Label({
+			Position = UDim2.new(0, 76, 0, 34),
+			Size = UDim2.new(0, 96, 0, 18),
+			BackgroundTransparency = 0,
+			BackgroundColor3 = rarityColor,
+			Font = UI.Font,
+			TextColor3 = Color3.fromRGB(30, 15, 35),
+			Text = string.upper(rarity.DisplayName),
+			ZIndex = 7,
+			Parent = row,
+		})
+		UI.Corner(6).Parent = badge
 		local effect = effectNames[hand.Effect] and ("  ✨ " .. effectNames[hand.Effect]) or ""
-		smallLabel({ Position = UDim2.new(0, 68, 0, 38), Size = UDim2.new(0.55, -68, 0, 20), TextColor3 = UI.Colors.Gold,
-			Text = "x" .. hand.Damage .. " Damage" .. effect, Parent = row })
+		smallLabel({ Position = UDim2.new(0, 178, 0, 34), Size = UDim2.new(0.58, -178, 0, 18), TextColor3 = UI.Colors.SubText, Text = effect, Parent = row })
+		smallLabel({ Position = UDim2.new(0, 76, 0, 56), Size = UDim2.new(0.58, -76, 0, 18), TextColor3 = UI.Colors.Gold, Text = Calc.DescribeHandPerks(hand), Parent = row })
+		if hand.Perk then
+			smallLabel({ Position = UDim2.new(0, 10, 0, 78), Size = UDim2.new(1, -20, 0, 20), TextColor3 = Color3.fromRGB(255, 240, 160), Text = hand.Perk, Parent = row })
+		end
 		local button = UI.Button({
-			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -10, 0.5, 0),
-			Size = UDim2.new(0.38, -10, 0, 46),
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -10, 0, 14),
+			Size = UDim2.new(0.36, -10, 0, 50),
 			ZIndex = 6,
 			Parent = row,
 		}, function()
 			local s = state()
-			if s and s.OwnedHands and s.OwnedHands[hand.Id] then
+			if s and Calc.OwnsHand(s, hand.Id) then
 				ctx.Request("EquipHand", hand.Id)
 			else
 				ctx.Request("BuyHand", hand.Id)
@@ -145,25 +174,26 @@ local function buildHands()
 		for _, hand in ipairs(Config.Hands) do
 			local r = rows[hand.Id]
 			local stroke = r.Row:FindFirstChildOfClass("UIStroke")
+			local isUltra = hand.Currency == "Robux"
+			if stroke then
+				stroke.Color = isUltra and UI.Colors.Gold or UI.Colors.PanelLight
+			end
 			if s.Hand == hand.Id then
 				r.Button.Text = "✅ Equipped"
 				UI.SetButtonColor(r.Button, UI.Colors.GreenDark)
 				if stroke then
-					stroke.Color = UI.Colors.Gold
+					stroke.Color = UI.Colors.White
 				end
-			elseif s.OwnedHands[hand.Id] then
+			elseif Calc.OwnsHand(s, hand.Id) then
 				r.Button.Text = "Equip"
 				UI.SetButtonColor(r.Button, UI.Colors.Blue)
-				if stroke then
-					stroke.Color = UI.Colors.PanelLight
-				end
+			elseif isUltra then
+				r.Button.Text = "R$ " .. hand.Price
+				UI.SetButtonColor(r.Button, UI.Colors.Gold)
 			else
 				local balance = hand.Currency == "Gems" and s.Gems or s.Slaps
 				r.Button.Text = money(hand.Price, hand.Currency)
 				UI.SetButtonColor(r.Button, balance >= hand.Price and UI.Colors.Green or UI.Colors.Gray)
-				if stroke then
-					stroke.Color = UI.Colors.PanelLight
-				end
 			end
 		end
 	end

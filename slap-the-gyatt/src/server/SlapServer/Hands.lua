@@ -52,6 +52,11 @@ function Hands.Build(data)
 	local powerLevel = data.Upgrades.Power
 	local hand = Calc.GetHand(data.Hand)
 	local scale = Calc.GetHandScale(powerLevel)
+	if hand.Effect == "thanos" then
+		scale = scale * 1.25
+	elseif hand.Effect == "ultragod" then
+		scale = scale * 1.5
+	end
 	local color = rgb(hand.Color)
 	local mat = material(hand.Material)
 
@@ -123,6 +128,84 @@ function Hands.Build(data)
 		end
 		local s = Instance.new("Sparkles")
 		s.Parent = palm
+	end
+	if hand.Effect == "dragon" then
+		-- schwarze Krallen an den Fingerspitzen
+		for i, x in ipairs(fingerXs) do
+			local length = fingerLengths[i] * scale
+			attach(handPart("Claw" .. i, Vector3.new(0.18 * scale, 0.45 * scale, 0.18 * scale), Color3.fromRGB(20, 15, 15), Enum.Material.SmoothPlastic),
+				CFrame.new(x * scale, 0.75 * scale + length + 0.3 * scale, -0.08 * scale) * CFrame.Angles(math.rad(-25), 0, 0))
+		end
+		local f = Instance.new("Fire")
+		f.Size = 4 * scale
+		f.Heat = 6
+		f.Color = Color3.fromRGB(255, 60, 20)
+		f.SecondaryColor = Color3.fromRGB(120, 0, 0)
+		f.Parent = palm
+	elseif hand.Effect == "thanos" then
+		-- Die sechs Infinity-Steine
+		local stones = {
+			{ 160, 60, 255 }, -- Power
+			{ 60, 140, 255 }, -- Space
+			{ 255, 40, 40 }, -- Reality
+			{ 255, 150, 30 }, -- Soul
+			{ 40, 230, 90 }, -- Time
+			{ 255, 230, 40 }, -- Mind
+		}
+		for i = 1, 4 do
+			local x = fingerXs[i]
+			local c = stones[i]
+			local stone = attach(handPart("Stone" .. i, Vector3.new(0.24 * scale, 0.24 * scale, 0.24 * scale), Color3.fromRGB(c[1], c[2], c[3]), Enum.Material.Neon, Enum.PartType.Ball),
+				CFrame.new(x * scale, 0.6 * scale, -0.3 * scale))
+			stone.Name = "InfinityStone" .. i
+		end
+		local thumbStone = stones[5]
+		attach(handPart("InfinityStone5", Vector3.new(0.24 * scale, 0.24 * scale, 0.24 * scale), Color3.fromRGB(thumbStone[1], thumbStone[2], thumbStone[3]), Enum.Material.Neon, Enum.PartType.Ball),
+			CFrame.new(0.95 * scale, 0.2 * scale, -0.25 * scale))
+		local mindStone = stones[6]
+		attach(handPart("InfinityStone6", Vector3.new(0.42 * scale, 0.42 * scale, 0.42 * scale), Color3.fromRGB(mindStone[1], mindStone[2], mindStone[3]), Enum.Material.Neon, Enum.PartType.Ball),
+			CFrame.new(0, -0.05 * scale, -0.3 * scale))
+		local f = Instance.new("Fire")
+		f.Size = 4 * scale
+		f.Heat = 5
+		f.Color = Color3.fromRGB(150, 60, 255)
+		f.SecondaryColor = Color3.fromRGB(255, 200, 60)
+		f.Parent = palm
+		local s = Instance.new("Sparkles")
+		s.SparkleColor = Color3.fromRGB(200, 120, 255)
+		s.Parent = palm
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(170, 90, 255)
+		light.Range = 14
+		light.Brightness = 2
+		light.Parent = palm
+	elseif hand.Effect == "ultragod" then
+		-- Regenbogen-Heiligenschein ums Handgelenk
+		for i = 0, 9 do
+			local angle = (i / 10) * math.pi * 2
+			local orb = attach(handPart("HaloOrb" .. i, Vector3.new(0.28 * scale, 0.28 * scale, 0.28 * scale), Color3.fromRGB(255, 255, 255), Enum.Material.Neon, Enum.PartType.Ball),
+				CFrame.new(math.cos(angle) * 1.15 * scale, -0.8 * scale, math.sin(angle) * 1.15 * scale))
+			CollectionService:AddTag(orb, "RainbowHand")
+		end
+		-- goldene Kristalle auf den Knoecheln
+		for i, x in ipairs(fingerXs) do
+			attach(handPart("GodGem" .. i, Vector3.new(0.2 * scale, 0.32 * scale, 0.2 * scale), Color3.fromRGB(255, 215, 60), Enum.Material.Neon),
+				CFrame.new(x * scale, 0.6 * scale, -0.32 * scale) * CFrame.Angles(0, math.rad(45), 0))
+		end
+		local f = Instance.new("Fire")
+		f.Size = 6 * scale
+		f.Heat = 9
+		f.Color = Color3.fromRGB(255, 240, 160)
+		f.SecondaryColor = Color3.fromRGB(255, 160, 255)
+		f.Parent = palm
+		local s = Instance.new("Sparkles")
+		s.SparkleColor = Color3.fromRGB(255, 255, 200)
+		s.Parent = palm
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 245, 200)
+		light.Range = 22
+		light.Brightness = 4
+		light.Parent = palm
 	end
 	if hand.Material == "Neon" then
 		local light = Instance.new("PointLight")

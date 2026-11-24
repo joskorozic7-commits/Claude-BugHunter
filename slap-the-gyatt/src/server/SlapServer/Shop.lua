@@ -4,6 +4,8 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("SlapShared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -90,6 +92,45 @@ end
 --------------------------------------------------------------------------
 -- Haende
 --------------------------------------------------------------------------
+local function ownsHand(profile, handId)
+	return profile.Data.OwnedHands[handId] == true or profile.RobuxHands[handId] == true
+end
+Shop.OwnsHand = ownsHand
+
+-- Robux-Hand freischalten (nach Kauf oder zum Testen in Studio)
+local function grantRobuxHand(player, profile, hand, isTest)
+	profile.RobuxHands[hand.Id] = true
+	profile.Data.Hand = hand.Id
+	ctx.Hands.Give(player, true)
+	local subtitle = hand.DisplayName .. "  (x" .. Calc.FormatNumber(hand.Damage) .. " Damage)"
+	if isTest then
+		subtitle = subtitle .. "  - Studio test, free"
+	else
+		ctx.Remotes.NotifyAll("👑 " .. player.DisplayName .. " got the " .. hand.DisplayName .. "!", hand.Color)
+	end
+	ctx.Remotes.Popup(player, "ULTRA HAND UNLOCKED!", subtitle, hand.Color)
+	ctx.Remotes.Fire("Event", player, "Purchased")
+	ctx.Data.Push(player, true)
+end
+
+-- Beim Betreten pruefen, welche Robux-Haende der Spieler besitzt
+function Shop.CheckRobuxHands(player, profile)
+	for _, hand in ipairs(Config.Hands) do
+		local passId = tonumber(hand.GamePassId) or 0
+		if hand.Currency == "Robux" and passId > 0 then
+			local ok, owns = pcall(function()
+				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
+			end)
+			if ok and owns then
+				profile.RobuxHands[hand.Id] = true
+			end
+		end
+	end
+	if Calc.IsRobuxHand(profile.Data.Hand) and not profile.RobuxHands[profile.Data.Hand] then
+		profile.Data.Hand = "Wood"
+	end
+end
+
 function Shop.BuyHand(player, handId)
 	local profile = ctx.Data.Get(player)
 	if not profile or type(handId) ~= "string" or not Calc.IsHand(handId) then
@@ -97,8 +138,26 @@ function Shop.BuyHand(player, handId)
 	end
 	local data = profile.Data
 	local hand = Calc.GetHand(handId)
-	if data.OwnedHands[handId] then
+	if ownsHand(profile, handId) then
 		Shop.EquipHand(player, handId)
+		return
+	end
+	if hand.Currency == "Robux" then
+		local passId = tonumber(hand.GamePassId) or 0
+		if passId <= 0 then
+			if RunService:IsStudio() then
+				grantRobuxHand(player, profile, hand, true)
+			else
+				ctx.Remotes.Notify(player, "👑 " .. hand.DisplayName .. " is coming soon!", { 255, 220, 120 })
+			end
+			return
+		end
+		local ok, err = pcall(function()
+			MarketplaceService:PromptGamePassPurchase(player, passId)
+		end)
+		if not ok then
+			warn("[SlapTheGyatt] Game pass prompt failed: " .. tostring(err))
+		end
 		return
 	end
 	local balanceKey = hand.Currency == "Gems" and "Gems" or "Slaps"
@@ -117,7 +176,7 @@ end
 
 function Shop.EquipHand(player, handId)
 	local profile = ctx.Data.Get(player)
-	if not profile or type(handId) ~= "string" or not profile.Data.OwnedHands[handId] then
+	if not profile or type(handId) ~= "string" or not ownsHand(profile, handId) then
 		return
 	end
 	profile.Data.Hand = handId
@@ -306,6 +365,22 @@ function Shop.Init(context)
 end
 
 function Shop.Start()
+	-- Robux-Kauf abgeschlossen
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
+		if not purchased then
+			return
+		end
+		local profile = ctx.Data.Get(player)
+		if not profile then
+			return
+		end
+		for _, hand in ipairs(Config.Hands) do
+			if hand.Currency == "Robux" and tonumber(hand.GamePassId) == passId then
+				grantRobuxHand(player, profile, hand, false)
+			end
+		end
+	end)
+
 	-- Tor-Prompts
 	for _, zoneInfo in ipairs(ctx.World.Zones) do
 		if zoneInfo.GatePrompt then

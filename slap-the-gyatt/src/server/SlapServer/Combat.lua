@@ -32,7 +32,7 @@ local function getAliveRoot(player)
 end
 
 local function pvpSlap(player, profile, root)
-	local reach = math.min(Calc.GetReach(profile.Data.Upgrades.Reach), PVP_MAX_REACH)
+	local reach = math.min(Calc.GetTotalReach(profile.Data), PVP_MAX_REACH)
 	local best, bestDistance, bestRoot = nil, math.huge, nil
 	for _, other in ipairs(Players:GetPlayers()) do
 		if other ~= player then
@@ -87,7 +87,7 @@ function Combat.TrySlap(player, isAuto)
 
 	local data = profile.Data
 	local now = os.clock()
-	local cooldown = Calc.GetCooldown(data.Upgrades.Speed)
+	local cooldown = Calc.GetTotalCooldown(data)
 	if isAuto then
 		cooldown = cooldown * Config.AutoSlapSlowdown
 	end
@@ -101,7 +101,7 @@ function Combat.TrySlap(player, isAuto)
 		return true
 	end
 
-	local target = ctx.Gyatts.FindTarget(root.Position, Calc.GetReach(data.Upgrades.Reach), data.Zones)
+	local target = ctx.Gyatts.FindTarget(root.Position, Calc.GetTotalReach(data), data.Zones)
 	if not target then
 		return true -- Luft-Slap
 	end
@@ -117,7 +117,7 @@ function Combat.TrySlap(player, isAuto)
 	local unixNow = os.time()
 	local damage = Calc.GetDamage(data, unixNow)
 	local critLevel = 0
-	if math.random() < Calc.GetCritChance(data.Upgrades.Luck) then
+	if math.random() < Calc.GetTotalCritChance(data) then
 		critLevel = 1
 		damage = damage * Config.CritMultiplier
 		if math.random() < Config.MegaCritChance then
@@ -126,7 +126,24 @@ function Combat.TrySlap(player, isAuto)
 		end
 	end
 
-	local reward = damage * target.RewardMultiplier * Calc.GetSlapMultiplier(data, unixNow) * Calc.GetComboMultiplier(profile.Combo)
+	-- Legendaere Hand-Kraefte
+	local hand = Calc.GetHand(data.Hand)
+	local special = nil
+	if hand.Smite then
+		profile.SmiteCount = (profile.SmiteCount or 0) + 1
+		if profile.SmiteCount >= hand.Smite.Every then
+			profile.SmiteCount = 0
+			special = "Smite"
+			damage = damage * hand.Smite.Multiplier
+		end
+	end
+	if hand.Snap and not target.IsGolden and math.random() < hand.Snap then
+		special = "Snap"
+		damage = math.max(damage, math.ceil(target.Health))
+	end
+
+	local slapMultiplier = Calc.GetSlapMultiplier(data, unixNow) * Calc.GetComboMultiplier(profile.Combo)
+	local reward = damage * target.RewardMultiplier * slapMultiplier
 	reward = ctx.Data.AddSlaps(profile, math.max(1, reward))
 
 	data.TotalSlaps = data.TotalSlaps + 1
@@ -150,9 +167,41 @@ function Combat.TrySlap(player, isAuto)
 		Combo = profile.Combo,
 		UserId = player.UserId,
 		From = root.Position,
+		Special = special,
 	})
 
+	-- Blitz trifft auch alle Gyatts in der Naehe
+	local splashTargets = {}
+	if special == "Smite" then
+		for _, other in ipairs(ctx.Gyatts.List) do
+			if other ~= target and other.Alive and other.ZoneIndex <= data.Zones
+				and (other.Position - target.Position).Magnitude <= hand.Smite.Radius then
+				table.insert(splashTargets, other)
+			end
+		end
+	end
+
 	ctx.Gyatts.Damage(target, player, damage)
+
+	for _, other in ipairs(splashTargets) do
+		if other.Alive then
+			local splashReward = ctx.Data.AddSlaps(profile, math.max(1, damage * other.RewardMultiplier * slapMultiplier))
+			ctx.Remotes.FireAll("SlapFx", {
+				Kind = "Gyatt",
+				Key = other.Key,
+				Position = other.Position,
+				Radius = other.Radius,
+				Damage = damage,
+				Crit = critLevel,
+				Reward = splashReward,
+				Combo = profile.Combo,
+				UserId = player.UserId,
+				From = target.Position,
+				Special = "Smite",
+			})
+			ctx.Gyatts.Damage(other, player, damage)
+		end
+	end
 
 	if not data.TutorialDone and data.TotalSlaps >= 10 then
 		data.TutorialDone = true
@@ -171,11 +220,11 @@ local function startAutoSlap()
 			for player, profile in pairs(ctx.Data.Profiles) do
 				if profile.Loaded and profile.Data.AutoSlapOn and profile.Data.GemShop.AutoSlap >= 1 and ctx.Hands.IsEquipped(player) then
 					local data = profile.Data
-					local cooldown = Calc.GetCooldown(data.Upgrades.Speed) * Config.AutoSlapSlowdown
+					local cooldown = Calc.GetTotalCooldown(data) * Config.AutoSlapSlowdown
 					if os.clock() - profile.LastSlap >= cooldown then
 						local root = getAliveRoot(player)
 						if root and not ctx.World.IsInArena(root.Position)
-							and ctx.Gyatts.FindTarget(root.Position, Calc.GetReach(data.Upgrades.Reach), data.Zones) then
+							and ctx.Gyatts.FindTarget(root.Position, Calc.GetTotalReach(data), data.Zones) then
 							if Combat.TrySlap(player, true) then
 								ctx.Hands.Swing(player)
 							end

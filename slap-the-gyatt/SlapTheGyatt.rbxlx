@@ -199,6 +199,40 @@ function Calc.IsHand(handId)
 	return handIndex[handId] ~= nil
 end
 
+function Calc.IsRobuxHand(handId)
+	local index = handIndex[handId]
+	return index ~= nil and Config.Hands[index].Currency == "Robux"
+end
+
+-- Besitzt der Spieler die Hand? (Robux-Haende stehen in RobuxHands)
+function Calc.OwnsHand(data, handId)
+	if type(data) ~= "table" then
+		return false
+	end
+	if type(data.OwnedHands) == "table" and data.OwnedHands[handId] then
+		return true
+	end
+	return type(data.RobuxHands) == "table" and data.RobuxHands[handId] == true
+end
+
+-- Kurzbeschreibung der Bonus-Werte einer Hand
+function Calc.DescribeHandPerks(hand)
+	local parts = { "x" .. Calc.FormatNumber(hand.Damage) .. " Damage" }
+	if hand.SlapMultiplier then
+		table.insert(parts, "x" .. hand.SlapMultiplier .. " Slaps")
+	end
+	if hand.CritBonus then
+		table.insert(parts, "+" .. math.floor(hand.CritBonus * 100 + 0.5) .. "% Crit")
+	end
+	if hand.ReachBonus then
+		table.insert(parts, "+" .. hand.ReachBonus .. " Reach")
+	end
+	if hand.SpeedMultiplier then
+		table.insert(parts, "+" .. math.floor((1 / hand.SpeedMultiplier - 1) * 100 + 0.5) .. "% Speed")
+	end
+	return table.concat(parts, " • ")
+end
+
 --------------------------------------------------------------------------
 -- Pets
 --------------------------------------------------------------------------
@@ -312,13 +346,33 @@ end
 -- Multiplikator fuer verdiente Slaps (ohne Combo und ohne Gyatt-Multiplikator)
 function Calc.GetSlapMultiplier(data, now)
 	local upgrades = data.Upgrades or {}
+	local hand = Calc.GetHand(data.Hand)
 	local multiplier = Calc.GetGreedMultiplier(upgrades.Greed)
 		* Calc.GetRebirthSlapMultiplier(data.Rebirths)
 		* Calc.GetPetBoost(Calc.GetEquippedPetIds(data))
+		* (hand.SlapMultiplier or 1)
 	if Calc.IsBoostActive(data, "DoubleSlaps", now) then
 		multiplier = multiplier * 2
 	end
 	return multiplier
+end
+
+-- Krit-Chance inklusive Hand-Bonus
+function Calc.GetTotalCritChance(data)
+	local hand = Calc.GetHand(data.Hand)
+	return math.min(0.95, Calc.GetCritChance((data.Upgrades or {}).Luck) + (hand.CritBonus or 0))
+end
+
+-- Reichweite inklusive Hand-Bonus
+function Calc.GetTotalReach(data)
+	local hand = Calc.GetHand(data.Hand)
+	return Calc.GetReach((data.Upgrades or {}).Reach) + (hand.ReachBonus or 0)
+end
+
+-- Wartezeit inklusive Hand-Bonus
+function Calc.GetTotalCooldown(data)
+	local hand = Calc.GetHand(data.Hand)
+	return math.max(0.08, Calc.GetCooldown((data.Upgrades or {}).Speed) * (hand.SpeedMultiplier or 1))
 end
 
 --------------------------------------------------------------------------
@@ -437,7 +491,7 @@ return Calc
 local Config = {}
 
 Config.GameName = "Slap the Gyatt"
-Config.Version = "2.1"
+Config.Version = "2.2"
 
 --------------------------------------------------------------------------
 -- Speichern
@@ -529,18 +583,36 @@ Config.Upgrades = {
 --   Effect: "none" | "sparkles" | "fire" | "smoke" | "rainbow"
 --------------------------------------------------------------------------
 Config.Hands = {
-	{ Id = "Wood", DisplayName = "Wood Hand", Damage = 1, Price = 0, Currency = "Slaps", Color = { 165, 115, 70 }, Material = "Wood", Effect = "none" },
-	{ Id = "Stone", DisplayName = "Stone Hand", Damage = 1.5, Price = 500, Currency = "Slaps", Color = { 125, 125, 130 }, Material = "Slate", Effect = "none" },
-	{ Id = "Iron", DisplayName = "Iron Hand", Damage = 2.2, Price = 7500, Currency = "Slaps", Color = { 195, 200, 210 }, Material = "DiamondPlate", Effect = "none" },
-	{ Id = "Gold", DisplayName = "Gold Hand", Damage = 3.5, Price = 60000, Currency = "Slaps", Color = { 255, 200, 40 }, Material = "Foil", Effect = "sparkles" },
-	{ Id = "Emerald", DisplayName = "Emerald Hand", Damage = 5, Price = 600000, Currency = "Slaps", Color = { 40, 220, 110 }, Material = "Glass", Effect = "sparkles" },
-	{ Id = "Diamond", DisplayName = "Diamond Hand", Damage = 8, Price = 8000000, Currency = "Slaps", Color = { 120, 230, 255 }, Material = "Glass", Effect = "sparkles" },
-	{ Id = "Ice", DisplayName = "Frost Hand", Damage = 12, Price = 90000000, Currency = "Slaps", Color = { 190, 235, 255 }, Material = "Ice", Effect = "smoke" },
-	{ Id = "Lava", DisplayName = "Lava Hand", Damage = 18, Price = 1200000000, Currency = "Slaps", Color = { 255, 110, 20 }, Material = "Neon", Effect = "fire" },
-	{ Id = "Cloud", DisplayName = "Cloud Hand", Damage = 27, Price = 20000000000, Currency = "Slaps", Color = { 250, 250, 255 }, Material = "SmoothPlastic", Effect = "sparkles" },
-	{ Id = "Galaxy", DisplayName = "Galaxy Hand", Damage = 40, Price = 400000000000, Currency = "Slaps", Color = { 120, 50, 220 }, Material = "Neon", Effect = "sparkles" },
-	{ Id = "Rainbow", DisplayName = "Rainbow Hand", Damage = 60, Price = 8000000000000, Currency = "Slaps", Color = { 255, 80, 200 }, Material = "Neon", Effect = "rainbow" },
-	{ Id = "GyattGod", DisplayName = "Gyatt God Hand", Damage = 100, Price = 2500, Currency = "Gems", Color = { 255, 235, 120 }, Material = "Neon", Effect = "fire" },
+	{ Id = "Wood", DisplayName = "Wood Hand", Rarity = "Common", Damage = 1, Price = 0, Currency = "Slaps", Color = { 165, 115, 70 }, Material = "Wood", Effect = "none" },
+	{ Id = "Stone", DisplayName = "Stone Hand", Rarity = "Common", Damage = 1.5, Price = 500, Currency = "Slaps", Color = { 125, 125, 130 }, Material = "Slate", Effect = "none" },
+	{ Id = "Iron", DisplayName = "Iron Hand", Rarity = "Common", Damage = 2.2, Price = 7500, Currency = "Slaps", Color = { 195, 200, 210 }, Material = "DiamondPlate", Effect = "none" },
+	{ Id = "Gold", DisplayName = "Gold Hand", Rarity = "Rare", Damage = 3.5, Price = 60000, Currency = "Slaps", Color = { 255, 200, 40 }, Material = "Foil", Effect = "sparkles" },
+	{ Id = "Emerald", DisplayName = "Emerald Hand", Rarity = "Rare", Damage = 5, Price = 600000, Currency = "Slaps", Color = { 40, 220, 110 }, Material = "Glass", Effect = "sparkles" },
+	{ Id = "Diamond", DisplayName = "Diamond Hand", Rarity = "Epic", Damage = 8, Price = 8000000, Currency = "Slaps", Color = { 120, 230, 255 }, Material = "Glass", Effect = "sparkles" },
+	{ Id = "Ice", DisplayName = "Frost Hand", Rarity = "Epic", Damage = 12, Price = 90000000, Currency = "Slaps", Color = { 190, 235, 255 }, Material = "Ice", Effect = "smoke" },
+	{ Id = "Lava", DisplayName = "Lava Hand", Rarity = "Epic", Damage = 18, Price = 1200000000, Currency = "Slaps", Color = { 255, 110, 20 }, Material = "Neon", Effect = "fire" },
+	{ Id = "Cloud", DisplayName = "Cloud Hand", Rarity = "Legendary", Damage = 27, Price = 20000000000, Currency = "Slaps", Color = { 250, 250, 255 }, Material = "SmoothPlastic", Effect = "sparkles" },
+	{ Id = "Galaxy", DisplayName = "Galaxy Hand", Rarity = "Legendary", Damage = 40, Price = 400000000000, Currency = "Slaps", Color = { 120, 50, 220 }, Material = "Neon", Effect = "sparkles" },
+	{ Id = "Rainbow", DisplayName = "Rainbow Hand", Rarity = "Legendary", Damage = 60, Price = 8000000000000, Currency = "Slaps", Color = { 255, 80, 200 }, Material = "Neon", Effect = "rainbow" },
+	{ Id = "GyattGod", DisplayName = "Gyatt God Hand", Rarity = "Legendary", Damage = 100, Price = 2500, Currency = "Gems", Color = { 255, 235, 120 }, Material = "Neon", Effect = "fire",
+		SlapMultiplier = 1.25 },
+	{ Id = "DragonClaw", DisplayName = "Dragon Claw", Rarity = "Mythic", Damage = 180, Price = 6000, Currency = "Gems", Color = { 200, 30, 40 }, Material = "Neon", Effect = "dragon",
+		SlapMultiplier = 1.5, CritBonus = 0.05 },
+
+	-- ROBUX-HAENDE (Game Passes). So richtest du sie ein:
+	--   1. create.roblox.com -> dein Spiel -> Monetization -> Passes -> "Create a Pass"
+	--   2. Preis einstellen (Thanos 299, Ultra God 1999) und "Item for Sale" anschalten
+	--   3. Die Pass-ID (Zahl in der Adresse) hier bei GamePassId eintragen
+	-- Solange GamePassId = 0 ist, kann man die Hand nur in Studio zum Testen kostenlos benutzen.
+	{ Id = "Thanos", DisplayName = "Thanos Gauntlet", Rarity = "Ultra", Damage = 500, Price = 299, Currency = "Robux", GamePassId = 0,
+		Color = { 220, 170, 40 }, Material = "Foil", Effect = "thanos",
+		SlapMultiplier = 3, CritBonus = 0.1, ReachBonus = 5, SpeedMultiplier = 0.8, Snap = 0.05,
+		Perk = "🫰 SNAP: 5% chance to erase a Gyatt instantly" },
+	{ Id = "UltraGod", DisplayName = "ULTRA GOD HAND", Rarity = "Ultra", Damage = 2500, Price = 1999, Currency = "Robux", GamePassId = 0,
+		Color = { 255, 250, 220 }, Material = "Neon", Effect = "ultragod",
+		SlapMultiplier = 10, CritBonus = 0.25, ReachBonus = 15, SpeedMultiplier = 0.5, Snap = 0.1,
+		Smite = { Every = 5, Multiplier = 25, Radius = 45 },
+		Perk = "⚡ DIVINE SMITE: every 5th slap strikes lightning (x25, area) + 10% SNAP" },
 }
 
 --------------------------------------------------------------------------
@@ -553,6 +625,7 @@ Config.Rarities = {
 	Epic = { DisplayName = "Epic", Color = { 190, 90, 255 }, Order = 3 },
 	Legendary = { DisplayName = "Legendary", Color = { 255, 190, 40 }, Order = 4 },
 	Mythic = { DisplayName = "Mythic", Color = { 255, 60, 120 }, Order = 5 },
+	Ultra = { DisplayName = "ULTRA", Color = { 255, 240, 120 }, Order = 6 },
 }
 
 --------------------------------------------------------------------------
@@ -903,6 +976,7 @@ local function onPlayerAdded(player)
 	profile.Loaded = true
 	profile.CanSave = ok
 	Data.RefreshQuests(profile)
+	Shop.CheckRobuxHands(player, profile)
 
 	if not ok then
 		if RunService:IsStudio() then
@@ -982,7 +1056,7 @@ local function getAliveRoot(player)
 end
 
 local function pvpSlap(player, profile, root)
-	local reach = math.min(Calc.GetReach(profile.Data.Upgrades.Reach), PVP_MAX_REACH)
+	local reach = math.min(Calc.GetTotalReach(profile.Data), PVP_MAX_REACH)
 	local best, bestDistance, bestRoot = nil, math.huge, nil
 	for _, other in ipairs(Players:GetPlayers()) do
 		if other ~= player then
@@ -1037,7 +1111,7 @@ function Combat.TrySlap(player, isAuto)
 
 	local data = profile.Data
 	local now = os.clock()
-	local cooldown = Calc.GetCooldown(data.Upgrades.Speed)
+	local cooldown = Calc.GetTotalCooldown(data)
 	if isAuto then
 		cooldown = cooldown * Config.AutoSlapSlowdown
 	end
@@ -1051,7 +1125,7 @@ function Combat.TrySlap(player, isAuto)
 		return true
 	end
 
-	local target = ctx.Gyatts.FindTarget(root.Position, Calc.GetReach(data.Upgrades.Reach), data.Zones)
+	local target = ctx.Gyatts.FindTarget(root.Position, Calc.GetTotalReach(data), data.Zones)
 	if not target then
 		return true -- Luft-Slap
 	end
@@ -1067,7 +1141,7 @@ function Combat.TrySlap(player, isAuto)
 	local unixNow = os.time()
 	local damage = Calc.GetDamage(data, unixNow)
 	local critLevel = 0
-	if math.random() < Calc.GetCritChance(data.Upgrades.Luck) then
+	if math.random() < Calc.GetTotalCritChance(data) then
 		critLevel = 1
 		damage = damage * Config.CritMultiplier
 		if math.random() < Config.MegaCritChance then
@@ -1076,7 +1150,24 @@ function Combat.TrySlap(player, isAuto)
 		end
 	end
 
-	local reward = damage * target.RewardMultiplier * Calc.GetSlapMultiplier(data, unixNow) * Calc.GetComboMultiplier(profile.Combo)
+	-- Legendaere Hand-Kraefte
+	local hand = Calc.GetHand(data.Hand)
+	local special = nil
+	if hand.Smite then
+		profile.SmiteCount = (profile.SmiteCount or 0) + 1
+		if profile.SmiteCount >= hand.Smite.Every then
+			profile.SmiteCount = 0
+			special = "Smite"
+			damage = damage * hand.Smite.Multiplier
+		end
+	end
+	if hand.Snap and not target.IsGolden and math.random() < hand.Snap then
+		special = "Snap"
+		damage = math.max(damage, math.ceil(target.Health))
+	end
+
+	local slapMultiplier = Calc.GetSlapMultiplier(data, unixNow) * Calc.GetComboMultiplier(profile.Combo)
+	local reward = damage * target.RewardMultiplier * slapMultiplier
 	reward = ctx.Data.AddSlaps(profile, math.max(1, reward))
 
 	data.TotalSlaps = data.TotalSlaps + 1
@@ -1100,9 +1191,41 @@ function Combat.TrySlap(player, isAuto)
 		Combo = profile.Combo,
 		UserId = player.UserId,
 		From = root.Position,
+		Special = special,
 	})
 
+	-- Blitz trifft auch alle Gyatts in der Naehe
+	local splashTargets = {}
+	if special == "Smite" then
+		for _, other in ipairs(ctx.Gyatts.List) do
+			if other ~= target and other.Alive and other.ZoneIndex <= data.Zones
+				and (other.Position - target.Position).Magnitude <= hand.Smite.Radius then
+				table.insert(splashTargets, other)
+			end
+		end
+	end
+
 	ctx.Gyatts.Damage(target, player, damage)
+
+	for _, other in ipairs(splashTargets) do
+		if other.Alive then
+			local splashReward = ctx.Data.AddSlaps(profile, math.max(1, damage * other.RewardMultiplier * slapMultiplier))
+			ctx.Remotes.FireAll("SlapFx", {
+				Kind = "Gyatt",
+				Key = other.Key,
+				Position = other.Position,
+				Radius = other.Radius,
+				Damage = damage,
+				Crit = critLevel,
+				Reward = splashReward,
+				Combo = profile.Combo,
+				UserId = player.UserId,
+				From = target.Position,
+				Special = "Smite",
+			})
+			ctx.Gyatts.Damage(other, player, damage)
+		end
+	end
 
 	if not data.TutorialDone and data.TotalSlaps >= 10 then
 		data.TutorialDone = true
@@ -1121,11 +1244,11 @@ local function startAutoSlap()
 			for player, profile in pairs(ctx.Data.Profiles) do
 				if profile.Loaded and profile.Data.AutoSlapOn and profile.Data.GemShop.AutoSlap >= 1 and ctx.Hands.IsEquipped(player) then
 					local data = profile.Data
-					local cooldown = Calc.GetCooldown(data.Upgrades.Speed) * Config.AutoSlapSlowdown
+					local cooldown = Calc.GetTotalCooldown(data) * Config.AutoSlapSlowdown
 					if os.clock() - profile.LastSlap >= cooldown then
 						local root = getAliveRoot(player)
 						if root and not ctx.World.IsInArena(root.Position)
-							and ctx.Gyatts.FindTarget(root.Position, Calc.GetReach(data.Upgrades.Reach), data.Zones) then
+							and ctx.Gyatts.FindTarget(root.Position, Calc.GetTotalReach(data), data.Zones) then
 							if Combat.TrySlap(player, true) then
 								ctx.Hands.Swing(player)
 							end
@@ -1257,12 +1380,13 @@ function Data.Sanitize(raw)
 
 	if type(raw.OwnedHands) == "table" then
 		for handId, owned in pairs(raw.OwnedHands) do
-			if owned == true and Calc.IsHand(handId) then
+			if owned == true and Calc.IsHand(handId) and not Calc.IsRobuxHand(handId) then
 				data.OwnedHands[handId] = true
 			end
 		end
 	end
-	if type(raw.Hand) == "string" and data.OwnedHands[raw.Hand] then
+	-- Robux-Haende werden nach dem Laden ueber den Game Pass geprueft
+	if type(raw.Hand) == "string" and (data.OwnedHands[raw.Hand] or Calc.IsRobuxHand(raw.Hand)) then
 		data.Hand = raw.Hand
 	end
 
@@ -1430,6 +1554,7 @@ function Data.CreateProfile(player)
 		Combo = 0,
 		LastHit = 0,
 		JoinTime = os.clock(),
+		RobuxHands = {}, -- [HandId] = true (aus Game Pass, wird nie gespeichert)
 		Leaderstats = nil,
 	}
 	Data.Profiles[player] = profile
@@ -1545,6 +1670,7 @@ function Data.Push(player, full)
 		Data.RefreshQuests(profile)
 		payload = deepCopy(profile.Data)
 		payload.Full = true
+		payload.RobuxHands = deepCopy(profile.RobuxHands)
 	else
 		local d = profile.Data
 		payload = {
@@ -2245,6 +2371,11 @@ function Hands.Build(data)
 	local powerLevel = data.Upgrades.Power
 	local hand = Calc.GetHand(data.Hand)
 	local scale = Calc.GetHandScale(powerLevel)
+	if hand.Effect == "thanos" then
+		scale = scale * 1.25
+	elseif hand.Effect == "ultragod" then
+		scale = scale * 1.5
+	end
 	local color = rgb(hand.Color)
 	local mat = material(hand.Material)
 
@@ -2316,6 +2447,84 @@ function Hands.Build(data)
 		end
 		local s = Instance.new("Sparkles")
 		s.Parent = palm
+	end
+	if hand.Effect == "dragon" then
+		-- schwarze Krallen an den Fingerspitzen
+		for i, x in ipairs(fingerXs) do
+			local length = fingerLengths[i] * scale
+			attach(handPart("Claw" .. i, Vector3.new(0.18 * scale, 0.45 * scale, 0.18 * scale), Color3.fromRGB(20, 15, 15), Enum.Material.SmoothPlastic),
+				CFrame.new(x * scale, 0.75 * scale + length + 0.3 * scale, -0.08 * scale) * CFrame.Angles(math.rad(-25), 0, 0))
+		end
+		local f = Instance.new("Fire")
+		f.Size = 4 * scale
+		f.Heat = 6
+		f.Color = Color3.fromRGB(255, 60, 20)
+		f.SecondaryColor = Color3.fromRGB(120, 0, 0)
+		f.Parent = palm
+	elseif hand.Effect == "thanos" then
+		-- Die sechs Infinity-Steine
+		local stones = {
+			{ 160, 60, 255 }, -- Power
+			{ 60, 140, 255 }, -- Space
+			{ 255, 40, 40 }, -- Reality
+			{ 255, 150, 30 }, -- Soul
+			{ 40, 230, 90 }, -- Time
+			{ 255, 230, 40 }, -- Mind
+		}
+		for i = 1, 4 do
+			local x = fingerXs[i]
+			local c = stones[i]
+			local stone = attach(handPart("Stone" .. i, Vector3.new(0.24 * scale, 0.24 * scale, 0.24 * scale), Color3.fromRGB(c[1], c[2], c[3]), Enum.Material.Neon, Enum.PartType.Ball),
+				CFrame.new(x * scale, 0.6 * scale, -0.3 * scale))
+			stone.Name = "InfinityStone" .. i
+		end
+		local thumbStone = stones[5]
+		attach(handPart("InfinityStone5", Vector3.new(0.24 * scale, 0.24 * scale, 0.24 * scale), Color3.fromRGB(thumbStone[1], thumbStone[2], thumbStone[3]), Enum.Material.Neon, Enum.PartType.Ball),
+			CFrame.new(0.95 * scale, 0.2 * scale, -0.25 * scale))
+		local mindStone = stones[6]
+		attach(handPart("InfinityStone6", Vector3.new(0.42 * scale, 0.42 * scale, 0.42 * scale), Color3.fromRGB(mindStone[1], mindStone[2], mindStone[3]), Enum.Material.Neon, Enum.PartType.Ball),
+			CFrame.new(0, -0.05 * scale, -0.3 * scale))
+		local f = Instance.new("Fire")
+		f.Size = 4 * scale
+		f.Heat = 5
+		f.Color = Color3.fromRGB(150, 60, 255)
+		f.SecondaryColor = Color3.fromRGB(255, 200, 60)
+		f.Parent = palm
+		local s = Instance.new("Sparkles")
+		s.SparkleColor = Color3.fromRGB(200, 120, 255)
+		s.Parent = palm
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(170, 90, 255)
+		light.Range = 14
+		light.Brightness = 2
+		light.Parent = palm
+	elseif hand.Effect == "ultragod" then
+		-- Regenbogen-Heiligenschein ums Handgelenk
+		for i = 0, 9 do
+			local angle = (i / 10) * math.pi * 2
+			local orb = attach(handPart("HaloOrb" .. i, Vector3.new(0.28 * scale, 0.28 * scale, 0.28 * scale), Color3.fromRGB(255, 255, 255), Enum.Material.Neon, Enum.PartType.Ball),
+				CFrame.new(math.cos(angle) * 1.15 * scale, -0.8 * scale, math.sin(angle) * 1.15 * scale))
+			CollectionService:AddTag(orb, "RainbowHand")
+		end
+		-- goldene Kristalle auf den Knoecheln
+		for i, x in ipairs(fingerXs) do
+			attach(handPart("GodGem" .. i, Vector3.new(0.2 * scale, 0.32 * scale, 0.2 * scale), Color3.fromRGB(255, 215, 60), Enum.Material.Neon),
+				CFrame.new(x * scale, 0.6 * scale, -0.32 * scale) * CFrame.Angles(0, math.rad(45), 0))
+		end
+		local f = Instance.new("Fire")
+		f.Size = 6 * scale
+		f.Heat = 9
+		f.Color = Color3.fromRGB(255, 240, 160)
+		f.SecondaryColor = Color3.fromRGB(255, 160, 255)
+		f.Parent = palm
+		local s = Instance.new("Sparkles")
+		s.SparkleColor = Color3.fromRGB(255, 255, 200)
+		s.Parent = palm
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 245, 200)
+		light.Range = 22
+		light.Brightness = 4
+		light.Parent = palm
 	end
 	if hand.Material == "Neon" then
 		local light = Instance.new("PointLight")
@@ -2994,6 +3203,8 @@ return Rewards
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("SlapShared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -3080,6 +3291,45 @@ end
 --------------------------------------------------------------------------
 -- Haende
 --------------------------------------------------------------------------
+local function ownsHand(profile, handId)
+	return profile.Data.OwnedHands[handId] == true or profile.RobuxHands[handId] == true
+end
+Shop.OwnsHand = ownsHand
+
+-- Robux-Hand freischalten (nach Kauf oder zum Testen in Studio)
+local function grantRobuxHand(player, profile, hand, isTest)
+	profile.RobuxHands[hand.Id] = true
+	profile.Data.Hand = hand.Id
+	ctx.Hands.Give(player, true)
+	local subtitle = hand.DisplayName .. "  (x" .. Calc.FormatNumber(hand.Damage) .. " Damage)"
+	if isTest then
+		subtitle = subtitle .. "  - Studio test, free"
+	else
+		ctx.Remotes.NotifyAll("👑 " .. player.DisplayName .. " got the " .. hand.DisplayName .. "!", hand.Color)
+	end
+	ctx.Remotes.Popup(player, "ULTRA HAND UNLOCKED!", subtitle, hand.Color)
+	ctx.Remotes.Fire("Event", player, "Purchased")
+	ctx.Data.Push(player, true)
+end
+
+-- Beim Betreten pruefen, welche Robux-Haende der Spieler besitzt
+function Shop.CheckRobuxHands(player, profile)
+	for _, hand in ipairs(Config.Hands) do
+		local passId = tonumber(hand.GamePassId) or 0
+		if hand.Currency == "Robux" and passId > 0 then
+			local ok, owns = pcall(function()
+				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
+			end)
+			if ok and owns then
+				profile.RobuxHands[hand.Id] = true
+			end
+		end
+	end
+	if Calc.IsRobuxHand(profile.Data.Hand) and not profile.RobuxHands[profile.Data.Hand] then
+		profile.Data.Hand = "Wood"
+	end
+end
+
 function Shop.BuyHand(player, handId)
 	local profile = ctx.Data.Get(player)
 	if not profile or type(handId) ~= "string" or not Calc.IsHand(handId) then
@@ -3087,8 +3337,26 @@ function Shop.BuyHand(player, handId)
 	end
 	local data = profile.Data
 	local hand = Calc.GetHand(handId)
-	if data.OwnedHands[handId] then
+	if ownsHand(profile, handId) then
 		Shop.EquipHand(player, handId)
+		return
+	end
+	if hand.Currency == "Robux" then
+		local passId = tonumber(hand.GamePassId) or 0
+		if passId <= 0 then
+			if RunService:IsStudio() then
+				grantRobuxHand(player, profile, hand, true)
+			else
+				ctx.Remotes.Notify(player, "👑 " .. hand.DisplayName .. " is coming soon!", { 255, 220, 120 })
+			end
+			return
+		end
+		local ok, err = pcall(function()
+			MarketplaceService:PromptGamePassPurchase(player, passId)
+		end)
+		if not ok then
+			warn("[SlapTheGyatt] Game pass prompt failed: " .. tostring(err))
+		end
 		return
 	end
 	local balanceKey = hand.Currency == "Gems" and "Gems" or "Slaps"
@@ -3107,7 +3375,7 @@ end
 
 function Shop.EquipHand(player, handId)
 	local profile = ctx.Data.Get(player)
-	if not profile or type(handId) ~= "string" or not profile.Data.OwnedHands[handId] then
+	if not profile or type(handId) ~= "string" or not ownsHand(profile, handId) then
 		return
 	end
 	profile.Data.Hand = handId
@@ -3296,6 +3564,22 @@ function Shop.Init(context)
 end
 
 function Shop.Start()
+	-- Robux-Kauf abgeschlossen
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
+		if not purchased then
+			return
+		end
+		local profile = ctx.Data.Get(player)
+		if not profile then
+			return
+		end
+		for _, hand in ipairs(Config.Hands) do
+			if hand.Currency == "Robux" and tonumber(hand.GamePassId) == passId then
+				grantRobuxHand(player, profile, hand, false)
+			end
+		end
+	end)
+
 	-- Tor-Prompts
 	for _, zoneInfo in ipairs(ctx.World.Zones) do
 		if zoneInfo.GatePrompt then
@@ -4728,6 +5012,41 @@ local function fovPunch(amount)
 	TweenService:Create(camera, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { FieldOfView = base }):Play()
 end
 
+local function screenFlash(color, strength)
+	local flash = UI.Create("Frame", {
+		Name = "Flash",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = color,
+		BackgroundTransparency = 1 - strength,
+		BorderSizePixel = 0,
+		ZIndex = 40,
+		Parent = ctx.Screen,
+	})
+	TweenService:Create(flash, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
+	Debris:AddItem(flash, 0.6)
+end
+
+local function lightning(position)
+	for i = 1, 3 do
+		local bolt = Instance.new("Part")
+		bolt.Name = "Lightning"
+		bolt.Anchored = true
+		bolt.CanCollide = false
+		bolt.CanQuery = false
+		bolt.CanTouch = false
+		bolt.CastShadow = false
+		bolt.Material = Enum.Material.Neon
+		bolt.Color = (i == 1) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 240, 140)
+		local width = (i == 1) and 1.6 or 0.7
+		bolt.Size = Vector3.new(width, 140, width)
+		local offset = Vector3.new((math.random() - 0.5) * 4, 70, (math.random() - 0.5) * 4)
+		bolt.CFrame = CFrame.new(position + offset) * CFrame.Angles(0, 0, (math.random() - 0.5) * 0.12)
+		bolt.Parent = workspace
+		TweenService:Create(bolt, TweenInfo.new(0.45), { Transparency = 1 }):Play()
+		Debris:AddItem(bolt, 0.5)
+	end
+end
+
 function Effects.OnSlap(info)
 	local position = info.Position
 	if typeof(position) ~= "Vector3" then
@@ -4783,6 +5102,25 @@ function Effects.OnSlap(info)
 		end
 		local offset = Vector3.new((math.random() - 0.5) * radius * 1.4, radius * 0.5 + math.random() * radius * 0.6, 0)
 		floatingText(position + offset, text, color, size, isMine and 0 or 0.35)
+	end
+
+	-- Legendaere Kraefte
+	if info.Special == "Snap" then
+		burst(position, { Color3.fromRGB(120, 100, 90), Color3.fromRGB(200, 180, 160) }, 80, 30, 1.6)
+		floatingText(position + Vector3.new(0, radius + 3, 0), "🫰 SNAP!", Color3.fromRGB(190, 110, 255), 9, 0)
+		if isMine then
+			screenFlash(Color3.fromRGB(150, 60, 255), 0.45)
+			shake(0.8, 0.4)
+		end
+	elseif info.Special == "Smite" then
+		lightning(position)
+		burst(position + Vector3.new(0, radius, 0), { Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 230, 100) }, 50, 45, 1.5)
+		if isMine then
+			floatingText(position + Vector3.new(0, radius + 3, 0), "⚡ DIVINE SMITE!", Color3.fromRGB(255, 240, 120), 8, 0)
+			screenFlash(Color3.fromRGB(255, 255, 220), 0.35)
+			shake(0.9, 0.35)
+			ctx.PlaySound("Crit", 0.6)
+		end
 	end
 
 	if isMine then
@@ -5648,33 +5986,62 @@ end
 -- Haende
 --------------------------------------------------------------------------
 local function buildHands()
-	local win = UI.CreateWindow(ctx.Screen, "Hands", "Hands", "✋", Vector2.new(580, 470))
+	local win = UI.CreateWindow(ctx.Screen, "Hands", "Hands", "✋", Vector2.new(600, 490))
 	local list = UI.ScrollList(win.Content, {})
 	local rows = {}
+	local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow", dragon = "Dragon Fire", thanos = "Infinity Stones", ultragod = "Divine Aura" }
 	for order, hand in ipairs(Config.Hands) do
-		local row = UI.Row(list, 70, order)
+		local rarity = Config.Rarities[hand.Rarity] or Config.Rarities.Common
+		local rarityColor = UI.rgb(rarity.Color)
+		local isUltra = hand.Currency == "Robux"
+		local height = (hand.Perk and 104) or 84
+		local row = UI.Row(list, height, order)
+		if isUltra then
+			row.BackgroundColor3 = Color3.fromRGB(70, 40, 20)
+			UI.Create("UIGradient", {
+				Color = ColorSequence.new(Color3.fromRGB(255, 230, 150), Color3.fromRGB(200, 120, 255)),
+				Rotation = 0,
+				Transparency = NumberSequence.new(0.6),
+				Parent = row,
+			})
+		end
 		local swatch = Create("Frame", {
-			Position = UDim2.new(0, 10, 0.5, -24),
-			Size = UDim2.new(0, 48, 0, 48),
+			Position = UDim2.new(0, 10, 0, 12),
+			Size = UDim2.new(0, 56, 0, 56),
 			BackgroundColor3 = UI.rgb(hand.Color),
 			ZIndex = 6,
 			Parent = row,
-		}, { UI.Corner(12), UI.Stroke(2) })
-		UI.Label({ Size = UDim2.fromScale(1, 1), Text = "✋", ZIndex = 7, Parent = swatch })
-		title({ Position = UDim2.new(0, 68, 0, 8), Size = UDim2.new(0.55, -68, 0, 28), Text = hand.DisplayName, Parent = row })
-		local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow" }
+		}, { UI.Corner(12), UI.Stroke(isUltra and 3.5 or 2, isUltra and UI.Colors.Gold or nil) })
+		UI.Label({ Size = UDim2.fromScale(1, 1), Text = isUltra and (hand.Effect == "thanos" and "🫰" or "👑") or "✋", ZIndex = 7, Parent = swatch })
+
+		title({ Position = UDim2.new(0, 76, 0, 6), Size = UDim2.new(0.58, -76, 0, 26), Text = hand.DisplayName, Parent = row })
+		local badge = UI.Label({
+			Position = UDim2.new(0, 76, 0, 34),
+			Size = UDim2.new(0, 96, 0, 18),
+			BackgroundTransparency = 0,
+			BackgroundColor3 = rarityColor,
+			Font = UI.Font,
+			TextColor3 = Color3.fromRGB(30, 15, 35),
+			Text = string.upper(rarity.DisplayName),
+			ZIndex = 7,
+			Parent = row,
+		})
+		UI.Corner(6).Parent = badge
 		local effect = effectNames[hand.Effect] and ("  ✨ " .. effectNames[hand.Effect]) or ""
-		smallLabel({ Position = UDim2.new(0, 68, 0, 38), Size = UDim2.new(0.55, -68, 0, 20), TextColor3 = UI.Colors.Gold,
-			Text = "x" .. hand.Damage .. " Damage" .. effect, Parent = row })
+		smallLabel({ Position = UDim2.new(0, 178, 0, 34), Size = UDim2.new(0.58, -178, 0, 18), TextColor3 = UI.Colors.SubText, Text = effect, Parent = row })
+		smallLabel({ Position = UDim2.new(0, 76, 0, 56), Size = UDim2.new(0.58, -76, 0, 18), TextColor3 = UI.Colors.Gold, Text = Calc.DescribeHandPerks(hand), Parent = row })
+		if hand.Perk then
+			smallLabel({ Position = UDim2.new(0, 10, 0, 78), Size = UDim2.new(1, -20, 0, 20), TextColor3 = Color3.fromRGB(255, 240, 160), Text = hand.Perk, Parent = row })
+		end
 		local button = UI.Button({
-			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -10, 0.5, 0),
-			Size = UDim2.new(0.38, -10, 0, 46),
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -10, 0, 14),
+			Size = UDim2.new(0.36, -10, 0, 50),
 			ZIndex = 6,
 			Parent = row,
 		}, function()
 			local s = state()
-			if s and s.OwnedHands and s.OwnedHands[hand.Id] then
+			if s and Calc.OwnsHand(s, hand.Id) then
 				ctx.Request("EquipHand", hand.Id)
 			else
 				ctx.Request("BuyHand", hand.Id)
@@ -5691,25 +6058,26 @@ local function buildHands()
 		for _, hand in ipairs(Config.Hands) do
 			local r = rows[hand.Id]
 			local stroke = r.Row:FindFirstChildOfClass("UIStroke")
+			local isUltra = hand.Currency == "Robux"
+			if stroke then
+				stroke.Color = isUltra and UI.Colors.Gold or UI.Colors.PanelLight
+			end
 			if s.Hand == hand.Id then
 				r.Button.Text = "✅ Equipped"
 				UI.SetButtonColor(r.Button, UI.Colors.GreenDark)
 				if stroke then
-					stroke.Color = UI.Colors.Gold
+					stroke.Color = UI.Colors.White
 				end
-			elseif s.OwnedHands[hand.Id] then
+			elseif Calc.OwnsHand(s, hand.Id) then
 				r.Button.Text = "Equip"
 				UI.SetButtonColor(r.Button, UI.Colors.Blue)
-				if stroke then
-					stroke.Color = UI.Colors.PanelLight
-				end
+			elseif isUltra then
+				r.Button.Text = "R$ " .. hand.Price
+				UI.SetButtonColor(r.Button, UI.Colors.Gold)
 			else
 				local balance = hand.Currency == "Gems" and s.Gems or s.Slaps
 				r.Button.Text = money(hand.Price, hand.Currency)
 				UI.SetButtonColor(r.Button, balance >= hand.Price and UI.Colors.Green or UI.Colors.Gray)
-				if stroke then
-					stroke.Color = UI.Colors.PanelLight
-				end
 			end
 		end
 	end

@@ -199,6 +199,40 @@ function Calc.IsHand(handId)
 	return handIndex[handId] ~= nil
 end
 
+function Calc.IsRobuxHand(handId)
+	local index = handIndex[handId]
+	return index ~= nil and Config.Hands[index].Currency == "Robux"
+end
+
+-- Besitzt der Spieler die Hand? (Robux-Haende stehen in RobuxHands)
+function Calc.OwnsHand(data, handId)
+	if type(data) ~= "table" then
+		return false
+	end
+	if type(data.OwnedHands) == "table" and data.OwnedHands[handId] then
+		return true
+	end
+	return type(data.RobuxHands) == "table" and data.RobuxHands[handId] == true
+end
+
+-- Kurzbeschreibung der Bonus-Werte einer Hand
+function Calc.DescribeHandPerks(hand)
+	local parts = { "x" .. Calc.FormatNumber(hand.Damage) .. " Damage" }
+	if hand.SlapMultiplier then
+		table.insert(parts, "x" .. hand.SlapMultiplier .. " Slaps")
+	end
+	if hand.CritBonus then
+		table.insert(parts, "+" .. math.floor(hand.CritBonus * 100 + 0.5) .. "% Crit")
+	end
+	if hand.ReachBonus then
+		table.insert(parts, "+" .. hand.ReachBonus .. " Reach")
+	end
+	if hand.SpeedMultiplier then
+		table.insert(parts, "+" .. math.floor((1 / hand.SpeedMultiplier - 1) * 100 + 0.5) .. "% Speed")
+	end
+	return table.concat(parts, " • ")
+end
+
 --------------------------------------------------------------------------
 -- Pets
 --------------------------------------------------------------------------
@@ -312,13 +346,33 @@ end
 -- Multiplikator fuer verdiente Slaps (ohne Combo und ohne Gyatt-Multiplikator)
 function Calc.GetSlapMultiplier(data, now)
 	local upgrades = data.Upgrades or {}
+	local hand = Calc.GetHand(data.Hand)
 	local multiplier = Calc.GetGreedMultiplier(upgrades.Greed)
 		* Calc.GetRebirthSlapMultiplier(data.Rebirths)
 		* Calc.GetPetBoost(Calc.GetEquippedPetIds(data))
+		* (hand.SlapMultiplier or 1)
 	if Calc.IsBoostActive(data, "DoubleSlaps", now) then
 		multiplier = multiplier * 2
 	end
 	return multiplier
+end
+
+-- Krit-Chance inklusive Hand-Bonus
+function Calc.GetTotalCritChance(data)
+	local hand = Calc.GetHand(data.Hand)
+	return math.min(0.95, Calc.GetCritChance((data.Upgrades or {}).Luck) + (hand.CritBonus or 0))
+end
+
+-- Reichweite inklusive Hand-Bonus
+function Calc.GetTotalReach(data)
+	local hand = Calc.GetHand(data.Hand)
+	return Calc.GetReach((data.Upgrades or {}).Reach) + (hand.ReachBonus or 0)
+end
+
+-- Wartezeit inklusive Hand-Bonus
+function Calc.GetTotalCooldown(data)
+	local hand = Calc.GetHand(data.Hand)
+	return math.max(0.08, Calc.GetCooldown((data.Upgrades or {}).Speed) * (hand.SpeedMultiplier or 1))
 end
 
 --------------------------------------------------------------------------

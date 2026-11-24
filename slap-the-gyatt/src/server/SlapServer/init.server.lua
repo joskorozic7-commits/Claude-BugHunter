@@ -123,6 +123,7 @@ local function onPlayerAdded(player)
 	profile.Loaded = true
 	profile.CanSave = ok
 	Data.RefreshQuests(profile)
+	Shop.CheckRobuxHands(player, profile)
 
 	if not ok then
 		if RunService:IsStudio() then

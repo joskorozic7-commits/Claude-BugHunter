@@ -109,12 +109,13 @@ function Data.Sanitize(raw)
 
 	if type(raw.OwnedHands) == "table" then
 		for handId, owned in pairs(raw.OwnedHands) do
-			if owned == true and Calc.IsHand(handId) then
+			if owned == true and Calc.IsHand(handId) and not Calc.IsRobuxHand(handId) then
 				data.OwnedHands[handId] = true
 			end
 		end
 	end
-	if type(raw.Hand) == "string" and data.OwnedHands[raw.Hand] then
+	-- Robux-Haende werden nach dem Laden ueber den Game Pass geprueft
+	if type(raw.Hand) == "string" and (data.OwnedHands[raw.Hand] or Calc.IsRobuxHand(raw.Hand)) then
 		data.Hand = raw.Hand
 	end
 
@@ -282,6 +283,7 @@ function Data.CreateProfile(player)
 		Combo = 0,
 		LastHit = 0,
 		JoinTime = os.clock(),
+		RobuxHands = {}, -- [HandId] = true (aus Game Pass, wird nie gespeichert)
 		Leaderstats = nil,
 	}
 	Data.Profiles[player] = profile
@@ -397,6 +399,7 @@ function Data.Push(player, full)
 		Data.RefreshQuests(profile)
 		payload = deepCopy(profile.Data)
 		payload.Full = true
+		payload.RobuxHands = deepCopy(profile.RobuxHands)
 	else
 		local d = profile.Data
 		payload = {

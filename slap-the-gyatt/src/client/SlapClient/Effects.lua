@@ -95,6 +95,41 @@ local function fovPunch(amount)
 	TweenService:Create(camera, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { FieldOfView = base }):Play()
 end
 
+local function screenFlash(color, strength)
+	local flash = UI.Create("Frame", {
+		Name = "Flash",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = color,
+		BackgroundTransparency = 1 - strength,
+		BorderSizePixel = 0,
+		ZIndex = 40,
+		Parent = ctx.Screen,
+	})
+	TweenService:Create(flash, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
+	Debris:AddItem(flash, 0.6)
+end
+
+local function lightning(position)
+	for i = 1, 3 do
+		local bolt = Instance.new("Part")
+		bolt.Name = "Lightning"
+		bolt.Anchored = true
+		bolt.CanCollide = false
+		bolt.CanQuery = false
+		bolt.CanTouch = false
+		bolt.CastShadow = false
+		bolt.Material = Enum.Material.Neon
+		bolt.Color = (i == 1) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 240, 140)
+		local width = (i == 1) and 1.6 or 0.7
+		bolt.Size = Vector3.new(width, 140, width)
+		local offset = Vector3.new((math.random() - 0.5) * 4, 70, (math.random() - 0.5) * 4)
+		bolt.CFrame = CFrame.new(position + offset) * CFrame.Angles(0, 0, (math.random() - 0.5) * 0.12)
+		bolt.Parent = workspace
+		TweenService:Create(bolt, TweenInfo.new(0.45), { Transparency = 1 }):Play()
+		Debris:AddItem(bolt, 0.5)
+	end
+end
+
 function Effects.OnSlap(info)
 	local position = info.Position
 	if typeof(position) ~= "Vector3" then
@@ -150,6 +185,25 @@ function Effects.OnSlap(info)
 		end
 		local offset = Vector3.new((math.random() - 0.5) * radius * 1.4, radius * 0.5 + math.random() * radius * 0.6, 0)
 		floatingText(position + offset, text, color, size, isMine and 0 or 0.35)
+	end
+
+	-- Legendaere Kraefte
+	if info.Special == "Snap" then
+		burst(position, { Color3.fromRGB(120, 100, 90), Color3.fromRGB(200, 180, 160) }, 80, 30, 1.6)
+		floatingText(position + Vector3.new(0, radius + 3, 0), "🫰 SNAP!", Color3.fromRGB(190, 110, 255), 9, 0)
+		if isMine then
+			screenFlash(Color3.fromRGB(150, 60, 255), 0.45)
+			shake(0.8, 0.4)
+		end
+	elseif info.Special == "Smite" then
+		lightning(position)
+		burst(position + Vector3.new(0, radius, 0), { Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 230, 100) }, 50, 45, 1.5)
+		if isMine then
+			floatingText(position + Vector3.new(0, radius + 3, 0), "⚡ DIVINE SMITE!", Color3.fromRGB(255, 240, 120), 8, 0)
+			screenFlash(Color3.fromRGB(255, 255, 220), 0.35)
+			shake(0.9, 0.35)
+			ctx.PlaySound("Crit", 0.6)
+		end
 	end
 
 	if isMine then

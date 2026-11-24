@@ -9,7 +9,7 @@
 local Config = {}
 
 Config.GameName = "Slap the Gyatt"
-Config.Version = "2.1"
+Config.Version = "2.2"
 
 --------------------------------------------------------------------------
 -- Speichern
@@ -101,18 +101,36 @@ Config.Upgrades = {
 --   Effect: "none" | "sparkles" | "fire" | "smoke" | "rainbow"
 --------------------------------------------------------------------------
 Config.Hands = {
-	{ Id = "Wood", DisplayName = "Wood Hand", Damage = 1, Price = 0, Currency = "Slaps", Color = { 165, 115, 70 }, Material = "Wood", Effect = "none" },
-	{ Id = "Stone", DisplayName = "Stone Hand", Damage = 1.5, Price = 500, Currency = "Slaps", Color = { 125, 125, 130 }, Material = "Slate", Effect = "none" },
-	{ Id = "Iron", DisplayName = "Iron Hand", Damage = 2.2, Price = 7500, Currency = "Slaps", Color = { 195, 200, 210 }, Material = "DiamondPlate", Effect = "none" },
-	{ Id = "Gold", DisplayName = "Gold Hand", Damage = 3.5, Price = 60000, Currency = "Slaps", Color = { 255, 200, 40 }, Material = "Foil", Effect = "sparkles" },
-	{ Id = "Emerald", DisplayName = "Emerald Hand", Damage = 5, Price = 600000, Currency = "Slaps", Color = { 40, 220, 110 }, Material = "Glass", Effect = "sparkles" },
-	{ Id = "Diamond", DisplayName = "Diamond Hand", Damage = 8, Price = 8000000, Currency = "Slaps", Color = { 120, 230, 255 }, Material = "Glass", Effect = "sparkles" },
-	{ Id = "Ice", DisplayName = "Frost Hand", Damage = 12, Price = 90000000, Currency = "Slaps", Color = { 190, 235, 255 }, Material = "Ice", Effect = "smoke" },
-	{ Id = "Lava", DisplayName = "Lava Hand", Damage = 18, Price = 1200000000, Currency = "Slaps", Color = { 255, 110, 20 }, Material = "Neon", Effect = "fire" },
-	{ Id = "Cloud", DisplayName = "Cloud Hand", Damage = 27, Price = 20000000000, Currency = "Slaps", Color = { 250, 250, 255 }, Material = "SmoothPlastic", Effect = "sparkles" },
-	{ Id = "Galaxy", DisplayName = "Galaxy Hand", Damage = 40, Price = 400000000000, Currency = "Slaps", Color = { 120, 50, 220 }, Material = "Neon", Effect = "sparkles" },
-	{ Id = "Rainbow", DisplayName = "Rainbow Hand", Damage = 60, Price = 8000000000000, Currency = "Slaps", Color = { 255, 80, 200 }, Material = "Neon", Effect = "rainbow" },
-	{ Id = "GyattGod", DisplayName = "Gyatt God Hand", Damage = 100, Price = 2500, Currency = "Gems", Color = { 255, 235, 120 }, Material = "Neon", Effect = "fire" },
+	{ Id = "Wood", DisplayName = "Wood Hand", Rarity = "Common", Damage = 1, Price = 0, Currency = "Slaps", Color = { 165, 115, 70 }, Material = "Wood", Effect = "none" },
+	{ Id = "Stone", DisplayName = "Stone Hand", Rarity = "Common", Damage = 1.5, Price = 500, Currency = "Slaps", Color = { 125, 125, 130 }, Material = "Slate", Effect = "none" },
+	{ Id = "Iron", DisplayName = "Iron Hand", Rarity = "Common", Damage = 2.2, Price = 7500, Currency = "Slaps", Color = { 195, 200, 210 }, Material = "DiamondPlate", Effect = "none" },
+	{ Id = "Gold", DisplayName = "Gold Hand", Rarity = "Rare", Damage = 3.5, Price = 60000, Currency = "Slaps", Color = { 255, 200, 40 }, Material = "Foil", Effect = "sparkles" },
+	{ Id = "Emerald", DisplayName = "Emerald Hand", Rarity = "Rare", Damage = 5, Price = 600000, Currency = "Slaps", Color = { 40, 220, 110 }, Material = "Glass", Effect = "sparkles" },
+	{ Id = "Diamond", DisplayName = "Diamond Hand", Rarity = "Epic", Damage = 8, Price = 8000000, Currency = "Slaps", Color = { 120, 230, 255 }, Material = "Glass", Effect = "sparkles" },
+	{ Id = "Ice", DisplayName = "Frost Hand", Rarity = "Epic", Damage = 12, Price = 90000000, Currency = "Slaps", Color = { 190, 235, 255 }, Material = "Ice", Effect = "smoke" },
+	{ Id = "Lava", DisplayName = "Lava Hand", Rarity = "Epic", Damage = 18, Price = 1200000000, Currency = "Slaps", Color = { 255, 110, 20 }, Material = "Neon", Effect = "fire" },
+	{ Id = "Cloud", DisplayName = "Cloud Hand", Rarity = "Legendary", Damage = 27, Price = 20000000000, Currency = "Slaps", Color = { 250, 250, 255 }, Material = "SmoothPlastic", Effect = "sparkles" },
+	{ Id = "Galaxy", DisplayName = "Galaxy Hand", Rarity = "Legendary", Damage = 40, Price = 400000000000, Currency = "Slaps", Color = { 120, 50, 220 }, Material = "Neon", Effect = "sparkles" },
+	{ Id = "Rainbow", DisplayName = "Rainbow Hand", Rarity = "Legendary", Damage = 60, Price = 8000000000000, Currency = "Slaps", Color = { 255, 80, 200 }, Material = "Neon", Effect = "rainbow" },
+	{ Id = "GyattGod", DisplayName = "Gyatt God Hand", Rarity = "Legendary", Damage = 100, Price = 2500, Currency = "Gems", Color = { 255, 235, 120 }, Material = "Neon", Effect = "fire",
+		SlapMultiplier = 1.25 },
+	{ Id = "DragonClaw", DisplayName = "Dragon Claw", Rarity = "Mythic", Damage = 180, Price = 6000, Currency = "Gems", Color = { 200, 30, 40 }, Material = "Neon", Effect = "dragon",
+		SlapMultiplier = 1.5, CritBonus = 0.05 },
+
+	-- ROBUX-HAENDE (Game Passes). So richtest du sie ein:
+	--   1. create.roblox.com -> dein Spiel -> Monetization -> Passes -> "Create a Pass"
+	--   2. Preis einstellen (Thanos 299, Ultra God 1999) und "Item for Sale" anschalten
+	--   3. Die Pass-ID (Zahl in der Adresse) hier bei GamePassId eintragen
+	-- Solange GamePassId = 0 ist, kann man die Hand nur in Studio zum Testen kostenlos benutzen.
+	{ Id = "Thanos", DisplayName = "Thanos Gauntlet", Rarity = "Ultra", Damage = 500, Price = 299, Currency = "Robux", GamePassId = 0,
+		Color = { 220, 170, 40 }, Material = "Foil", Effect = "thanos",
+		SlapMultiplier = 3, CritBonus = 0.1, ReachBonus = 5, SpeedMultiplier = 0.8, Snap = 0.05,
+		Perk = "🫰 SNAP: 5% chance to erase a Gyatt instantly" },
+	{ Id = "UltraGod", DisplayName = "ULTRA GOD HAND", Rarity = "Ultra", Damage = 2500, Price = 1999, Currency = "Robux", GamePassId = 0,
+		Color = { 255, 250, 220 }, Material = "Neon", Effect = "ultragod",
+		SlapMultiplier = 10, CritBonus = 0.25, ReachBonus = 15, SpeedMultiplier = 0.5, Snap = 0.1,
+		Smite = { Every = 5, Multiplier = 25, Radius = 45 },
+		Perk = "⚡ DIVINE SMITE: every 5th slap strikes lightning (x25, area) + 10% SNAP" },
 }
 
 --------------------------------------------------------------------------
@@ -125,6 +143,7 @@ Config.Rarities = {
 	Epic = { DisplayName = "Epic", Color = { 190, 90, 255 }, Order = 3 },
 	Legendary = { DisplayName = "Legendary", Color = { 255, 190, 40 }, Order = 4 },
 	Mythic = { DisplayName = "Mythic", Color = { 255, 60, 120 }, Order = 5 },
+	Ultra = { DisplayName = "ULTRA", Color = { 255, 240, 120 }, Order = 6 },
 }
 
 --------------------------------------------------------------------------
