@@ -17,7 +17,7 @@ local GREEN = { 120, 255, 140 }
 
 local function notEnough(player, amount, currency)
 	local icon = currency == "Gems" and "💎" or "👋"
-	ctx.Remotes.Notify(player, "Nicht genug " .. currency .. "! Du brauchst " .. icon .. " " .. Calc.FormatNumber(amount), RED)
+	ctx.Remotes.Notify(player, "Not enough " .. currency .. "! You need " .. icon .. " " .. Calc.FormatNumber(amount), RED)
 	ctx.Remotes.Fire("Event", player, "Denied")
 end
 
@@ -39,7 +39,7 @@ end
 
 local function afterUpgrade(player, profile, id, bought)
 	local upgrade = Config.Upgrades[id]
-	ctx.Remotes.Notify(player, upgrade.Icon .. " " .. upgrade.DisplayName .. " ist jetzt Level " .. profile.Data.Upgrades[id]
+	ctx.Remotes.Notify(player, upgrade.Icon .. " " .. upgrade.DisplayName .. " is now level " .. profile.Data.Upgrades[id]
 		.. (bought > 1 and ("  (+" .. bought .. ")") or "") .. "!", GREEN)
 	ctx.Remotes.Fire("Event", player, "Purchased")
 	if id == "Power" then
@@ -57,7 +57,7 @@ function Shop.BuyUpgrade(player, id)
 	if ok then
 		afterUpgrade(player, profile, id, 1)
 	elseif cost == nil then
-		ctx.Remotes.Notify(player, "Schon auf Max-Level!", { 255, 220, 120 })
+		ctx.Remotes.Notify(player, "Already at max level!", { 255, 220, 120 })
 	else
 		notEnough(player, cost, "Slaps")
 	end
@@ -81,7 +81,7 @@ function Shop.BuyUpgradeMax(player, id)
 	if bought > 0 then
 		afterUpgrade(player, profile, id, bought)
 	elseif lastCost == nil then
-		ctx.Remotes.Notify(player, "Schon auf Max-Level!", { 255, 220, 120 })
+		ctx.Remotes.Notify(player, "Already at max level!", { 255, 220, 120 })
 	else
 		notEnough(player, lastCost, "Slaps")
 	end
@@ -110,7 +110,7 @@ function Shop.BuyHand(player, handId)
 	data.OwnedHands[handId] = true
 	data.Hand = handId
 	ctx.Hands.Give(player, true)
-	ctx.Remotes.Popup(player, "NEUE HAND!", hand.DisplayName .. "  (x" .. hand.Damage .. " Schaden)", hand.Color)
+	ctx.Remotes.Popup(player, "NEW HAND!", hand.DisplayName .. "  (x" .. hand.Damage .. " Damage)", hand.Color)
 	ctx.Remotes.Fire("Event", player, "Purchased")
 	ctx.Data.Push(player, true)
 end
@@ -122,7 +122,7 @@ function Shop.EquipHand(player, handId)
 	end
 	profile.Data.Hand = handId
 	ctx.Hands.Give(player, true)
-	ctx.Remotes.Notify(player, "✋ " .. Calc.GetHand(handId).DisplayName .. " ausgeruestet!", GREEN)
+	ctx.Remotes.Notify(player, "✋ " .. Calc.GetHand(handId).DisplayName .. " equipped!", GREEN)
 	ctx.Data.Push(player, true)
 end
 
@@ -141,11 +141,11 @@ function Shop.UnlockZone(player, zoneIndex)
 		return
 	end
 	if zoneIndex <= data.Zones then
-		ctx.Remotes.Notify(player, "Diese Zone hast du schon!", { 255, 220, 120 })
+		ctx.Remotes.Notify(player, "You already own this zone!", { 255, 220, 120 })
 		return
 	end
 	if zoneIndex > data.Zones + 1 then
-		ctx.Remotes.Notify(player, "Schalte zuerst Zone " .. (data.Zones + 1) .. " frei!", RED)
+		ctx.Remotes.Notify(player, "Unlock Zone " .. (data.Zones + 1) .. " first!", RED)
 		return
 	end
 	if data.Slaps < zone.Price then
@@ -154,8 +154,8 @@ function Shop.UnlockZone(player, zoneIndex)
 	end
 	data.Slaps = data.Slaps - zone.Price
 	data.Zones = zoneIndex
-	ctx.Remotes.Popup(player, "NEUE ZONE!", "Zone " .. zoneIndex .. ": " .. zone.Name, zone.Accent)
-	ctx.Remotes.NotifyAll("🗺️ " .. player.DisplayName .. " hat Zone " .. zoneIndex .. " (" .. zone.Name .. ") freigeschaltet!", zone.Accent)
+	ctx.Remotes.Popup(player, "NEW ZONE!", "Zone " .. zoneIndex .. ": " .. zone.Name, zone.Accent)
+	ctx.Remotes.NotifyAll("🗺️ " .. player.DisplayName .. " unlocked Zone " .. zoneIndex .. " (" .. zone.Name .. ")!", zone.Accent)
 	ctx.Remotes.Fire("Event", player, "Purchased")
 	ctx.Data.Push(player, true)
 end
@@ -181,7 +181,7 @@ function Shop.Teleport(player, zoneIndex)
 		return
 	end
 	if zoneIndex < 1 or zoneIndex > profile.Data.Zones then
-		ctx.Remotes.Notify(player, "Diese Zone ist noch gesperrt!", RED)
+		ctx.Remotes.Notify(player, "This zone is still locked!", RED)
 		return
 	end
 	profile.LastTeleport = now
@@ -211,9 +211,9 @@ function Shop.Rebirth(player)
 	local gems = ctx.Data.AddGems(profile, Calc.GetRebirthGems(data.Rebirths))
 	profile.Combo = 0
 
-	ctx.Remotes.Popup(player, "REBIRTH " .. data.Rebirths .. "!", "Fuer immer " .. Calc.FormatMultiplier(Calc.GetRebirthSlapMultiplier(data.Rebirths))
-		.. " Slaps & " .. Calc.FormatMultiplier(Calc.GetRebirthDamageMultiplier(data.Rebirths)) .. " Schaden  (+" .. gems .. " 💎)", { 200, 150, 255 })
-	ctx.Remotes.NotifyAll("♻️ " .. player.DisplayName .. " hat Rebirth " .. data.Rebirths .. " gemacht!", { 200, 150, 255 })
+	ctx.Remotes.Popup(player, "REBIRTH " .. data.Rebirths .. "!", "Forever " .. Calc.FormatMultiplier(Calc.GetRebirthSlapMultiplier(data.Rebirths))
+		.. " Slaps & " .. Calc.FormatMultiplier(Calc.GetRebirthDamageMultiplier(data.Rebirths)) .. " Damage  (+" .. gems .. " 💎)", { 200, 150, 255 })
+	ctx.Remotes.NotifyAll("♻️ " .. player.DisplayName .. " did Rebirth " .. data.Rebirths .. "!", { 200, 150, 255 })
 
 	-- zurueck zum Start, weil die Zonen wieder gesperrt sind
 	local character = player.Character
@@ -241,7 +241,7 @@ function Shop.BuyGemItem(player, itemId)
 	local owned = data.GemShop[itemId] or 0
 	local price = Calc.GetGemItemPrice(itemId, owned)
 	if not price then
-		ctx.Remotes.Notify(player, "Das hast du schon komplett gekauft!", { 255, 220, 120 })
+		ctx.Remotes.Notify(player, "You already bought all of this!", { 255, 220, 120 })
 		return
 	end
 	if data.Gems < price then
@@ -251,14 +251,14 @@ function Shop.BuyGemItem(player, itemId)
 	data.Gems = data.Gems - price
 	if item.Boost then
 		ctx.Data.AddBoost(profile, item.Boost, item.Duration)
-		ctx.Remotes.Notify(player, item.Icon .. " " .. item.DisplayName .. " aktiviert!", GREEN)
+		ctx.Remotes.Notify(player, item.Icon .. " " .. item.DisplayName .. " activated!", GREEN)
 	else
 		data.GemShop[itemId] = owned + 1
 		if itemId == "AutoSlap" then
 			data.AutoSlapOn = true
-			ctx.Remotes.Popup(player, "AUTO-SLAP!", "Halte deine Hand und stell dich zu einem Gyatt.", { 120, 220, 255 })
+			ctx.Remotes.Popup(player, "AUTO-SLAP!", "Hold your hand and stand next to a Gyatt.", { 120, 220, 255 })
 		else
-			ctx.Remotes.Notify(player, item.Icon .. " " .. item.DisplayName .. " gekauft!", GREEN)
+			ctx.Remotes.Notify(player, item.Icon .. " " .. item.DisplayName .. " bought!", GREEN)
 		end
 	end
 	ctx.Remotes.Fire("Event", player, "Purchased")
@@ -271,7 +271,7 @@ function Shop.ToggleAutoSlap(player)
 		return
 	end
 	if profile.Data.GemShop.AutoSlap < 1 then
-		ctx.Remotes.Notify(player, "Kauf Auto-Slap im 💎 Gem-Shop!", RED)
+		ctx.Remotes.Notify(player, "Buy Auto-Slap in the 💎 Gem Shop!", RED)
 		return
 	end
 	profile.Data.AutoSlapOn = not profile.Data.AutoSlapOn

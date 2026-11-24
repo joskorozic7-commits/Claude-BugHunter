@@ -43,7 +43,7 @@ local function getName(userId)
 		nameCache[userId] = name
 		return name
 	end
-	return "Spieler " .. tostring(userId)
+	return "Player " .. tostring(userId)
 end
 
 local function fill(boardId, entries, formatValue, title)
@@ -123,13 +123,13 @@ function Leaderboards.Refresh()
 	if earned then
 		fill("Earned", earned, Calc.FormatNumber, nil)
 	else
-		fill("Earned", fromServer("TotalEarned"), Calc.FormatNumber, "(nur dieser Server)")
+		fill("Earned", fromServer("TotalEarned"), Calc.FormatNumber, "(this server only)")
 	end
 	local rebirths = stores.Rebirths and readGlobal(stores.Rebirths, false)
 	if rebirths then
 		fill("Rebirths", rebirths, tostring, nil)
 	else
-		fill("Rebirths", fromServer("Rebirths"), tostring, "(nur dieser Server)")
+		fill("Rebirths", fromServer("Rebirths"), tostring, "(this server only)")
 	end
 end
 
@@ -153,7 +153,7 @@ function Leaderboards.Start()
 		while true do
 			local ok, err = pcall(Leaderboards.Refresh)
 			if not ok then
-				warn("[SlapTheGyatt] Bestenliste: " .. tostring(err))
+				warn("[SlapTheGyatt] Leaderboard: " .. tostring(err))
 			end
 			task.wait(Config.LeaderboardRefresh)
 		end

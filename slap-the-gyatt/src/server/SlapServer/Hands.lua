@@ -57,7 +57,7 @@ function Hands.Build(data)
 
 	local tool = Instance.new("Tool")
 	tool.Name = Hands.ToolName
-	tool.ToolTip = hand.DisplayName .. " (x" .. hand.Damage .. " Schaden) - klicken zum Slappen!"
+	tool.ToolTip = hand.DisplayName .. " (x" .. hand.Damage .. " Damage) - click to slap!"
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
 	tool:SetAttribute("HandId", hand.Id)

@@ -23,7 +23,7 @@ do
 	if ok then
 		store = result
 	else
-		warn("[SlapTheGyatt] DataStore nicht verfuegbar: " .. tostring(result))
+		warn("[SlapTheGyatt] DataStore not available: " .. tostring(result))
 	end
 end
 
@@ -226,7 +226,7 @@ function Data.Load(player)
 		if ok then
 			return true, Data.Sanitize(result)
 		end
-		warn("[SlapTheGyatt] Laden fehlgeschlagen (" .. attempt .. "/" .. attempts .. "): " .. tostring(result))
+		warn("[SlapTheGyatt] Load failed (" .. attempt .. "/" .. attempts .. "): " .. tostring(result))
 		if attempt < attempts then
 			task.wait(2)
 		end
@@ -246,7 +246,7 @@ function Data.Save(profile)
 		if ok then
 			return true
 		end
-		warn("[SlapTheGyatt] Speichern fehlgeschlagen (" .. attempt .. "/3): " .. tostring(err))
+		warn("[SlapTheGyatt] Save failed (" .. attempt .. "/3): " .. tostring(err))
 		if attempt < 3 then
 			task.wait(1)
 		end
@@ -366,7 +366,7 @@ function Data.AddStat(profile, stat, amount)
 				profile.Data.Quests.Progress[i] = after
 				changed = true
 				if after >= quest.Amount and before < quest.Amount then
-					Remotes.Notify(profile.Player, "📜 Quest geschafft: " .. quest.Text .. " - hol dir deine Belohnung!", { 255, 230, 120 })
+					Remotes.Notify(profile.Player, "📜 Quest complete: " .. quest.Text .. " - claim your reward!", { 255, 230, 120 })
 				end
 			end
 		end

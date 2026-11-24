@@ -137,13 +137,13 @@ end
 
 function Calc.DescribeUpgrade(id, level)
 	if id == "Power" then
-		return Calc.FormatNumber(Calc.GetBaseDamage(level)) .. " Basis-Schaden"
+		return Calc.FormatNumber(Calc.GetBaseDamage(level)) .. " base damage"
 	elseif id == "Speed" then
 		return string.format("%.2f s", Calc.GetCooldown(level))
 	elseif id == "Reach" then
 		return string.format("%.1f Studs", Calc.GetReach(level))
 	elseif id == "Luck" then
-		return string.format("%.1f%% Krit", Calc.GetCritChance(level) * 100)
+		return string.format("%.1f%% crit", Calc.GetCritChance(level) * 100)
 	elseif id == "Greed" then
 		return string.format("x%.2f Slaps", Calc.GetGreedMultiplier(level))
 	elseif id == "Combo" then

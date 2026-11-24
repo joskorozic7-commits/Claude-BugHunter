@@ -180,13 +180,13 @@ end
 -- Stimmung pro Zone
 --------------------------------------------------------------------------
 local MOODS = {
-	[0] = { Clock = 14.5, Color = { 255, 220, 235 }, Decay = { 150, 110, 160 }, Density = 0.28, Tint = { 255, 255, 255 } },
-	[1] = { Clock = 14.5, Color = { 255, 225, 235 }, Decay = { 140, 160, 120 }, Density = 0.28, Tint = { 255, 255, 255 } },
-	[2] = { Clock = 15.8, Color = { 255, 225, 180 }, Decay = { 200, 140, 90 }, Density = 0.33, Tint = { 255, 242, 220 } },
-	[3] = { Clock = 13, Color = { 220, 240, 255 }, Decay = { 140, 180, 220 }, Density = 0.36, Tint = { 232, 242, 255 } },
-	[4] = { Clock = 18.1, Color = { 255, 150, 110 }, Decay = { 140, 40, 30 }, Density = 0.42, Tint = { 255, 222, 210 } },
-	[5] = { Clock = 12, Color = { 255, 255, 255 }, Decay = { 255, 230, 200 }, Density = 0.3, Tint = { 255, 250, 240 } },
-	[6] = { Clock = 0.5, Color = { 120, 90, 200 }, Decay = { 40, 20, 90 }, Density = 0.22, Tint = { 222, 212, 255 } },
+	[0] = { Clock = 14.5, Color = { 255, 220, 235 }, Decay = { 150, 110, 160 }, Density = 0.28, Tint = { 255, 255, 255 }, Cloud = 0.55, CloudColor = { 255, 245, 250 } },
+	[1] = { Clock = 14.5, Color = { 255, 225, 235 }, Decay = { 140, 160, 120 }, Density = 0.28, Tint = { 255, 255, 255 }, Cloud = 0.55, CloudColor = { 255, 255, 255 } },
+	[2] = { Clock = 15.8, Color = { 255, 225, 180 }, Decay = { 200, 140, 90 }, Density = 0.33, Tint = { 255, 242, 220 }, Cloud = 0.3, CloudColor = { 255, 235, 210 } },
+	[3] = { Clock = 13, Color = { 220, 240, 255 }, Decay = { 140, 180, 220 }, Density = 0.36, Tint = { 232, 242, 255 }, Cloud = 0.75, CloudColor = { 240, 245, 255 } },
+	[4] = { Clock = 18.1, Color = { 255, 150, 110 }, Decay = { 140, 40, 30 }, Density = 0.42, Tint = { 255, 222, 210 }, Cloud = 0.8, CloudColor = { 90, 70, 70 } },
+	[5] = { Clock = 12, Color = { 255, 255, 255 }, Decay = { 255, 230, 200 }, Density = 0.3, Tint = { 255, 250, 240 }, Cloud = 0.7, CloudColor = { 255, 250, 235 } },
+	[6] = { Clock = 0.5, Color = { 120, 90, 200 }, Decay = { 40, 20, 90 }, Density = 0.22, Tint = { 222, 212, 255 }, Cloud = 0, CloudColor = { 255, 255, 255 } },
 }
 
 local function applyMood(zoneIndex)
@@ -200,6 +200,10 @@ local function applyMood(zoneIndex)
 			Decay = ctx.UI.rgb(mood.Decay),
 			Density = mood.Density,
 		}):Play()
+	end
+	local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
+	if clouds then
+		TweenService:Create(clouds, info, { Cover = mood.Cloud, Color = ctx.UI.rgb(mood.CloudColor) }):Play()
 	end
 	local color = Lighting:FindFirstChild("SlapColor")
 	if color then

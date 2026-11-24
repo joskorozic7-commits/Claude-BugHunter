@@ -37,13 +37,13 @@ function Rewards.ClaimDaily(player)
 	local now = os.time()
 	local canClaim, day, waitSeconds = Calc.GetDailyStatus(profile.Data, now)
 	if not canClaim then
-		ctx.Remotes.Notify(player, "🎁 Naechste Belohnung in " .. Calc.FormatTime(waitSeconds), RED)
+		ctx.Remotes.Notify(player, "🎁 Next reward in " .. Calc.FormatTime(waitSeconds), RED)
 		return
 	end
 	profile.Data.Daily.Last = now
 	profile.Data.Daily.Streak = day
 	local text = grant(profile, Config.DailyRewards[day])
-	ctx.Remotes.Popup(player, "TAG " .. day .. " BELOHNUNG!", text, GOLD)
+	ctx.Remotes.Popup(player, "DAY " .. day .. " REWARD!", text, GOLD)
 	ctx.Remotes.Fire("Event", player, "Purchased")
 	ctx.Data.Push(player, true)
 end
@@ -61,16 +61,16 @@ function Rewards.ClaimQuest(player, index)
 		return
 	end
 	if profile.Data.Quests.Claimed[index] then
-		ctx.Remotes.Notify(player, "Diese Quest hast du schon abgeholt!", { 255, 220, 120 })
+		ctx.Remotes.Notify(player, "You already claimed this quest!", { 255, 220, 120 })
 		return
 	end
 	if (profile.Data.Quests.Progress[index] or 0) < quest.Amount then
-		ctx.Remotes.Notify(player, "📜 Diese Quest ist noch nicht fertig!", RED)
+		ctx.Remotes.Notify(player, "📜 This quest is not finished yet!", RED)
 		return
 	end
 	profile.Data.Quests.Claimed[index] = true
 	local text = grant(profile, { Gems = quest.Gems })
-	ctx.Remotes.Popup(player, "QUEST GESCHAFFT!", text, GOLD)
+	ctx.Remotes.Popup(player, "QUEST COMPLETE!", text, GOLD)
 	ctx.Remotes.Fire("Event", player, "Purchased")
 	ctx.Data.Push(player, true)
 end
@@ -91,17 +91,17 @@ function Rewards.RedeemCode(player, text)
 	profile.LastCode = now
 	local reward = Config.Codes[code]
 	if not reward then
-		ctx.Remotes.Notify(player, "❌ Diesen Code gibt es nicht.", RED)
+		ctx.Remotes.Notify(player, "❌ That code does not exist.", RED)
 		ctx.Remotes.Fire("Event", player, "Denied")
 		return
 	end
 	if profile.Data.Codes[code] then
-		ctx.Remotes.Notify(player, "Diesen Code hast du schon benutzt!", { 255, 220, 120 })
+		ctx.Remotes.Notify(player, "You already used this code!", { 255, 220, 120 })
 		return
 	end
 	profile.Data.Codes[code] = true
 	local rewardText = grant(profile, reward)
-	ctx.Remotes.Popup(player, "CODE EINGELOEST!", rewardText, GOLD)
+	ctx.Remotes.Popup(player, "CODE REDEEMED!", rewardText, GOLD)
 	ctx.Remotes.Fire("Event", player, "Purchased")
 	ctx.Data.Push(player, true)
 end

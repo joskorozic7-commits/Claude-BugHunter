@@ -90,7 +90,7 @@ Remotes.Events.Request.OnServerEvent:Connect(function(player, action, a, b)
 	end
 	local ok, err = pcall(handler, player, a, b)
 	if not ok then
-		warn("[SlapTheGyatt] Fehler bei Aktion '" .. action .. "': " .. tostring(err))
+		warn("[SlapTheGyatt] Error in action '" .. action .. "': " .. tostring(err))
 	end
 end)
 
@@ -126,9 +126,9 @@ local function onPlayerAdded(player)
 
 	if not ok then
 		if RunService:IsStudio() then
-			Remotes.Notify(player, "⚠️ Speichern aus: In Studio 'Game Settings > Security > Enable Studio Access to API Services' anschalten.", { 255, 200, 120 })
+			Remotes.Notify(player, "⚠️ Saving off: in Studio turn on 'Game Settings > Security > Enable Studio Access to API Services'.", { 255, 200, 120 })
 		else
-			Remotes.Notify(player, "⚠️ Dein Spielstand konnte nicht geladen werden. Fortschritt wird diese Runde nicht gespeichert.", { 255, 120, 120 })
+			Remotes.Notify(player, "⚠️ Your data could not be loaded. Progress will not be saved this session.", { 255, 120, 120 })
 		end
 	end
 
@@ -142,9 +142,9 @@ local function onPlayerAdded(player)
 	Pets.UpdateAttribute(player)
 	Data.Push(player, true)
 	Gyatts.SendEventState(player)
-	Remotes.Notify(player, "👋 Willkommen bei " .. Config.GameName .. "! Slappe die Gyatts und werde der Staerkste!", { 255, 170, 220 })
+	Remotes.Notify(player, "👋 Welcome to " .. Config.GameName .. "! Slap the Gyatts and become the strongest!", { 255, 170, 220 })
 	if data.TotalSlaps == 0 then
-		Remotes.Popup(player, "WILLKOMMEN!", "Lauf zum Baby Gyatt und klicke, um ihn zu slappen!", { 255, 170, 220 })
+		Remotes.Popup(player, "WELCOME!", "Walk to the Baby Gyatt and click to slap it!", { 255, 170, 220 })
 	end
 end
 
@@ -167,4 +167,4 @@ game:BindToClose(function()
 	Data.SaveAllBlocking()
 end)
 
-print("[SlapTheGyatt] Server v" .. Config.Version .. " gestartet - viel Spass beim Slappen!")
+print("[SlapTheGyatt] Server v" .. Config.Version .. " started - have fun slapping!")

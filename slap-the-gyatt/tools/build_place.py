@@ -81,7 +81,7 @@ def main():
         + "</roblox>\n"
     )
     OUT.write_text(xml, encoding="utf-8")
-    print(f"Geschrieben: {OUT}")
+    print(f"Written: {OUT}")
 
 
 if __name__ == "__main__":

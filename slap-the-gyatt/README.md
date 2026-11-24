@@ -1,100 +1,68 @@
-# 👋 Slap the Gyatt 2.0
+# 👋 Slap the Gyatt 2.1
 
-Ein komplettes Roblox-Simulator-Spiel: Slappe die Gyatts, sammle **Slaps** und **Gems**,
-verbessere deine Hand, schlüpfe Pets, schalte 6 Welten frei und werde der Stärkste!
+A complete Roblox simulator game: slap the Gyatts, collect **Slaps** and **Gems**,
+upgrade your hand, hatch pets, unlock 6 worlds and become the strongest!
 
-## 🚀 Starten
+## 🚀 How to start
 
-1. **`SlapTheGyatt.rbxlx`** herunterladen.
-2. In Roblox Studio öffnen (Doppelklick oder *Datei → Öffnen*).
-3. **▶ Play** drücken. Fertig!
+1. Download **`SlapTheGyatt.rbxlx`**.
+2. Open it in Roblox Studio (double-click, or *File → Open*).
+3. Press **▶ Play**. Done!
 
-Die ganze Welt (über 1700 Teile), alle Gyatts, Eier, Menüs und Effekte werden beim
-Start von den Skripten gebaut. Du musst nichts selbst bauen.
+The whole world (about 2100 parts), all Gyatts, eggs, menus and effects are built by
+the scripts when the game starts. You don't need to build anything yourself.
 
-**Speichern in Studio:** Spiel veröffentlichen und unter
-*Game Settings → Security → Enable Studio Access to API Services* einschalten.
-Ohne das läuft alles, nur der Fortschritt wird nicht gespeichert.
+**Saving in Studio:** publish the game and turn on
+*Game Settings → Security → Enable Studio Access to API Services*.
+Without that everything works, only progress isn't saved.
 
-Mit Rojo: `rojo serve` (die `default.project.json` liegt in diesem Ordner).
+With Rojo: `rojo serve` (the `default.project.json` is in this folder).
 
-## 🎮 Was alles drin ist
+## 🎮 What's inside
 
-### Slappen
-- Klicken (oder am Handy tippen) mit der Hand = Slap
-- **Krits** (x3) und seltene **MEGA-Krits** (x30) mit Regenbogen-Effekt
-- **Combo-System**: schnell hintereinander slappen = bis zu +225 % Slaps
-- Schadenszahlen, Partikel, Kamera-Wackeln und Sounds
-- Die Gyatts **hüpfen, schauen dich an, erschrecken sich** (Mund wird zum „O“) und wackeln bei Treffern
+### The Gyatts
+Cartoon booty characters: two big round cheeks in colorful shorts, a waistband with a
+"GYATT" tag, little legs and sneakers. They bounce, turn toward you and wobble when you
+slap them. Accessories: bow, heart prints, cowboy hat, winter pompoms, devil horns and tail,
+angel wings and halo, alien antennas, crown.
 
-### 6 Welten mit 12 Gyatts
-| Zone | Gyatts | Deko |
+### 6 worlds with 12 Gyatts
+| Zone | Gyatts | Decor & background |
 |---|---|---|
-| 1 Gyatt-Wiese | Baby Gyatt, Big Gyatt | Bäume, Blumen, Büsche |
-| 2 Wüsten-Gyatt | Kaktus Gyatt, Pharao Gyatt | Kakteen, Palmen, Pyramiden |
-| 3 Eis-Gyatt-Land | Schnee Gyatt, Frost Gyatt | Eiszapfen, Tannen, Schneemänner |
-| 4 Lava-Gyatt-Vulkan | Magma Gyatt, Inferno Gyatt | Lavaseen, Vulkane mit Feuer |
-| 5 Wolken-Gyatt-Himmel | Engel Gyatt, Himmels Gyatt | Wolken, Goldsäulen, Regenbogen |
-| 6 Galaxie-Gyatt-Weltall | Alien Gyatt, GYATT GOTT | Sterne, Planeten, Kristalle |
+| 1 Gyatt Meadow | Baby Gyatt, Big Gyatt | trees, flowers, green mountains with snow caps |
+| 2 Gyatt Desert | Cactus Gyatt, Pharaoh Gyatt | cacti, palms, pyramids, red mesas and dunes |
+| 3 Gyatt Ice Land | Snow Gyatt, Frost Gyatt | ice spikes, pines, snowmen, icy mountains |
+| 4 Gyatt Volcano | Magma Gyatt, Inferno Gyatt | lava pools, volcanoes with fire, dark smoky sky |
+| 5 Gyatt Cloud Heaven | Angel Gyatt, Heaven Gyatt | clouds, gold pillars, rainbow, floating cloud temples |
+| 6 Gyatt Galaxy | Alien Gyatt, GYATT GOD | stars, planets, crystals, floating asteroids, night sky |
 
-Jeder Gyatt hat Augen, Pupillen, Augenbrauen, Bäckchen, einen Mund und Accessoires
-(Schleife, Sonnenbrille, Cowboyhut, Schal, Hörner, Heiligenschein, Antennen, Krone).
-Jede Zone hat eigenes Licht und eigene Stimmung (in der Galaxie ist Nacht).
+### 🌄 Background
+Sky with sun, moon and stars, real moving clouds, ground and mountains all around the map,
+and a giant **Mount Gyatt** statue behind the spawn. Light, clouds and mood change per zone.
 
-### ⭐ Goldener Gyatt (Event)
-Alle 4–7 Minuten erscheint ein goldener Gyatt mit riesigen Belohnungen und Gems. Ein Banner zeigt den Countdown.
+### ⭐ Golden Gyatt (event)
+Every 4–7 minutes a Golden Gyatt appears with huge rewards and Gems, with a countdown banner.
 
-### ✋ 12 Hände
-Holz → Stein → Eisen → Gold → Smaragd → Diamant → Frost → Lava → Wolken → Galaxie → Regenbogen → **Gyatt-Gott-Hand**.
-Mit Glitzer-, Feuer-, Nebel- und Regenbogen-Effekten. Die Hand wird mit jedem Stärke-Level größer.
-
-### 🛒 6 Upgrades
-Hand-Stärke, Slap-Tempo, Reichweite, Krit-Glück, Slap-Gier, Combo-Meister (mit „MAX kaufen“-Knopf).
+### ✋ 12 hands, 🛒 6 upgrades
+Wood → Stone → Iron → Gold → Emerald → Diamond → Frost → Lava → Cloud → Galaxy → Rainbow → **Gyatt God Hand**.
+Upgrades: Hand Power, Slap Speed, Reach, Crit Luck, Slap Greed, Combo Master (with "Buy MAX").
+Crits (x3), rare MEGA crits (x30) and a combo system up to +225 % Slaps.
 
 ### 🐾 Pets
-- 7 Eier, 28 Pets in 5 Seltenheiten (Gewöhnlich bis Mythisch)
-- Ei-Öffnen-Animation, 1x oder 3x öffnen
-- Pets folgen dir und schweben hinter dir her (Hund, Katze, Hase, Drache, Einhorn, Alien, Roboter, Wal, Geist …)
-- Beste ausrüsten, ablegen, löschen
+7 eggs, 28 pets in 5 rarities, hatch animation, pets follow you around.
 
-### 💎 Gems & Gem-Shop
-Auto-Slap, mehr Pet-Plätze, mehr Inventar, 2x Slaps, 2x Schaden, Ei-Glück.
+### 💎 Gems, 🎁 rewards, ♻️ rebirth, ⚔️ PvP
+- Gem Shop: Auto-Slap, pet slots, storage, 2x Slaps, 2x Damage, Egg Luck
+- Daily reward with 7-day streak, 3 daily quests
+- Codes: `GYATT`, `SLAP`, `RELEASE`, `BIGHAND`, `LUCKY`
+- Rebirth for permanent bonuses
+- PvP slap arena, global leaderboards, teleport menu, tutorial arrow, settings and stats
+- All purchases and slaps are checked on the server (no cheating)
+- Works on PC, phone and tablet
 
-### 🎁 Belohnungen
-- **Tägliche Belohnung** mit 7-Tage-Serie
-- **3 tägliche Quests** (jeden Tag neu)
-- **Codes**: `GYATT`, `SLAP`, `RELEASE`, `BIGHAND`, `LUCKY`
+## ✏️ Changing values
 
-### ♻️ Rebirth
-Setzt Slaps, Upgrades und Zonen zurück. Dafür gibt's für immer mehr Slaps, mehr Schaden und Gems.
-
-### ⚔️ PvP-Slap-Arena
-Im Startbereich: Slappe andere Spieler weg!
-
-### Und noch mehr
-- 🏆 Globale Bestenlisten (meiste Slaps, meiste Rebirths)
-- 🗺️ Teleport zu allen freigeschalteten Zonen
-- Tutorial-Pfeil für neue Spieler
-- ⚙️ Optionen (Sounds, Schadenszahlen, Kamera-Wackeln, fremde Pets) und Statistik
-- Speichern im DataStore (automatisch, beim Verlassen und beim Herunterfahren)
-- Alle Käufe und Slaps werden **auf dem Server geprüft**. Mit Cheats bekommt man nichts geschenkt.
-- Funktioniert am PC, Handy und Tablet
-
-## 📁 Aufbau
-
-```
-src/shared/            -> ReplicatedStorage.SlapShared
-  Config.lua             alle Spielwerte (Preise, Leben, Pets, Codes ...)
-  Calc.lua               alle Formeln (Server + Client)
-src/server/SlapServer/ -> ServerScriptService.SlapServer (Script + Module)
-  World, Gyatts, Hands, Combat, Shop, Pets, Rewards, Leaderboards, Data, Remotes
-src/client/SlapClient/ -> StarterPlayerScripts.SlapClient (LocalScript + Module)
-  UI, Hud, Menus, Effects, WorldFx, PetsFx, Hatch
-```
-
-## ✏️ Werte ändern
-
-Alles steht in `src/shared/Config.lua`. Danach die Place-Datei neu bauen:
+Everything is in `src/shared/Config.lua`. Then rebuild the place file:
 
 ```
 python3 tools/build_place.py

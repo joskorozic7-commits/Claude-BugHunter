@@ -137,11 +137,11 @@ function Effects.OnSlap(info)
 		local color = Color3.fromRGB(255, 255, 255)
 		local size = isMine and 4.5 or 2.8
 		if crit == 1 then
-			text = "💥 KRIT! " .. text
+			text = "💥 CRIT! " .. text
 			color = Color3.fromRGB(255, 220, 60)
 			size = size * 1.3
 		elseif crit == 2 then
-			text = "🌈 MEGA KRIT!! " .. text
+			text = "🌈 MEGA CRIT!! " .. text
 			color = Color3.fromRGB(255, 90, 200)
 			size = size * 1.7
 		end
@@ -175,7 +175,7 @@ function Effects.OnDefeat(key, position, radius, isGolden)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if root and (root.Position - position).Magnitude < 80 then
 		shake(0.6, 0.35)
-		floatingText(position + Vector3.new(0, radius + 2, 0), isGolden and "⭐ GOLDEN BESIEGT! ⭐" or "💥 BESIEGT!", Color3.fromRGB(255, 230, 90), 7, 0)
+		floatingText(position + Vector3.new(0, radius + 2, 0), isGolden and "⭐ GOLDEN DEFEATED! ⭐" or "💥 DEFEATED!", Color3.fromRGB(255, 230, 90), 7, 0)
 	end
 end
 
@@ -197,7 +197,7 @@ function Effects.OnKnockback(velocity, attackerName)
 	root.AssemblyLinearVelocity = velocity
 	shake(0.7, 0.3)
 	ctx.PlaySound("Whoosh")
-	ctx.Hud.Notify("💥 " .. tostring(attackerName) .. " hat dich weggeslappt!", { 255, 150, 150 })
+	ctx.Hud.Notify("💥 " .. tostring(attackerName) .. " slapped you away!", { 255, 150, 150 })
 	task.delay(0.8, function()
 		if humanoid.Parent and humanoid.Health > 0 then
 			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)

@@ -150,7 +150,7 @@ remotes.State.OnClientEvent:Connect(function(payload)
 	for _, fn in ipairs(listeners) do
 		local ok, err = pcall(fn, ctx.State, payload.Full == true)
 		if not ok then
-			warn("[SlapTheGyatt] UI-Fehler: " .. tostring(err))
+			warn("[SlapTheGyatt] UI error: " .. tostring(err))
 		end
 	end
 end)

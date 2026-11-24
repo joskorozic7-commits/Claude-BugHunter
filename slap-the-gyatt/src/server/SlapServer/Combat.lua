@@ -156,7 +156,7 @@ function Combat.TrySlap(player, isAuto)
 
 	if not data.TutorialDone and data.TotalSlaps >= 10 then
 		data.TutorialDone = true
-		ctx.Remotes.Popup(player, "SUPER GESLAPPT!", "Kauf jetzt Upgrades im 🛒 Shop!", { 255, 170, 220 })
+		ctx.Remotes.Popup(player, "SUPER SLAP!", "Now buy upgrades in the 🛒 Shop!", { 255, 170, 220 })
 		ctx.Data.Push(player, true)
 	else
 		ctx.Data.Push(player, false)

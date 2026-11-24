@@ -54,7 +54,7 @@ local function build()
 		Size = UDim2.new(0.6, 0, 0, 28),
 		Font = UI.BodyFont,
 		TextColor3 = UI.Colors.SubText,
-		Text = "Klicken zum Schliessen",
+		Text = "Click to close",
 		ZIndex = 51,
 		Parent = overlay,
 	})
@@ -132,7 +132,7 @@ local function playOne(result)
 	end
 	ctx.PlaySound("Popup", (best == "Legendary" or best == "Mythic") and 1.4 or 1)
 	if best == "Legendary" or best == "Mythic" then
-		ctx.Hud.Popup(string.upper(Config.Rarities[best].DisplayName) .. "!!!", "Was fuer ein Glueck!", Config.Rarities[best].Color)
+		ctx.Hud.Popup(string.upper(Config.Rarities[best].DisplayName) .. "!!!", "What luck!", Config.Rarities[best].Color)
 	end
 	hintLabel.Visible = true
 

@@ -34,7 +34,7 @@ end
 -- Shop (Upgrades)
 --------------------------------------------------------------------------
 local function buildShop()
-	local win = UI.CreateWindow(ctx.Screen, "Shop", "Hand-Upgrades", "🛒", Vector2.new(580, 470))
+	local win = UI.CreateWindow(ctx.Screen, "Shop", "Hand Upgrades", "🛒", Vector2.new(580, 470))
 	local list = UI.ScrollList(win.Content, {})
 	local rows = {}
 	for order, id in ipairs(Config.UpgradeOrder) do
@@ -61,7 +61,7 @@ local function buildShop()
 			Position = UDim2.new(1, -10, 0, 56),
 			Size = UDim2.new(0.4, -14, 0, 28),
 			Color = UI.Colors.Purple,
-			Text = "MAX kaufen",
+			Text = "Buy MAX",
 			ZIndex = 6,
 			Parent = row,
 		}, function()
@@ -102,7 +102,7 @@ end
 -- Haende
 --------------------------------------------------------------------------
 local function buildHands()
-	local win = UI.CreateWindow(ctx.Screen, "Hands", "Haende", "✋", Vector2.new(580, 470))
+	local win = UI.CreateWindow(ctx.Screen, "Hands", "Hands", "✋", Vector2.new(580, 470))
 	local list = UI.ScrollList(win.Content, {})
 	local rows = {}
 	for order, hand in ipairs(Config.Hands) do
@@ -116,10 +116,10 @@ local function buildHands()
 		}, { UI.Corner(12), UI.Stroke(2) })
 		UI.Label({ Size = UDim2.fromScale(1, 1), Text = "✋", ZIndex = 7, Parent = swatch })
 		title({ Position = UDim2.new(0, 68, 0, 8), Size = UDim2.new(0.55, -68, 0, 28), Text = hand.DisplayName, Parent = row })
-		local effectNames = { sparkles = "Glitzer", fire = "Feuer", smoke = "Frost-Nebel", rainbow = "Regenbogen" }
+		local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow" }
 		local effect = effectNames[hand.Effect] and ("  ✨ " .. effectNames[hand.Effect]) or ""
 		smallLabel({ Position = UDim2.new(0, 68, 0, 38), Size = UDim2.new(0.55, -68, 0, 20), TextColor3 = UI.Colors.Gold,
-			Text = "x" .. hand.Damage .. " Schaden" .. effect, Parent = row })
+			Text = "x" .. hand.Damage .. " Damage" .. effect, Parent = row })
 		local button = UI.Button({
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = UDim2.new(1, -10, 0.5, 0),
@@ -146,13 +146,13 @@ local function buildHands()
 			local r = rows[hand.Id]
 			local stroke = r.Row:FindFirstChildOfClass("UIStroke")
 			if s.Hand == hand.Id then
-				r.Button.Text = "✅ Ausgeruestet"
+				r.Button.Text = "✅ Equipped"
 				UI.SetButtonColor(r.Button, UI.Colors.GreenDark)
 				if stroke then
 					stroke.Color = UI.Colors.Gold
 				end
 			elseif s.OwnedHands[hand.Id] then
-				r.Button.Text = "Ausruesten"
+				r.Button.Text = "Equip"
 				UI.SetButtonColor(r.Button, UI.Colors.Blue)
 				if stroke then
 					stroke.Color = UI.Colors.PanelLight
@@ -183,10 +183,10 @@ local function buildPets()
 		ZIndex = 5,
 		Parent = win.Content,
 	}, { UI.List(8, true) })
-	UI.Button({ Size = UDim2.new(0, 170, 1, 0), Color = UI.Colors.Green, Text = "⭐ Beste ausruesten", LayoutOrder = 1, ZIndex = 6, Parent = buttons }, function()
+	UI.Button({ Size = UDim2.new(0, 170, 1, 0), Color = UI.Colors.Green, Text = "⭐ Equip Best", LayoutOrder = 1, ZIndex = 6, Parent = buttons }, function()
 		ctx.Request("EquipBestPets")
 	end)
-	UI.Button({ Size = UDim2.new(0, 200, 1, 0), Color = UI.Colors.Red, Text = "🗑️ Gewoehnliche loeschen", LayoutOrder = 2, ZIndex = 6, Parent = buttons }, function()
+	UI.Button({ Size = UDim2.new(0, 200, 1, 0), Color = UI.Colors.Red, Text = "🗑️ Delete Commons", LayoutOrder = 2, ZIndex = 6, Parent = buttons }, function()
 		ctx.Request("DeleteRarity", "Common")
 	end)
 
@@ -205,9 +205,9 @@ local function buildPets()
 		ZIndex = 5,
 		Parent = win.Content,
 	}, { UI.Corner(12) })
-	local detailText = smallLabel({ Position = UDim2.new(0, 10, 0, 0), Size = UDim2.new(0.45, -10, 1, 0), Text = "Klicke auf ein Pet", Parent = detail })
+	local detailText = smallLabel({ Position = UDim2.new(0, 10, 0, 0), Size = UDim2.new(0.45, -10, 1, 0), Text = "Click a pet", Parent = detail })
 	local selectedUid = nil
-	local equipButton = UI.Button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -118, 0.5, 0), Size = UDim2.new(0, 140, 0, 40), Color = UI.Colors.Blue, Text = "Ausruesten", ZIndex = 6, Parent = detail }, function()
+	local equipButton = UI.Button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -118, 0.5, 0), Size = UDim2.new(0, 140, 0, 40), Color = UI.Colors.Blue, Text = "Equip", ZIndex = 6, Parent = detail }, function()
 		local s = state()
 		if not selectedUid or not s then
 			return
@@ -219,7 +219,7 @@ local function buildPets()
 			end
 		end
 	end)
-	local deleteButton = UI.Button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.new(0, 104, 0, 40), Color = UI.Colors.Red, Text = "🗑️ Loeschen", ZIndex = 6, Parent = detail }, function()
+	local deleteButton = UI.Button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.new(0, 104, 0, 40), Color = UI.Colors.Red, Text = "🗑️ Delete", ZIndex = 6, Parent = detail }, function()
 		if selectedUid then
 			ctx.Request("DeletePet", selectedUid)
 			selectedUid = nil
@@ -235,7 +235,7 @@ local function buildPets()
 		end
 		if not selected then
 			selectedUid = nil
-			detailText.Text = "Klicke auf ein Pet"
+			detailText.Text = "Click a pet"
 			equipButton.Visible = false
 			deleteButton.Visible = false
 			return
@@ -246,7 +246,7 @@ local function buildPets()
 		detailText.TextColor3 = UI.rgb(rarity.Color)
 		equipButton.Visible = true
 		deleteButton.Visible = not selected.Equipped
-		equipButton.Text = selected.Equipped and "Ablegen" or "Ausruesten"
+		equipButton.Text = selected.Equipped and "Unequip" or "Equip"
 		UI.SetButtonColor(equipButton, selected.Equipped and UI.Colors.Gray or UI.Colors.Blue)
 	end
 
@@ -257,9 +257,9 @@ local function buildPets()
 			return
 		end
 		local equipped = Calc.GetEquippedPetIds(s)
-		header.Text = "🐾 Ausgeruestet: " .. #equipped .. "/" .. Calc.GetPetSlots(s)
+		header.Text = "🐾 Equipped: " .. #equipped .. "/" .. Calc.GetPetSlots(s)
 			.. "    🎒 " .. #s.Pets .. "/" .. Calc.GetInventorySize(s)
-			.. "    💰 Pet-Bonus: " .. Calc.FormatMultiplier(Calc.GetPetBoost(equipped))
+			.. "    💰 Pet Bonus: " .. Calc.FormatMultiplier(Calc.GetPetBoost(equipped))
 
 		-- Karten nur neu bauen, wenn sich die Pets geaendert haben
 		local parts = {}
@@ -336,10 +336,10 @@ end
 -- Zonen
 --------------------------------------------------------------------------
 local function buildZones()
-	local win = UI.CreateWindow(ctx.Screen, "Zones", "Zonen & Teleport", "🗺️", Vector2.new(580, 480))
+	local win = UI.CreateWindow(ctx.Screen, "Zones", "Zones & Teleport", "🗺️", Vector2.new(580, 480))
 	local list = UI.ScrollList(win.Content, {})
 	local hubRow = UI.Row(list, 56, 0)
-	title({ Position = UDim2.new(0, 12, 0, 0), Size = UDim2.new(0.6, -12, 1, 0), Text = "🏠 Hub (Start, Arena, Bestenlisten)", Parent = hubRow })
+	title({ Position = UDim2.new(0, 12, 0, 0), Size = UDim2.new(0.6, -12, 1, 0), Text = "🏠 Hub (Spawn, Arena, Leaderboards)", Parent = hubRow })
 	UI.Button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.new(0.35, 0, 0, 40), Color = UI.Colors.Blue, Text = "Teleport", ZIndex = 6, Parent = hubRow }, function()
 		ctx.Request("Teleport", 0)
 		UI.Close("Zones")
@@ -376,17 +376,17 @@ local function buildZones()
 		for index, zone in ipairs(Config.Zones) do
 			local r = rows[index]
 			if index <= unlocked then
-				r.Status.Text = "✅ Freigeschaltet"
+				r.Status.Text = "✅ Unlocked"
 				r.Status.TextColor3 = UI.Colors.Green
 				r.Button.Text = "Teleport"
 				UI.SetButtonColor(r.Button, UI.Colors.Blue)
 			elseif index == unlocked + 1 then
-				r.Status.Text = "🔒 Freischalten fuer " .. money(zone.Price, "Slaps")
+				r.Status.Text = "🔒 Unlock for " .. money(zone.Price, "Slaps")
 				r.Status.TextColor3 = UI.Colors.Gold
 				r.Button.Text = money(zone.Price, "Slaps")
 				UI.SetButtonColor(r.Button, s.Slaps >= zone.Price and UI.Colors.Green or UI.Colors.Gray)
 			else
-				r.Status.Text = "🔒 Zuerst Zone " .. (index - 1) .. " freischalten"
+				r.Status.Text = "🔒 Unlock Zone " .. (index - 1) .. " first"
 				r.Status.TextColor3 = UI.Colors.SubText
 				r.Button.Text = "🔒"
 				UI.SetButtonColor(r.Button, UI.Colors.Gray)
@@ -400,7 +400,7 @@ end
 -- Gem-Shop
 --------------------------------------------------------------------------
 local function buildGems()
-	local win = UI.CreateWindow(ctx.Screen, "Gems", "Gem-Shop", "💎", Vector2.new(580, 470))
+	local win = UI.CreateWindow(ctx.Screen, "Gems", "Gem Shop", "💎", Vector2.new(580, 470))
 	local balance = smallLabel({ Size = UDim2.new(1, 0, 0, 24), TextColor3 = Color3.fromRGB(140, 220, 255), Parent = win.Content })
 	local list = UI.ScrollList(win.Content, { Position = UDim2.new(0, 0, 0, 30), Size = UDim2.new(1, 0, 1, -30) })
 	local rows = {}
@@ -414,14 +414,14 @@ local function buildGems()
 		rows[item.Id] = { Button = button, Desc = desc }
 	end
 	smallLabel({ Size = UDim2.new(1, -10, 0, 40), LayoutOrder = 100, TextWrapped = true, TextColor3 = UI.Colors.SubText,
-		Text = "💡 Gems bekommst du fuer besiegte Gyatts, Quests, taegliche Belohnungen, Codes, Rebirths und den Goldenen Gyatt!", Parent = list })
+		Text = "💡 You get Gems from defeated Gyatts, quests, daily rewards, codes, rebirths and the Golden Gyatt!", Parent = list })
 
 	win.Refresh = function()
 		local s = state()
 		if not s or not s.GemShop then
 			return
 		end
-		balance.Text = "Deine Gems: 💎 " .. Calc.FormatNumber(s.Gems)
+		balance.Text = "Your Gems: 💎 " .. Calc.FormatNumber(s.Gems)
 		local now = ctx.Now()
 		for _, item in ipairs(Config.GemShop) do
 			local r = rows[item.Id]
@@ -431,7 +431,7 @@ local function buildGems()
 			if item.Boost and s.Boosts then
 				local left = (tonumber(s.Boosts[item.Boost]) or 0) - now
 				if left > 0 then
-					extra = "  ⏱️ aktiv: " .. Calc.FormatTime(left)
+					extra = "  ⏱️ active: " .. Calc.FormatTime(left)
 				end
 			elseif not item.Repeatable then
 				extra = "  (" .. owned .. "/" .. #item.Prices .. ")"
@@ -441,7 +441,7 @@ local function buildGems()
 				r.Button.Text = "💎 " .. Calc.FormatNumber(price)
 				UI.SetButtonColor(r.Button, s.Gems >= price and UI.Colors.Green or UI.Colors.Gray)
 			else
-				r.Button.Text = "✅ Gekauft"
+				r.Button.Text = "✅ Bought"
 				UI.SetButtonColor(r.Button, UI.Colors.Gold)
 			end
 		end
@@ -475,20 +475,20 @@ local function buildRebirth()
 		end
 		local cost = Calc.GetRebirthCost(s.Rebirths)
 		local nextCount = (s.Rebirths or 0) + 1
-		info.Text = "Du hast " .. (s.Rebirths or 0) .. " Rebirths.\n\n"
-			.. "Ein Rebirth setzt deine Slaps, Upgrades und Zonen zurueck.\n"
-			.. "Haende, Pets und Gems bleiben behalten!\n\n"
-			.. "Danach fuer immer:\n"
+		info.Text = "You have " .. (s.Rebirths or 0) .. " rebirths.\n\n"
+			.. "A rebirth resets your Slaps, upgrades and zones.\n"
+			.. "Hands, pets and Gems are kept!\n\n"
+			.. "After that, forever:\n"
 			.. "💰 " .. Calc.FormatMultiplier(Calc.GetRebirthSlapMultiplier(nextCount)) .. " Slaps   "
-			.. "💪 " .. Calc.FormatMultiplier(Calc.GetRebirthDamageMultiplier(nextCount)) .. " Schaden   "
+			.. "💪 " .. Calc.FormatMultiplier(Calc.GetRebirthDamageMultiplier(nextCount)) .. " Damage   "
 			.. "💎 +" .. Calc.GetRebirthGems(nextCount) .. " Gems"
 		UI.SetProgress(fill, s.Slaps / cost)
 		progressText.Text = Calc.FormatNumber(s.Slaps) .. " / " .. Calc.FormatNumber(cost)
 		if s.Slaps >= cost then
-			button.Text = "♻️ REBIRTH MACHEN!"
+			button.Text = "♻️ REBIRTH NOW!"
 			UI.SetButtonColor(button, UI.Colors.Purple)
 		else
-			button.Text = "Noch " .. money(cost - s.Slaps, "Slaps")
+			button.Text = "Need " .. money(cost - s.Slaps, "Slaps")
 			UI.SetButtonColor(button, UI.Colors.Gray)
 		end
 	end
@@ -499,7 +499,7 @@ end
 -- Quests
 --------------------------------------------------------------------------
 local function buildQuests()
-	local win = UI.CreateWindow(ctx.Screen, "Quests", "Taegliche Quests", "📜", Vector2.new(560, 400))
+	local win = UI.CreateWindow(ctx.Screen, "Quests", "Daily Quests", "📜", Vector2.new(560, 400))
 	local timer = smallLabel({ Size = UDim2.new(1, 0, 0, 22), TextColor3 = UI.Colors.SubText, Parent = win.Content })
 	local list = UI.ScrollList(win.Content, { Position = UDim2.new(0, 0, 0, 28), Size = UDim2.new(1, 0, 1, -28) })
 	local rows = {}
@@ -521,7 +521,7 @@ local function buildQuests()
 		end
 		local now = ctx.Now()
 		local secondsLeft = 86400 - (now % 86400)
-		timer.Text = "⏱️ Neue Quests in " .. Calc.FormatTime(secondsLeft)
+		timer.Text = "⏱️ New quests in " .. Calc.FormatTime(secondsLeft)
 		local quests = Calc.GetQuests(s.Quests.Day, ctx.Player.UserId)
 		for i, quest in ipairs(quests) do
 			local r = rows[i]
@@ -529,17 +529,17 @@ local function buildQuests()
 				local value = (s.Quests.Progress and s.Quests.Progress[i]) or 0
 				local claimed = s.Quests.Claimed and s.Quests.Claimed[i]
 				r.Text.Text = quest.Text
-				r.Reward.Text = "Belohnung: 💎 " .. quest.Gems
+				r.Reward.Text = "Reward: 💎 " .. quest.Gems
 				UI.SetProgress(r.Fill, value / quest.Amount)
 				r.Progress.Text = Calc.FormatNumber(value) .. " / " .. Calc.FormatNumber(quest.Amount)
 				if claimed then
-					r.Button.Text = "✅ Erledigt"
+					r.Button.Text = "✅ Done"
 					UI.SetButtonColor(r.Button, UI.Colors.GreenDark)
 				elseif value >= quest.Amount then
-					r.Button.Text = "🎁 Abholen!"
+					r.Button.Text = "🎁 Claim!"
 					UI.SetButtonColor(r.Button, UI.Colors.Green)
 				else
-					r.Button.Text = "Laeuft..."
+					r.Button.Text = "In progress..."
 					UI.SetButtonColor(r.Button, UI.Colors.Gray)
 				end
 			end
@@ -552,7 +552,7 @@ end
 -- Taegliche Belohnung
 --------------------------------------------------------------------------
 local function buildDaily()
-	local win = UI.CreateWindow(ctx.Screen, "Daily", "Taegliche Belohnung", "🎁", Vector2.new(600, 380))
+	local win = UI.CreateWindow(ctx.Screen, "Daily", "Daily Reward", "🎁", Vector2.new(600, 380))
 	local grid = Create("Frame", {
 		Size = UDim2.new(1, 0, 0, 200),
 		BackgroundTransparency = 1,
@@ -564,7 +564,7 @@ local function buildDaily()
 	local cards = {}
 	for day, reward in ipairs(Config.DailyRewards) do
 		local card = Create("Frame", { LayoutOrder = day, BackgroundColor3 = UI.Colors.Panel, ZIndex = 6, Parent = grid }, { UI.Corner(12), UI.Stroke(2.5, UI.Colors.PanelLight) })
-		title({ Size = UDim2.new(1, 0, 0, 24), Position = UDim2.new(0, 0, 0, 4), TextXAlignment = Enum.TextXAlignment.Center, Text = "Tag " .. day, Parent = card })
+		title({ Size = UDim2.new(1, 0, 0, 24), Position = UDim2.new(0, 0, 0, 4), TextXAlignment = Enum.TextXAlignment.Center, Text = "Day " .. day, Parent = card })
 		local text = "💎 " .. reward.Gems
 		if reward.Boost then
 			text = text .. "\n" .. Config.Boosts[reward.Boost].Icon .. " " .. Calc.FormatTime(reward.Duration)
@@ -604,11 +604,11 @@ local function buildDaily()
 			end
 		end
 		if canClaim then
-			status.Text = "Serie: Tag " .. day .. " ist bereit!"
-			button.Text = "🎁 Abholen!"
+			status.Text = "Streak: Day " .. day .. " is ready!"
+			button.Text = "🎁 Claim!"
 			UI.SetButtonColor(button, UI.Colors.Green)
 		else
-			status.Text = "Serie: " .. streak .. " Tage  •  Naechste Belohnung in " .. Calc.FormatTime(waitSeconds)
+			status.Text = "Streak: " .. streak .. " days  •  Next reward in " .. Calc.FormatTime(waitSeconds)
 			button.Text = "⏱️ " .. Calc.FormatTime(waitSeconds)
 			UI.SetButtonColor(button, UI.Colors.Gray)
 		end
@@ -621,7 +621,7 @@ end
 --------------------------------------------------------------------------
 local function buildCodes()
 	local win = UI.CreateWindow(ctx.Screen, "Codes", "Codes", "🎟️", Vector2.new(480, 300))
-	smallLabel({ Size = UDim2.new(1, 0, 0, 26), TextXAlignment = Enum.TextXAlignment.Center, Text = "Gib einen Code ein und hol dir Belohnungen!", Parent = win.Content })
+	smallLabel({ Size = UDim2.new(1, 0, 0, 26), TextXAlignment = Enum.TextXAlignment.Center, Text = "Enter a code and get rewards!", Parent = win.Content })
 	local box = Create("TextBox", {
 		Position = UDim2.new(0.1, 0, 0, 40),
 		Size = UDim2.new(0.8, 0, 0, 54),
@@ -629,21 +629,21 @@ local function buildCodes()
 		Font = UI.Font,
 		TextScaled = true,
 		TextColor3 = UI.Colors.White,
-		PlaceholderText = "Code hier eingeben...",
+		PlaceholderText = "Enter code here...",
 		PlaceholderColor3 = UI.Colors.SubText,
 		Text = "",
 		ClearTextOnFocus = false,
 		ZIndex = 6,
 		Parent = win.Content,
 	}, { UI.Corner(12), UI.Stroke(3, UI.Colors.Pink), UI.Padding(10, 8) })
-	UI.Button({ Position = UDim2.new(0.25, 0, 0, 108), Size = UDim2.new(0.5, 0, 0, 52), Color = UI.Colors.Green, Text = "✅ Einloesen", ZIndex = 6, Parent = win.Content }, function()
+	UI.Button({ Position = UDim2.new(0.25, 0, 0, 108), Size = UDim2.new(0.5, 0, 0, 52), Color = UI.Colors.Green, Text = "✅ Redeem", ZIndex = 6, Parent = win.Content }, function()
 		if #box.Text > 0 then
 			ctx.Request("RedeemCode", box.Text)
 			box.Text = ""
 		end
 	end)
 	smallLabel({ Position = UDim2.new(0, 0, 0, 172), Size = UDim2.new(1, 0, 0, 40), TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = true, TextColor3 = UI.Colors.Gold,
-		Text = "💡 Tipp: Probier mal GYATT, SLAP oder RELEASE!", Parent = win.Content })
+		Text = "💡 Tip: Try GYATT, SLAP or RELEASE!", Parent = win.Content })
 	return win
 end
 
@@ -652,13 +652,13 @@ end
 --------------------------------------------------------------------------
 local SETTING_TEXT = {
 	{ "Sounds", "🔊 Sounds" },
-	{ "DamageNumbers", "🔢 Schadenszahlen" },
-	{ "Shake", "📳 Kamera-Wackeln" },
-	{ "OtherPets", "🐾 Pets anderer Spieler" },
+	{ "DamageNumbers", "🔢 Damage Numbers" },
+	{ "Shake", "📳 Camera Shake" },
+	{ "OtherPets", "🐾 Other Players' Pets" },
 }
 
 local function buildSettings()
-	local win = UI.CreateWindow(ctx.Screen, "Settings", "Optionen & Statistik", "⚙️", Vector2.new(540, 470))
+	local win = UI.CreateWindow(ctx.Screen, "Settings", "Settings & Stats", "⚙️", Vector2.new(540, 470))
 	local list = UI.ScrollList(win.Content, {})
 	local toggles = {}
 	for order, info in ipairs(SETTING_TEXT) do
@@ -682,14 +682,14 @@ local function buildSettings()
 			UI.SetButtonColor(button, on and UI.Colors.Green or UI.Colors.Gray)
 		end
 		local hand = Calc.GetHand(s.Hand)
-		stats.Text = "📊 DEINE STATISTIK\n"
-			.. "👋 Slaps insgesamt: " .. Calc.FormatNumber(s.TotalSlaps) .. "\n"
-			.. "💰 Verdient insgesamt: " .. Calc.FormatNumber(s.TotalEarned) .. "\n"
-			.. "💥 Besiegte Gyatts: " .. Calc.FormatNumber(s.TotalDefeats) .. "\n"
-			.. "🔥 Beste Combo: " .. Calc.FormatNumber(s.BestCombo) .. "\n"
+		stats.Text = "📊 YOUR STATS\n"
+			.. "👋 Total slaps: " .. Calc.FormatNumber(s.TotalSlaps) .. "\n"
+			.. "💰 Total earned: " .. Calc.FormatNumber(s.TotalEarned) .. "\n"
+			.. "💥 Gyatts defeated: " .. Calc.FormatNumber(s.TotalDefeats) .. "\n"
+			.. "🔥 Best combo: " .. Calc.FormatNumber(s.BestCombo) .. "\n"
 			.. "♻️ Rebirths: " .. tostring(s.Rebirths) .. "\n"
 			.. "✋ Hand: " .. hand.DisplayName .. "   🐾 Pets: " .. #(s.Pets or {}) .. "\n"
-			.. "⏱️ Spielzeit: " .. Calc.FormatTime(s.PlayTime or 0)
+			.. "⏱️ Playtime: " .. Calc.FormatTime(s.PlayTime or 0)
 	end
 	return win
 end

@@ -47,7 +47,7 @@ local function buildTop(screen)
 		Name = "Slaps",
 		Position = UDim2.new(0, 10, 0, 4),
 		Size = UDim2.new(1, -20, 0, 40),
-		Text = "👋 Laden...",
+		Text = "👋 Loading...",
 		Parent = top,
 	})
 	UI.TextStroke(2).Parent = slapsLabel
@@ -137,15 +137,15 @@ end
 
 local MENU_BUTTONS = {
 	{ "Shop", "🛒", "Shop", { 255, 105, 180 } },
-	{ "Hands", "✋", "Haende", { 255, 160, 60 } },
+	{ "Hands", "✋", "Hands", { 255, 160, 60 } },
 	{ "Pets", "🐾", "Pets", { 90, 200, 120 } },
-	{ "Zones", "🗺️", "Zonen", { 70, 170, 255 } },
+	{ "Zones", "🗺️", "Zones", { 70, 170, 255 } },
 	{ "Gems", "💎", "Gems", { 90, 210, 255 } },
 	{ "Rebirth", "♻️", "Rebirth", { 160, 100, 255 } },
 	{ "Quests", "📜", "Quests", { 255, 200, 60 } },
-	{ "Daily", "🎁", "Taeglich", { 255, 90, 120 } },
+	{ "Daily", "🎁", "Daily", { 255, 90, 120 } },
 	{ "Codes", "🎟️", "Codes", { 120, 120, 255 } },
-	{ "Settings", "⚙️", "Optionen", { 130, 130, 150 } },
+	{ "Settings", "⚙️", "Settings", { 130, 130, 150 } },
 }
 
 local function buildMenuButtons(screen)
@@ -205,7 +205,7 @@ local function buildRightSide(screen)
 		Position = UDim2.new(1, -10, 0.5, -40),
 		Size = UDim2.new(0, 120, 0, 50),
 		Color = UI.Colors.Gray,
-		Text = "🤖 Auto: AUS",
+		Text = "🤖 Auto: OFF",
 		Parent = screen,
 	}, function()
 		ctx.Request("ToggleAutoSlap")
@@ -359,7 +359,7 @@ end
 
 function Hud.SetZone(index)
 	if index == 0 then
-		zoneLabel.Text = "📍 Hub - Startbereich"
+		zoneLabel.Text = "📍 Hub - Spawn Area"
 	else
 		local zone = Config.Zones[index]
 		zoneLabel.Text = "📍 Zone " .. index .. ": " .. (zone and zone.Name or "?")
@@ -430,7 +430,7 @@ function Hud.Refresh(state)
 	local owned = state.GemShop and (state.GemShop.AutoSlap or 0) >= 1
 	autoButton.Visible = owned == true
 	if owned then
-		autoButton.Text = state.AutoSlapOn and "🤖 Auto: AN" or "🤖 Auto: AUS"
+		autoButton.Text = state.AutoSlapOn and "🤖 Auto: ON" or "🤖 Auto: OFF"
 		UI.SetButtonColor(autoButton, state.AutoSlapOn and UI.Colors.Green or UI.Colors.Gray)
 	end
 	refreshBadges(state)
@@ -440,9 +440,9 @@ function Hud.Refresh(state)
 	local zones = state.Zones or 1
 	local nextZone = Config.Zones[zones + 1]
 	if nextZone then
-		hintLabel.Text = "🎯 Naechstes Ziel: Zone " .. (zones + 1) .. " fuer " .. Calc.FormatNumber(nextZone.Price) .. " Slaps"
+		hintLabel.Text = "🎯 Next goal: Zone " .. (zones + 1) .. " for " .. Calc.FormatNumber(nextZone.Price) .. " Slaps"
 	else
-		hintLabel.Text = "🎯 Naechstes Ziel: Rebirth fuer " .. Calc.FormatNumber(Calc.GetRebirthCost(state.Rebirths)) .. " Slaps"
+		hintLabel.Text = "🎯 Next goal: Rebirth for " .. Calc.FormatNumber(Calc.GetRebirthCost(state.Rebirths)) .. " Slaps"
 	end
 end
 
@@ -490,7 +490,7 @@ function Hud.Init(context)
 				if remaining < 0 then
 					remaining = 0
 				end
-				eventLabel.Text = "⭐ GOLDENER GYATT in Zone " .. golden.ZoneIndex .. "!  " .. Calc.FormatTime(remaining)
+				eventLabel.Text = "⭐ GOLDEN GYATT in Zone " .. golden.ZoneIndex .. "!  " .. Calc.FormatTime(remaining)
 			end
 			if ctx.State then
 				refreshBoosts(ctx.State)

@@ -498,11 +498,20 @@ local function buildHub()
 	water.Transparency = 0.25
 	water.CanCollide = false
 	pillar(hub, Vector3.new(fx, FLOOR, fz), 5, 2, Color3.fromRGB(230, 230, 240), Enum.Material.Marble)
-	local statue = ball(hub, Vector3.new(fx, FLOOR + 7.5, fz), 5, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
-	local face = Instance.new("Decal")
-	face.Texture = "rbxasset://textures/face.png"
-	face.Face = Enum.NormalId.Front
-	face.Parent = statue
+	-- Mini-Gyatt-Statue (zwei Backen + Hosenbund)
+	local statue = ball(hub, Vector3.new(fx - 1.3, FLOOR + 7.4, fz), 3.6, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
+	ball(hub, Vector3.new(fx + 1.3, FLOOR + 7.4, fz), 3.6, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
+	local statueBand = part({
+		Name = "StatueBand",
+		Size = Vector3.new(6.2, 0.7, 3.6),
+		CFrame = CFrame.new(fx, FLOOR + 9.1, fz + 0.2),
+		Color = Color3.fromRGB(255, 255, 255),
+		Material = Enum.Material.Marble,
+		Parent = hub,
+	})
+	local statueMesh = Instance.new("SpecialMesh")
+	statueMesh.MeshType = Enum.MeshType.Sphere
+	statueMesh.Parent = statueBand
 	local sparkle = Instance.new("Sparkles")
 	sparkle.SparkleColor = Color3.fromRGB(255, 200, 230)
 	sparkle.Parent = statue
@@ -517,11 +526,11 @@ local function buildHub()
 
 	-- Schilder
 	sign(hub, CFrame.new(-8, FLOOR + 8, -12) * CFrame.Angles(0, math.rad(-20), 0), Vector3.new(16, 7, 0.8),
-		"👋 SLAP THE GYATT 👋\nKlicke mit deiner Hand auf die Gyatts!", Color3.fromRGB(255, 170, 220), nil, Enum.NormalId.Front)
+		"👋 SLAP THE GYATT 👋\nClick the Gyatts with your hand!", Color3.fromRGB(255, 170, 220), nil, Enum.NormalId.Front)
 	pillar(hub, Vector3.new(-8, FLOOR, -12), 4.5, 0.8, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
 
 	sign(hub, CFrame.new(28, FLOOR + 7, -12) * CFrame.Angles(0, math.rad(20), 0), Vector3.new(16, 9, 0.8),
-		"📖 SO GEHT'S\n1. Gyatt slappen = Slaps\n2. Hand verbessern im Shop\n3. Neue Zonen & Eier\n4. Rebirth fuer Mega-Bonus!",
+		"📖 HOW TO PLAY\n1. Slap Gyatts = Slaps\n2. Upgrade your hand in the Shop\n3. New zones & eggs\n4. Rebirth for a mega bonus!",
 		Color3.fromRGB(255, 255, 255), Color3.fromRGB(70, 40, 90), Enum.NormalId.Front)
 	pillar(hub, Vector3.new(28, FLOOR, -12), 2.6, 0.8, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
 
@@ -578,8 +587,8 @@ local function buildHub()
 		World.Leaderboards[id] = rows
 	end
 	-- stehen rechts und schauen zur Mitte (-X)
-	leaderboard("Earned", "🏆 MEISTE SLAPS", CFrame.new(50, FLOOR + 14, -32) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 110, 180))
-	leaderboard("Rebirths", "♻️ MEISTE REBIRTHS", CFrame.new(50, FLOOR + 14, -56) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(150, 90, 255))
+	leaderboard("Earned", "🏆 MOST SLAPS", CFrame.new(50, FLOOR + 14, -32) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 110, 180))
+	leaderboard("Rebirths", "♻️ MOST REBIRTHS", CFrame.new(50, FLOOR + 14, -56) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(150, 90, 255))
 
 	-- PvP-Arena
 	local arena = Config.Arena
@@ -596,7 +605,7 @@ local function buildHub()
 	end
 	-- Schild auf der Seite zum Spawn (+X), Text zeigt nach +X
 	sign(hub, CFrame.new(center + Vector3.new(arena.Radius + 3, 9, 0)) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(20, 5, 0.8),
-		"⚔️ SLAP-ARENA (PvP) ⚔️\nSlappe andere Spieler weg!", Color3.fromRGB(255, 220, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Front)
+		"⚔️ SLAP ARENA (PvP) ⚔️\nSlap other players away!", Color3.fromRGB(255, 220, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Front)
 	World.Arena = { Center = center, Radius = arena.Radius }
 end
 
@@ -692,7 +701,7 @@ local function buildZone(index, zone)
 		})
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "UnlockPrompt"
-		prompt.ActionText = "Freischalten (" .. Calc.FormatNumber(zone.Price) .. " Slaps)"
+		prompt.ActionText = "Unlock (" .. Calc.FormatNumber(zone.Price) .. " Slaps)"
 		prompt.ObjectText = "Zone " .. index .. ": " .. zone.Name
 		prompt.HoldDuration = 0.4
 		prompt.MaxActivationDistance = 14
@@ -776,7 +785,7 @@ local function buildZone(index, zone)
 		for _, amount in ipairs({ 1, 3 }) do
 			local prompt = Instance.new("ProximityPrompt")
 			prompt.Name = "Hatch" .. amount
-			prompt.ActionText = amount == 1 and "Oeffnen" or "3x Oeffnen"
+			prompt.ActionText = amount == 1 and "Hatch" or "Hatch x3"
 			prompt.ObjectText = eggCfg.DisplayName .. " (" .. currencyIcon .. " " .. Calc.FormatNumber(eggCfg.Price * amount) .. ")"
 			prompt.KeyboardKeyCode = amount == 1 and Enum.KeyCode.E or Enum.KeyCode.R
 			prompt.HoldDuration = 0.25
@@ -795,7 +804,7 @@ local function buildZone(index, zone)
 		eggStand("Golden", Vector3.new(42, FLOOR, startZ + 56))
 	end
 	if egg == nil then
-		warn("[SlapTheGyatt] Zone " .. index .. " hat kein gueltiges Ei")
+		warn("[SlapTheGyatt] Zone " .. index .. " has no valid egg")
 	end
 
 	-- Deko
@@ -896,6 +905,182 @@ local function buildBounds()
 	end
 end
 
+
+--------------------------------------------------------------------------
+-- Hintergrund: Himmel, Wolken, Boden und Berge rund um die Karte
+--------------------------------------------------------------------------
+local BACKDROPS = {
+	meadow = { Ground = { 90, 170, 90 }, Mountain = { 80, 140, 90 }, Cap = { 250, 250, 255 }, Kind = "mountain" },
+	desert = { Ground = { 220, 185, 120 }, Mountain = { 210, 130, 70 }, Cap = { 235, 170, 100 }, Kind = "mesa" },
+	ice = { Ground = { 230, 240, 255 }, Mountain = { 160, 190, 220 }, Cap = { 255, 255, 255 }, Kind = "mountain" },
+	lava = { Ground = { 50, 35, 32 }, Mountain = { 60, 40, 38 }, Cap = { 255, 90, 20 }, Kind = "volcano" },
+	cloud = { Ground = { 240, 245, 255 }, Mountain = { 255, 255, 255 }, Cap = { 255, 220, 120 }, Kind = "cloud" },
+	space = { Ground = { 25, 15, 50 }, Mountain = { 70, 55, 100 }, Cap = { 170, 120, 255 }, Kind = "asteroid" },
+}
+
+local function backdropMountain(parent, kind, position, rng, theme)
+	local color = rgb(theme.Mountain)
+	local cap = rgb(theme.Cap)
+	if kind == "mountain" or kind == "volcano" then
+		local baseD = rng:NextNumber(70, 120)
+		local layers = 6
+		local layerH = baseD * 0.16
+		for i = 0, layers - 1 do
+			local d = baseD * (1 - i / layers)
+			local isTop = i >= layers - 2
+			local layer = pillar(parent, position + Vector3.new(0, i * layerH, 0), layerH, d,
+				(isTop and kind == "mountain") and cap or color, kind == "volcano" and Enum.Material.Basalt or Enum.Material.Rock)
+			layer.CastShadow = false
+		end
+		if kind == "volcano" then
+			local top = disc(parent, position + Vector3.new(0, layers * layerH + 0.2, 0), 0.5, baseD / layers, cap, Enum.Material.Neon)
+			top.CastShadow = false
+			local fire = Instance.new("Fire")
+			fire.Size = 30
+			fire.Heat = 25
+			fire.Parent = top
+			addLight(top, Color3.fromRGB(255, 100, 30), 60, 3)
+		end
+	elseif kind == "mesa" then
+		local w = rng:NextNumber(40, 80)
+		local h = rng:NextNumber(25, 45)
+		for i = 0, 2 do
+			local layer = part({
+				Name = "Mesa",
+				Size = Vector3.new(w * (1 - i * 0.12), h / 3, w * 0.7 * (1 - i * 0.12)),
+				CFrame = CFrame.new(position + Vector3.new(0, h / 6 + i * h / 3, 0)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0),
+				Color = (i % 2 == 0) and color or cap,
+				Material = Enum.Material.Sandstone,
+				Parent = parent,
+			})
+			layer.CastShadow = false
+		end
+		local dune = ball(parent, position + Vector3.new(rng:NextNumber(-40, 40), -10, rng:NextNumber(-30, 30)), rng:NextNumber(40, 60), rgb(theme.Ground), Enum.Material.Sand)
+		dune.CastShadow = false
+	elseif kind == "cloud" then
+		local lift = rng:NextNumber(10, 40)
+		for i = 1, 6 do
+			local puff = ball(parent, position + Vector3.new(rng:NextNumber(-25, 25), lift + rng:NextNumber(-5, 8), rng:NextNumber(-20, 20)), rng:NextNumber(18, 32), color, Enum.Material.SmoothPlastic)
+			puff.CastShadow = false
+			puff.CanCollide = false
+		end
+		-- kleiner goldener Tempel auf der Wolke
+		for _, ox in ipairs({ -6, 6 }) do
+			local col = pillar(parent, position + Vector3.new(ox, lift + 10, 0), 12, 2.5, cap, Enum.Material.Foil)
+			col.CastShadow = false
+		end
+		local roof = part({ Name = "TempleRoof", Size = Vector3.new(18, 2, 8), CFrame = CFrame.new(position + Vector3.new(0, lift + 23, 0)), Color = cap, Material = Enum.Material.Foil, Parent = parent })
+		roof.CastShadow = false
+	elseif kind == "asteroid" then
+		for i = 1, 4 do
+			local s = rng:NextNumber(8, 22)
+			local rock = part({
+				Name = "Asteroid",
+				Size = Vector3.new(s, s * 0.8, s * 1.1),
+				CFrame = CFrame.new(position + Vector3.new(rng:NextNumber(-30, 30), rng:NextNumber(15, 70), rng:NextNumber(-30, 30))) * CFrame.Angles(rng:NextNumber(0, 3), rng:NextNumber(0, 3), rng:NextNumber(0, 3)),
+				Color = color,
+				Material = Enum.Material.Slate,
+				CanCollide = false,
+				Parent = parent,
+			})
+			rock.CastShadow = false
+			if i == 1 then
+				local glow = ball(parent, rock.Position + Vector3.new(0, s * 0.5, 0), s * 0.3, cap, Enum.Material.Neon)
+				glow.CanCollide = false
+				glow.CastShadow = false
+			end
+		end
+	end
+end
+
+local function buildBackground()
+	local bg = folder("Background", root)
+	local rng = Random.new(4242)
+
+	-- Himmel (nur eingebaute Roblox-Werte, keine Bilder noetig)
+	local oldSky = Lighting:FindFirstChildOfClass("Sky")
+	if oldSky then
+		oldSky:Destroy()
+	end
+	local sky = Instance.new("Sky")
+	sky.Name = "SlapSky"
+	sky.StarCount = 3000
+	sky.CelestialBodiesShown = true
+	sky.SunAngularSize = 16
+	sky.MoonAngularSize = 9
+	sky.Parent = Lighting
+
+	-- Echte Wolken am Himmel
+	local terrain = workspace.Terrain
+	local clouds = terrain:FindFirstChildOfClass("Clouds")
+	if not clouds then
+		clouds = Instance.new("Clouds")
+		clouds.Parent = terrain
+	end
+	clouds.Cover = 0.55
+	clouds.Density = 0.55
+	clouds.Color = Color3.fromRGB(255, 245, 250)
+
+	local outer = 360 -- wie weit der Boden ausserhalb der Karte reicht
+	local function ground(name, size, position, color, mat)
+		local g = part({ Name = name, Size = size, CFrame = CFrame.new(position), Color = color, Material = mat, Parent = bg })
+		g.CastShadow = false
+		return g
+	end
+
+	-- Boden neben dem Hub und dahinter
+	local hubColor = Color3.fromRGB(110, 190, 110)
+	for _, side in ipairs({ -1, 1 }) do
+		ground("HubGround", Vector3.new(outer, 2, Config.HubLength), Vector3.new(side * (HALF_WIDTH + outer / 2), FLOOR - 1.2, -Config.HubLength / 2), hubColor, Enum.Material.Grass)
+	end
+	ground("BackGround", Vector3.new(Config.ZoneWidth + outer * 2, 2, outer), Vector3.new(0, FLOOR - 1.2, -Config.HubLength - outer / 2), hubColor, Enum.Material.Grass)
+
+	-- Riesige Gyatt-Statue hinter dem Hub ("Mount Gyatt")
+	local mx, mz = 0, -Config.HubLength - 120
+	local pink = Color3.fromRGB(255, 160, 200)
+	for _, side in ipairs({ -1, 1 }) do
+		local cheek = ball(bg, Vector3.new(mx + side * 26, FLOOR + 38, mz), 66, pink, Enum.Material.Marble)
+		cheek.CastShadow = false
+	end
+	local band = part({ Name = "MountGyattBand", Size = Vector3.new(118, 12, 70), CFrame = CFrame.new(mx, FLOOR + 68, mz + 4), Color = Color3.fromRGB(255, 255, 255), Material = Enum.Material.Marble, Parent = bg })
+	band.CastShadow = false
+	local bandMesh = Instance.new("SpecialMesh")
+	bandMesh.MeshType = Enum.MeshType.Sphere
+	bandMesh.Parent = band
+	local monumentSign = sign(bg, CFrame.new(mx, FLOOR + 68, mz - 34), Vector3.new(60, 10, 1), "MOUNT GYATT", Color3.fromRGB(255, 80, 160), Color3.fromRGB(255, 255, 255), Enum.NormalId.Back)
+	monumentSign.CastShadow = false
+	for _, side in ipairs({ -1, 1 }) do
+		pillar(bg, Vector3.new(mx + side * 24, FLOOR - 1, mz + 4), 10, 18, Color3.fromRGB(255, 205, 170), Enum.Material.SmoothPlastic).CastShadow = false
+	end
+	for _ = 1, 8 do
+		backdropMountain(bg, "mountain", Vector3.new(rng:NextNumber(-260, 260), FLOOR - 1, -Config.HubLength - rng:NextNumber(170, 320)), rng, BACKDROPS.meadow)
+	end
+
+	-- Pro Zone: Boden und Berge links und rechts
+	for index, zone in ipairs(Config.Zones) do
+		local theme = BACKDROPS[zone.Decor] or BACKDROPS.meadow
+		local startZ = Calc.GetZoneStartZ(index)
+		local centerZ = startZ + Config.ZoneLength / 2
+		for _, side in ipairs({ -1, 1 }) do
+			ground("ZoneGround", Vector3.new(outer, 2, Config.ZoneLength), Vector3.new(side * (HALF_WIDTH + outer / 2), FLOOR - 1.2, centerZ), rgb(theme.Ground),
+				zone.Decor == "desert" and Enum.Material.Sand or (zone.Decor == "ice" and Enum.Material.Snow or (zone.Decor == "lava" and Enum.Material.Basalt or (zone.Decor == "meadow" and Enum.Material.Grass or Enum.Material.SmoothPlastic))))
+			for n = 1, 3 do
+				local x = side * rng:NextNumber(HALF_WIDTH + 60, HALF_WIDTH + 280)
+				local z = startZ + (n - 0.5) * Config.ZoneLength / 3 + rng:NextNumber(-15, 15)
+				backdropMountain(bg, theme.Kind, Vector3.new(x, FLOOR - 1, z), rng, theme)
+			end
+		end
+	end
+
+	-- Ende der Welt: Boden und Berge hinter der letzten Zone
+	local endZ = #Config.Zones * Config.ZoneLength
+	local lastTheme = BACKDROPS[Config.Zones[#Config.Zones].Decor] or BACKDROPS.space
+	ground("EndGround", Vector3.new(Config.ZoneWidth + outer * 2, 2, outer), Vector3.new(0, FLOOR - 1.2, endZ + outer / 2), rgb(lastTheme.Ground), Enum.Material.SmoothPlastic)
+	for _ = 1, 8 do
+		backdropMountain(bg, lastTheme.Kind, Vector3.new(rng:NextNumber(-260, 260), FLOOR - 1, endZ + rng:NextNumber(60, 300)), rng, lastTheme)
+	end
+end
+
 function World.Build()
 	local old = workspace:FindFirstChild("SlapWorld")
 	if old then
@@ -917,6 +1102,7 @@ function World.Build()
 		buildZone(index, zone)
 	end
 	buildBounds()
+	buildBackground()
 
 	World.GyattFolder = folder("Gyatts", root)
 	return World

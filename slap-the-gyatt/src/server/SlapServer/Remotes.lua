@@ -41,7 +41,7 @@ function Remotes.NotifyAll(text, color)
 	Remotes.Events.Notify:FireAllClients(text, color or WHITE)
 end
 
--- Grosses Popup in der Bildschirmmitte (z.B. "NEUE HAND!")
+-- Grosses Popup in der Bildschirmmitte (z.B. "NEW HAND!")
 function Remotes.Popup(player, title, subtitle, color)
 	if player and player.Parent then
 		Remotes.Events.Popup:FireClient(player, title, subtitle or "", color or WHITE)

@@ -65,12 +65,12 @@ function Pets.Hatch(player, eggId, amount)
 		return
 	end
 	if egg.Zone > data.Zones then
-		ctx.Remotes.Notify(player, "Schalte zuerst Zone " .. egg.Zone .. " frei!", RED)
+		ctx.Remotes.Notify(player, "Unlock Zone " .. egg.Zone .. " first!", RED)
 		return
 	end
 	local space = Calc.GetInventorySize(data) - #data.Pets
 	if space < amount then
-		ctx.Remotes.Notify(player, "🎒 Dein Pet-Inventar ist voll! Loesche Pets oder kauf mehr Platz.", RED)
+		ctx.Remotes.Notify(player, "🎒 Your pet inventory is full! Delete pets or buy more space.", RED)
 		ctx.Remotes.Fire("Event", player, "Denied")
 		return
 	end
@@ -78,7 +78,7 @@ function Pets.Hatch(player, eggId, amount)
 	local price = egg.Price * amount
 	if data[balanceKey] < price then
 		local icon = balanceKey == "Gems" and "💎" or "👋"
-		ctx.Remotes.Notify(player, "Nicht genug " .. balanceKey .. "! Du brauchst " .. icon .. " " .. Calc.FormatNumber(price), RED)
+		ctx.Remotes.Notify(player, "Not enough " .. balanceKey .. "! You need " .. icon .. " " .. Calc.FormatNumber(price), RED)
 		ctx.Remotes.Fire("Event", player, "Denied")
 		return
 	end
@@ -103,7 +103,7 @@ function Pets.Hatch(player, eggId, amount)
 		local petCfg = Config.Pets[petId]
 		if petCfg.Rarity == "Legendary" or petCfg.Rarity == "Mythic" then
 			local rarity = Config.Rarities[petCfg.Rarity]
-			ctx.Remotes.NotifyAll("🌟 " .. player.DisplayName .. " hat " .. petCfg.DisplayName .. " (" .. rarity.DisplayName .. ") geschluepft!", rarity.Color)
+			ctx.Remotes.NotifyAll("🌟 " .. player.DisplayName .. " hatched " .. petCfg.DisplayName .. " (" .. rarity.DisplayName .. ")!", rarity.Color)
 		end
 	end
 	ctx.Data.AddStat(profile, "Eggs", amount)
@@ -121,7 +121,7 @@ function Pets.Equip(player, uid)
 		return
 	end
 	if countEquipped(profile.Data) >= Calc.GetPetSlots(profile.Data) then
-		ctx.Remotes.Notify(player, "Alle Pet-Plaetze sind voll! Leg zuerst ein Pet ab.", RED)
+		ctx.Remotes.Notify(player, "All pet slots are full! Unequip a pet first.", RED)
 		return
 	end
 	pet.Equipped = true
@@ -176,7 +176,7 @@ function Pets.EquipBest(player)
 	for i = 1, math.min(Calc.GetPetSlots(data), #sorted) do
 		sorted[i].Equipped = true
 	end
-	ctx.Remotes.Notify(player, "🐾 Beste Pets ausgeruestet!", { 120, 255, 140 })
+	ctx.Remotes.Notify(player, "🐾 Best pets equipped!", { 120, 255, 140 })
 	changed(player)
 end
 
@@ -196,7 +196,7 @@ function Pets.DeleteRarity(player, rarity)
 		end
 	end
 	profile.Data.Pets = kept
-	ctx.Remotes.Notify(player, "🗑️ " .. removed .. " Pets geloescht.", { 255, 220, 120 })
+	ctx.Remotes.Notify(player, "🗑️ " .. removed .. " pets deleted.", { 255, 220, 120 })
 	changed(player)
 end
 
