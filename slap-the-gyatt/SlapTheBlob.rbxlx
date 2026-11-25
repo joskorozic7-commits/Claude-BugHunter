@@ -1069,7 +1069,7 @@ Config.Arena = { -- die Duell-Zone im Hub
 	Radius = 20,
 }
 Config.Duel = {
-	Health = 100,
+	Health = 150,
 	Duration = 60, -- Sekunden
 	Countdown = 3,
 	AttackCooldown = 0.45,
@@ -1078,10 +1078,10 @@ Config.Duel = {
 	DamagePerPower = 1.1, -- pro Zehnerpotenz Schaden der Hand
 	MaxDamage = 16,
 	CritChance = 0.15,
-	CritMultiplier = 1.6,
+	CritMultiplier = 1.4,
 	ComboWindow = 1.2,
-	ComboBonus = 0.1, -- +10% Schaden pro Treffer in Folge
-	MaxComboBonus = 0.5,
+	ComboBonus = 0.06, -- +6% Schaden pro Treffer in Folge
+	MaxComboBonus = 0.3,
 	Knockback = 45,
 	KnockbackGrowth = 1.6, -- je weniger Leben, desto weiter fliegt man
 	UpForce = 28,
@@ -1423,13 +1423,16 @@ function Combat.TrySlap(player, isAuto)
 			damage = damage * hand.Smite.Multiplier
 		end
 	end
+	-- Slaps werden aus dem normalen Schaden berechnet (SNAP toetet nur sofort,
+	-- sonst wuerde ein SNAP auf ein Ziel mit riesigen Leben die Wirtschaft sprengen)
+	local rewardDamage = damage
 	if hand.Snap and not target.IsGolden and math.random() < hand.Snap then
 		special = "Snap"
 		damage = math.max(damage, math.ceil(target.Health))
 	end
 
 	local slapMultiplier = Calc.GetSlapMultiplier(data, unixNow) * Calc.GetComboMultiplier(profile.Combo)
-	local reward = damage * target.RewardMultiplier * slapMultiplier
+	local reward = rewardDamage * target.RewardMultiplier * slapMultiplier
 	reward = ctx.Data.AddSlaps(profile, math.max(1, reward))
 
 	data.TotalSlaps = data.TotalSlaps + 1
@@ -5994,7 +5997,8 @@ local function buildZone(index, zone)
 		info.PortalPrompt = prompt
 	end
 
-	info.TeleportCFrame = CFrame.new(0, FLOOR + 4, startZ + 14)
+	-- Blick in die Zone hinein (+Z)
+	info.TeleportCFrame = CFrame.new(0, FLOOR + 4, startZ + 14) * CFrame.Angles(0, math.pi, 0)
 	World.Zones[index] = info
 	return info
 end
@@ -6049,7 +6053,7 @@ local function buildLandings()
 				part({ Name = "Rune", Size = Vector3.new(6, 0.1, 6), CFrame = CFrame.new(x * 14, FLOOR + 0.05, frontZ + length / 2) * CFrame.Angles(0, math.rad(45), 0),
 					Color = rgb(firstZone.Accent), Material = Enum.Material.Neon, CanCollide = false, Parent = landing })
 			end
-			sign(landing, CFrame.new(0, FLOOR + 14, frontZ + 8) * CFrame.Angles(0, math.pi, 0), Vector3.new(36, 7, 1),
+			sign(landing, CFrame.new(0, FLOOR + 36, frontZ + length - 4), Vector3.new(36, 7, 1),
 				"🌀 WELCOME TO " .. string.upper(dim.Name) .. " 🌀\nStronger targets, rarer pets!", Color3.fromRGB(240, 220, 255), Color3.fromRGB(40, 10, 70), Enum.NormalId.Front)
 			-- Rueck-Portal
 			local returnPart = part({ Name = "ReturnPortal", Size = Vector3.new(10, 14, 1), CFrame = CFrame.new(-40, FLOOR + 7, frontZ + 6),
@@ -6064,7 +6068,7 @@ local function buildLandings()
 			prompt.RequiresLineOfSight = false
 			prompt.Parent = returnPart
 			World.Dimensions[dimIndex] = {
-				LandingCFrame = CFrame.new(0, FLOOR + 4, frontZ + 20),
+				LandingCFrame = CFrame.new(0, FLOOR + 4, frontZ + 20) * CFrame.Angles(0, math.pi, 0),
 				ReturnPrompt = prompt,
 			}
 		else
@@ -7415,6 +7419,18 @@ local function buildMenuButtons(screen)
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 	})
+	-- auf kleinen Bildschirmen (Handy quer) verkleinern, damit alles passt
+	local holderScale = Create("UIScale", { Scale = 1, Parent = holder })
+	local function fit()
+		local camera = workspace.CurrentCamera
+		if camera then
+			holderScale.Scale = math.clamp((camera.ViewportSize.Y - 110) / 396, 0.55, 1)
+		end
+	end
+	fit()
+	if workspace.CurrentCamera then
+		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)
+	end
 	for order, info in ipairs(MENU_BUTTONS) do
 		local name, icon, label, color = info[1], info[2], info[3], info[4]
 		local button = UI.Button({

@@ -118,13 +118,16 @@ function Combat.TrySlap(player, isAuto)
 			damage = damage * hand.Smite.Multiplier
 		end
 	end
+	-- Slaps werden aus dem normalen Schaden berechnet (SNAP toetet nur sofort,
+	-- sonst wuerde ein SNAP auf ein Ziel mit riesigen Leben die Wirtschaft sprengen)
+	local rewardDamage = damage
 	if hand.Snap and not target.IsGolden and math.random() < hand.Snap then
 		special = "Snap"
 		damage = math.max(damage, math.ceil(target.Health))
 	end
 
 	local slapMultiplier = Calc.GetSlapMultiplier(data, unixNow) * Calc.GetComboMultiplier(profile.Combo)
-	local reward = damage * target.RewardMultiplier * slapMultiplier
+	local reward = rewardDamage * target.RewardMultiplier * slapMultiplier
 	reward = ctx.Data.AddSlaps(profile, math.max(1, reward))
 
 	data.TotalSlaps = data.TotalSlaps + 1

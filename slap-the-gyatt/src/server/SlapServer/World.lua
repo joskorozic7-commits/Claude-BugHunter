@@ -1074,7 +1074,8 @@ local function buildZone(index, zone)
 		info.PortalPrompt = prompt
 	end
 
-	info.TeleportCFrame = CFrame.new(0, FLOOR + 4, startZ + 14)
+	-- Blick in die Zone hinein (+Z)
+	info.TeleportCFrame = CFrame.new(0, FLOOR + 4, startZ + 14) * CFrame.Angles(0, math.pi, 0)
 	World.Zones[index] = info
 	return info
 end
@@ -1129,7 +1130,7 @@ local function buildLandings()
 				part({ Name = "Rune", Size = Vector3.new(6, 0.1, 6), CFrame = CFrame.new(x * 14, FLOOR + 0.05, frontZ + length / 2) * CFrame.Angles(0, math.rad(45), 0),
 					Color = rgb(firstZone.Accent), Material = Enum.Material.Neon, CanCollide = false, Parent = landing })
 			end
-			sign(landing, CFrame.new(0, FLOOR + 14, frontZ + 8) * CFrame.Angles(0, math.pi, 0), Vector3.new(36, 7, 1),
+			sign(landing, CFrame.new(0, FLOOR + 36, frontZ + length - 4), Vector3.new(36, 7, 1),
 				"🌀 WELCOME TO " .. string.upper(dim.Name) .. " 🌀\nStronger targets, rarer pets!", Color3.fromRGB(240, 220, 255), Color3.fromRGB(40, 10, 70), Enum.NormalId.Front)
 			-- Rueck-Portal
 			local returnPart = part({ Name = "ReturnPortal", Size = Vector3.new(10, 14, 1), CFrame = CFrame.new(-40, FLOOR + 7, frontZ + 6),
@@ -1144,7 +1145,7 @@ local function buildLandings()
 			prompt.RequiresLineOfSight = false
 			prompt.Parent = returnPart
 			World.Dimensions[dimIndex] = {
-				LandingCFrame = CFrame.new(0, FLOOR + 4, frontZ + 20),
+				LandingCFrame = CFrame.new(0, FLOOR + 4, frontZ + 20) * CFrame.Angles(0, math.pi, 0),
 				ReturnPrompt = prompt,
 			}
 		else

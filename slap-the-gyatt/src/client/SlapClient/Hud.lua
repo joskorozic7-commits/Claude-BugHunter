@@ -164,6 +164,18 @@ local function buildMenuButtons(screen)
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 	})
+	-- auf kleinen Bildschirmen (Handy quer) verkleinern, damit alles passt
+	local holderScale = Create("UIScale", { Scale = 1, Parent = holder })
+	local function fit()
+		local camera = workspace.CurrentCamera
+		if camera then
+			holderScale.Scale = math.clamp((camera.ViewportSize.Y - 110) / 396, 0.55, 1)
+		end
+	end
+	fit()
+	if workspace.CurrentCamera then
+		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)
+	end
 	for order, info in ipairs(MENU_BUTTONS) do
 		local name, icon, label, color = info[1], info[2], info[3], info[4]
 		local button = UI.Button({
