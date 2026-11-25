@@ -33,45 +33,21 @@ end
 
 local function pvpSlap(player, profile, root)
 	local reach = math.min(Calc.GetTotalReach(profile.Data), PVP_MAX_REACH)
-	local best, bestDistance, bestRoot = nil, math.huge, nil
+	local best, bestDistance = nil, math.huge
 	for _, other in ipairs(Players:GetPlayers()) do
 		if other ~= player then
 			local otherRoot = getAliveRoot(other)
-			if otherRoot and ctx.World.IsInArena(otherRoot.Position) then
+			if otherRoot and ctx.World.IsInArena(otherRoot.Position) and not ctx.Duel.IsInDuel(other) then
 				local distance = (otherRoot.Position - root.Position).Magnitude - 1.5
 				if distance <= reach and distance < bestDistance then
-					best, bestDistance, bestRoot = other, distance, otherRoot
+					best, bestDistance = other, distance
 				end
 			end
 		end
 	end
-	if not best then
-		return
+	if best then
+		ctx.Duel.Start(player, best)
 	end
-
-	local arena = Config.Arena
-	local flat = bestRoot.Position - root.Position
-	flat = Vector3.new(flat.X, 0, flat.Z)
-	if flat.Magnitude < 0.01 then
-		flat = root.CFrame.LookVector
-		flat = Vector3.new(flat.X, 0, flat.Z)
-	end
-	if flat.Magnitude < 0.01 then
-		flat = Vector3.new(0, 0, 1)
-	end
-	local strength = math.min(arena.BaseKnockback + profile.Data.Upgrades.Power * arena.KnockbackPerPower, arena.MaxKnockback)
-	local velocity = flat.Unit * strength + Vector3.new(0, arena.UpForce, 0)
-
-	ctx.Remotes.Fire("Knockback", best, velocity, player.DisplayName)
-	ctx.Remotes.FireAll("SlapFx", {
-		Kind = "Pvp",
-		Position = bestRoot.Position,
-		Radius = 1.5,
-		UserId = player.UserId,
-		TargetId = best.UserId,
-	})
-	ctx.Data.AddStat(profile, "PvpSlaps", 1)
-	ctx.Data.Push(player, false)
 end
 
 -- Gibt true zurueck, wenn geslappt wurde (fuer die Schwung-Animation)
@@ -96,6 +72,11 @@ function Combat.TrySlap(player, isAuto)
 	end
 	profile.LastSlap = now
 
+	-- Duell laeuft: eigene Kampf-Regeln
+	if profile.Duel then
+		return ctx.Duel.Slap(player, profile, root)
+	end
+	-- In der Duell-Zone: einen anderen Spieler slappen startet ein Duell
 	if ctx.World.IsInArena(root.Position) then
 		pvpSlap(player, profile, root)
 		return true

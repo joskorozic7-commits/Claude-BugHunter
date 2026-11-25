@@ -3,6 +3,7 @@
 	  Upgrades, Haende, Zonen, Teleport, Rebirth, Gem-Shop, Auto-Slap, Einstellungen
 ]]
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
 local RunService = game:GetService("RunService")
@@ -26,23 +27,41 @@ end
 --------------------------------------------------------------------------
 -- Upgrades
 --------------------------------------------------------------------------
-local function buyOneUpgrade(profile, id)
+-- Kauft ein Level. Gibt zurueck: ok, fehlendeWaehrung ("Slaps"/"Gems"/nil), Betrag, warTierUp
+local function buyOneUpgrade(profile, id, allowTierUp)
 	local data = profile.Data
 	local level = data.Upgrades[id]
-	local cost = Calc.GetUpgradeCost(id, level)
-	if not cost or data.Slaps < cost then
-		return false, cost
+	local cost, gems = Calc.GetUpgradeCost(id, level)
+	if not cost then
+		return false, nil, nil, false
+	end
+	local tierUp = gems > 0
+	if tierUp and not allowTierUp then
+		return false, "TierUp", cost, true
+	end
+	if data.Slaps < cost then
+		return false, "Slaps", cost, tierUp
+	end
+	if data.Gems < gems then
+		return false, "Gems", gems, tierUp
 	end
 	data.Slaps = data.Slaps - cost
+	data.Gems = data.Gems - gems
 	data.Upgrades[id] = level + 1
 	ctx.Data.AddStat(profile, "Upgrades", 1)
-	return true, cost
+	return true, nil, cost, tierUp
 end
 
-local function afterUpgrade(player, profile, id, bought)
+local function afterUpgrade(player, profile, id, bought, tierUp)
 	local upgrade = Config.Upgrades[id]
-	ctx.Remotes.Notify(player, upgrade.Icon .. " " .. upgrade.DisplayName .. " is now level " .. profile.Data.Upgrades[id]
-		.. (bought > 1 and ("  (+" .. bought .. ")") or "") .. "!", GREEN)
+	local level = profile.Data.Upgrades[id]
+	if tierUp then
+		local tierInfo = Calc.GetTierInfo(Calc.GetTier(level))
+		ctx.Remotes.Popup(player, "TIER UP!", upgrade.Icon .. " " .. upgrade.DisplayName .. " is now " .. string.upper(tierInfo.Name) .. "  (" .. Calc.DescribeUpgrade(id, level) .. ")", tierInfo.Color)
+	else
+		ctx.Remotes.Notify(player, upgrade.Icon .. " " .. upgrade.DisplayName .. " is now level " .. level
+			.. (bought > 1 and ("  (+" .. bought .. ")") or "") .. "!", GREEN)
+	end
 	ctx.Remotes.Fire("Event", player, "Purchased")
 	if id == "Power" then
 		ctx.Hands.Give(player, false) -- Hand waechst
@@ -55,37 +74,40 @@ function Shop.BuyUpgrade(player, id)
 	if not profile or type(id) ~= "string" or not Config.Upgrades[id] then
 		return
 	end
-	local ok, cost = buyOneUpgrade(profile, id)
+	local ok, missing, amount, tierUp = buyOneUpgrade(profile, id, true)
 	if ok then
-		afterUpgrade(player, profile, id, 1)
-	elseif cost == nil then
+		afterUpgrade(player, profile, id, 1, tierUp)
+	elseif missing == nil then
 		ctx.Remotes.Notify(player, "Already at max level!", { 255, 220, 120 })
 	else
-		notEnough(player, cost, "Slaps")
+		notEnough(player, amount, missing)
 	end
 end
 
+-- Kauft so viele Level wie moeglich, aber nie automatisch einen Tier-Up (der kostet Gems)
 function Shop.BuyUpgradeMax(player, id)
 	local profile = ctx.Data.Get(player)
 	if not profile or type(id) ~= "string" or not Config.Upgrades[id] then
 		return
 	end
 	local bought = 0
-	local lastCost = nil
+	local lastMissing, lastAmount = nil, nil
 	for _ = 1, Config.Upgrades[id].MaxLevel do
-		local ok, cost = buyOneUpgrade(profile, id)
-		lastCost = cost
+		local ok, missing, amount = buyOneUpgrade(profile, id, false)
+		lastMissing, lastAmount = missing, amount
 		if not ok then
 			break
 		end
 		bought = bought + 1
 	end
 	if bought > 0 then
-		afterUpgrade(player, profile, id, bought)
-	elseif lastCost == nil then
+		afterUpgrade(player, profile, id, bought, false)
+	elseif lastMissing == "TierUp" then
+		ctx.Remotes.Notify(player, "⚡ Time for a TIER UP! Press the Tier Up button.", { 255, 220, 120 })
+	elseif lastMissing == nil then
 		ctx.Remotes.Notify(player, "Already at max level!", { 255, 220, 120 })
 	else
-		notEnough(player, lastCost, "Slaps")
+		notEnough(player, lastAmount, lastMissing)
 	end
 end
 
@@ -127,7 +149,7 @@ function Shop.CheckRobuxHands(player, profile)
 		end
 	end
 	if Calc.IsRobuxHand(profile.Data.Hand) and not profile.RobuxHands[profile.Data.Hand] then
-		profile.Data.Hand = "Wood"
+		profile.Data.Hand = Config.Hands[1].Id
 	end
 end
 
@@ -227,6 +249,10 @@ function Shop.Teleport(player, zoneIndex)
 	zoneIndex = math.floor(zoneIndex)
 	local character = player.Character
 	if not character or not character:FindFirstChild("HumanoidRootPart") then
+		return
+	end
+	if profile.Duel then
+		ctx.Remotes.Notify(player, "⚔️ You can't teleport during a duel!", RED)
 		return
 	end
 	local now = os.clock()
@@ -350,6 +376,122 @@ function Shop.SetSetting(player, name, value)
 	ctx.Data.Push(player, true)
 end
 
+--------------------------------------------------------------------------
+-- Dimensionen
+--------------------------------------------------------------------------
+function Shop.EnterDimension(player, dimIndex)
+	local profile = ctx.Data.Get(player)
+	local dim = Config.Dimensions[dimIndex]
+	if not profile or not dim or not ctx.World.Dimensions[dimIndex] then
+		return
+	end
+	if profile.Duel then
+		return
+	end
+	-- man muss die letzte Zone der vorherigen Dimension haben
+	if profile.Data.Zones < dim.FirstZone - 1 then
+		ctx.Remotes.Notify(player, "🌀 Unlock Zone " .. (dim.FirstZone - 1) .. " first!", RED)
+		return
+	end
+	local character = player.Character
+	if character and character:FindFirstChild("HumanoidRootPart") then
+		character:PivotTo(ctx.World.Dimensions[dimIndex].LandingCFrame)
+		ctx.Remotes.Popup(player, string.upper(dim.Name), "A new dimension! Unlock its zones at the gates.", { 200, 140, 255 })
+	end
+end
+
+function Shop.ReturnToOverworld(player)
+	local character = player.Character
+	if character and character:FindFirstChild("HumanoidRootPart") then
+		character:PivotTo(ctx.World.Dimensions[1].LandingCFrame)
+	end
+end
+
+--------------------------------------------------------------------------
+-- Gems fuer Robux (Developer Products)
+--------------------------------------------------------------------------
+local function findPack(packId)
+	for _, pack in ipairs(Config.GemPacks) do
+		if pack.Id == packId then
+			return pack
+		end
+	end
+	return nil
+end
+
+local function grantGemPack(player, profile, pack, isTest)
+	ctx.Data.AddGems(profile, pack.Gems)
+	local subtitle = "+" .. Calc.FormatNumber(pack.Gems) .. " Gems"
+	if isTest then
+		subtitle = subtitle .. "  (Studio test)"
+	end
+	ctx.Remotes.Popup(player, "💎 GEMS ADDED!", subtitle, { 120, 220, 255 })
+	ctx.Remotes.Fire("Event", player, "Purchased")
+	ctx.Data.Push(player, true)
+end
+
+function Shop.BuyGemPack(player, packId)
+	local profile = ctx.Data.Get(player)
+	local pack = type(packId) == "string" and findPack(packId)
+	if not profile or not pack then
+		return
+	end
+	if (tonumber(pack.ProductId) or 0) <= 0 then
+		if RunService:IsStudio() then
+			grantGemPack(player, profile, pack, true)
+		else
+			ctx.Remotes.Notify(player, "💎 Gem packs are coming soon!", { 255, 220, 120 })
+		end
+		return
+	end
+	local ok, err = pcall(function()
+		MarketplaceService:PromptProductPurchase(player, pack.ProductId)
+	end)
+	if not ok then
+		warn("[SlapTheBlob] Product prompt failed: " .. tostring(err))
+	end
+end
+
+-- Roblox ruft das fuer jeden Robux-Kauf auf (auch nach einem Absturz erneut,
+-- bis wir PurchaseGranted zurueckgeben). Jeder Kauf wird genau einmal gutgeschrieben.
+local function processReceipt(info)
+	local pack = nil
+	for _, candidate in ipairs(Config.GemPacks) do
+		if tonumber(candidate.ProductId) == info.ProductId and info.ProductId ~= 0 then
+			pack = candidate
+		end
+	end
+	if not pack then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local player = Players:GetPlayerByUserId(info.PlayerId)
+	local profile = player and ctx.Data.Get(player)
+	if not profile then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	if ctx.Data.HasStore() and not profile.CanSave then
+		-- Spielstand nicht sicher geladen: spaeter nochmal versuchen
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local purchaseId = tostring(info.PurchaseId)
+	if profile.Data.Receipts[purchaseId] then
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+	profile.Data.Receipts[purchaseId] = os.time()
+	grantGemPack(player, profile, pack, false)
+	if ctx.Data.HasStore() then
+		local saved = ctx.Data.Save(profile)
+		if not saved then
+			-- nicht gespeichert: zuruecknehmen und spaeter erneut versuchen
+			profile.Data.Receipts[purchaseId] = nil
+			profile.Data.Gems = math.max(0, profile.Data.Gems - pack.Gems)
+			ctx.Data.Push(player, true)
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+	end
+	return Enum.ProductPurchaseDecision.PurchaseGranted
+end
+
 function Shop.Init(context)
 	ctx = context
 	ctx.RegisterAction("BuyUpgrade", Shop.BuyUpgrade)
@@ -362,9 +504,26 @@ function Shop.Init(context)
 	ctx.RegisterAction("BuyGemItem", Shop.BuyGemItem)
 	ctx.RegisterAction("ToggleAutoSlap", Shop.ToggleAutoSlap)
 	ctx.RegisterAction("SetSetting", Shop.SetSetting)
+	ctx.RegisterAction("BuyGemPack", Shop.BuyGemPack)
 end
 
 function Shop.Start()
+	MarketplaceService.ProcessReceipt = processReceipt
+	for dimIndex, dimInfo in pairs(ctx.World.Dimensions) do
+		if dimInfo.ReturnPrompt then
+			dimInfo.ReturnPrompt.Triggered:Connect(function(player)
+				Shop.ReturnToOverworld(player)
+			end)
+		end
+	end
+	for _, zoneInfo in ipairs(ctx.World.Zones) do
+		if zoneInfo.PortalPrompt then
+			local dimIndex = zoneInfo.PortalPrompt:GetAttribute("Dimension")
+			zoneInfo.PortalPrompt.Triggered:Connect(function(player)
+				Shop.EnterDimension(player, dimIndex)
+			end)
+		end
+	end
 	-- Robux-Kauf abgeschlossen
 	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
 		if not purchased then

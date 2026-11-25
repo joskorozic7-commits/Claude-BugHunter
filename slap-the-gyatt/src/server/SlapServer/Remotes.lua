@@ -17,7 +17,7 @@ if not folder then
 	folder.Parent = ReplicatedStorage
 end
 
-local NAMES = { "Request", "State", "Notify", "SlapFx", "Hatch", "Popup", "Knockback", "Event", "Defeat" }
+local NAMES = { "Request", "State", "Notify", "SlapFx", "Hatch", "Popup", "Knockback", "Event", "Defeat", "Duel", "Trade" }
 
 for _, name in ipairs(NAMES) do
 	local remote = folder:FindFirstChild(name)

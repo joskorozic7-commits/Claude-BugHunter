@@ -101,7 +101,7 @@ function Pets.Hatch(player, eggId, amount)
 		table.insert(results, { Id = petId, Uid = pet.Uid })
 
 		local petCfg = Config.Pets[petId]
-		if petCfg.Rarity == "Legendary" or petCfg.Rarity == "Mythic" then
+		if petCfg.Rarity == "Legendary" or petCfg.Rarity == "Mythic" or petCfg.Rarity == "Secret" then
 			local rarity = Config.Rarities[petCfg.Rarity]
 			ctx.Remotes.NotifyAll("🌟 " .. player.DisplayName .. " hatched " .. petCfg.DisplayName .. " (" .. rarity.DisplayName .. ")!", rarity.Color)
 		end
@@ -146,6 +146,10 @@ function Pets.Delete(player, uid)
 	if not profile or type(uid) ~= "number" then
 		return
 	end
+	if ctx.Trade.IsTrading(player) then
+		ctx.Remotes.Notify(player, "🤝 You can't delete pets while trading.", RED)
+		return
+	end
 	local pet, index = findPet(profile.Data, uid)
 	if not pet then
 		return
@@ -184,6 +188,10 @@ end
 function Pets.DeleteRarity(player, rarity)
 	local profile = ctx.Data.Get(player)
 	if not profile or type(rarity) ~= "string" or not Config.Rarities[rarity] then
+		return
+	end
+	if ctx.Trade.IsTrading(player) then
+		ctx.Remotes.Notify(player, "🤝 You can't delete pets while trading.", RED)
 		return
 	end
 	local kept = {}

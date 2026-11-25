@@ -25,6 +25,8 @@ local Effects = require(script:WaitForChild("Effects"))
 local WorldFx = require(script:WaitForChild("WorldFx"))
 local PetsFx = require(script:WaitForChild("PetsFx"))
 local Hatch = require(script:WaitForChild("Hatch"))
+local DuelUI = require(script:WaitForChild("DuelUI"))
+local TradeUI = require(script:WaitForChild("TradeUI"))
 
 local old = playerGui:FindFirstChild("SlapUI")
 if old then
@@ -118,6 +120,8 @@ ctx.Effects = Effects
 ctx.WorldFx = WorldFx
 ctx.PetsFx = PetsFx
 ctx.Hatch = Hatch
+ctx.DuelUI = DuelUI
+ctx.TradeUI = TradeUI
 
 Hud.Init(ctx)
 Menus.Init(ctx)
@@ -125,6 +129,8 @@ Effects.Init(ctx)
 WorldFx.Init(ctx)
 PetsFx.Init(ctx)
 Hatch.Init(ctx)
+DuelUI.Init(ctx)
+TradeUI.Init(ctx)
 
 UI.OnWindowOpened = function()
 	ctx.PlaySound("Click")
@@ -197,6 +203,14 @@ end)
 
 remotes.Hatch.OnClientEvent:Connect(function(result)
 	Hatch.Play(result)
+end)
+
+remotes.Duel.OnClientEvent:Connect(function(info)
+	DuelUI.OnEvent(info)
+end)
+
+remotes.Trade.OnClientEvent:Connect(function(info)
+	TradeUI.OnEvent(info)
 end)
 
 remotes.Request:FireServer("RequestState")

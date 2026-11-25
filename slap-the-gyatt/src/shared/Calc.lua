@@ -83,6 +83,29 @@ function Calc.ClampLevel(id, level)
 	return level
 end
 
+-- Tier eines Upgrade-Levels (0 = Bronze, 1 = Silver, ...)
+function Calc.GetTier(level)
+	level = math.max(0, math.floor(tonumber(level) or 0))
+	return math.floor(level / Config.TierSize)
+end
+
+function Calc.GetTierInfo(tier)
+	tier = math.max(0, math.floor(tonumber(tier) or 0))
+	local info = Config.Tiers[tier + 1] or Config.Tiers[#Config.Tiers]
+	return info, tier
+end
+
+function Calc.GetTierMultiplier(level)
+	return (Calc.GetTierInfo(Calc.GetTier(level))).Multiplier
+end
+
+-- Ist der naechste Kauf (Level -> Level+1) ein Tier-Up?
+function Calc.IsTierUp(id, currentLevel)
+	currentLevel = Calc.ClampLevel(id, currentLevel)
+	return (currentLevel + 1) % Config.TierSize == 0
+end
+
+-- Preis fuer das naechste Level. Gibt Slaps, Gems zurueck (nil wenn Max-Level).
 function Calc.GetUpgradeCost(id, currentLevel)
 	local upgrade = Config.Upgrades[id]
 	if not upgrade then
@@ -92,37 +115,45 @@ function Calc.GetUpgradeCost(id, currentLevel)
 	if currentLevel >= upgrade.MaxLevel then
 		return nil
 	end
-	return math.floor(upgrade.BaseCost * (upgrade.CostGrowth ^ currentLevel))
+	local tier = Calc.GetTier(currentLevel)
+	local cost = upgrade.BaseCost * (upgrade.CostGrowth ^ currentLevel) * (Config.TierCostGrowth ^ tier)
+	local gems = 0
+	if Calc.IsTierUp(id, currentLevel) then
+		cost = cost * Config.TierUpCostMultiplier
+		local newTier = tier + 1
+		gems = Config.TierUpGems * newTier * newTier
+	end
+	return math.floor(cost), gems
 end
 
 function Calc.GetBaseDamage(powerLevel)
 	powerLevel = Calc.ClampLevel("Power", powerLevel)
-	return math.floor((1 + powerLevel) * (1.15 ^ powerLevel))
+	return math.floor((1 + powerLevel) * (1.09 ^ powerLevel) * Calc.GetTierMultiplier(powerLevel))
 end
 
 function Calc.GetCooldown(speedLevel)
 	speedLevel = Calc.ClampLevel("Speed", speedLevel)
-	return math.max(0.12, 0.8 * (0.935 ^ speedLevel))
+	return math.max(0.1, 0.8 * (0.965 ^ speedLevel) / (1 + 0.15 * Calc.GetTier(speedLevel)))
 end
 
 function Calc.GetReach(reachLevel)
 	reachLevel = Calc.ClampLevel("Reach", reachLevel)
-	return 6 + reachLevel * 1.5
+	return 6 + reachLevel * 0.5 + Calc.GetTier(reachLevel) * 3
 end
 
 function Calc.GetCritChance(luckLevel)
 	luckLevel = Calc.ClampLevel("Luck", luckLevel)
-	return 0.03 + luckLevel * 0.015
+	return 0.03 + luckLevel * 0.005 + Calc.GetTier(luckLevel) * 0.025
 end
 
 function Calc.GetGreedMultiplier(greedLevel)
 	greedLevel = Calc.ClampLevel("Greed", greedLevel)
-	return 1 + greedLevel * 0.25
+	return (1 + greedLevel * 0.12) * Calc.GetTierMultiplier(greedLevel)
 end
 
 function Calc.GetMaxCombo(comboLevel)
 	comboLevel = Calc.ClampLevel("Combo", comboLevel)
-	return 25 + comboLevel * 10
+	return 25 + comboLevel * 4 + Calc.GetTier(comboLevel) * 20
 end
 
 function Calc.GetComboMultiplier(combo)
@@ -132,7 +163,7 @@ end
 
 function Calc.GetHandScale(powerLevel)
 	powerLevel = Calc.ClampLevel("Power", powerLevel)
-	return 1 + powerLevel * 0.025
+	return 1 + math.min(powerLevel, 60) * 0.025
 end
 
 function Calc.DescribeUpgrade(id, level)
@@ -145,7 +176,7 @@ function Calc.DescribeUpgrade(id, level)
 	elseif id == "Luck" then
 		return string.format("%.1f%% crit", Calc.GetCritChance(level) * 100)
 	elseif id == "Greed" then
-		return string.format("x%.2f Slaps", Calc.GetGreedMultiplier(level))
+		return Calc.FormatMultiplier(Calc.GetGreedMultiplier(level)) .. " Slaps"
 	elseif id == "Combo" then
 		return "Max Combo " .. Calc.GetMaxCombo(level)
 	end
@@ -282,7 +313,7 @@ function Calc.GetEggChances(eggId, lucky)
 	for _, entry in ipairs(egg.Pets) do
 		local pet = Config.Pets[entry[1]]
 		local weight = entry[2]
-		if lucky and pet and pet.Rarity ~= "Common" then
+		if lucky and pet and #result >= 2 then
 			weight = weight * Config.LuckyBoostFactor
 		end
 		total = total + weight
@@ -402,19 +433,34 @@ end
 --------------------------------------------------------------------------
 -- Zonen
 --------------------------------------------------------------------------
-function Calc.GetZoneStartZ(zoneIndex)
-	return (zoneIndex - 1) * Config.ZoneLength
+function Calc.GetDimension(zoneIndex)
+	for index, dim in ipairs(Config.Dimensions) do
+		if zoneIndex >= dim.FirstZone and zoneIndex <= dim.LastZone then
+			return dim, index
+		end
+	end
+	return Config.Dimensions[1], 1
 end
 
+function Calc.GetZoneStartZ(zoneIndex)
+	local dim = Calc.GetDimension(zoneIndex)
+	return dim.StartZ + (zoneIndex - dim.FirstZone) * Config.ZoneLength
+end
+
+-- Zone an einer Z-Position. 0 = Hub der Oberwelt.
 function Calc.GetZoneAtZ(z)
 	if z < 0 then
-		return 0 -- Hub
+		return 0
 	end
-	local index = math.floor(z / Config.ZoneLength) + 1
-	if index > #Config.Zones then
-		index = #Config.Zones
+	local best = 1
+	for _, dim in ipairs(Config.Dimensions) do
+		local landingStart = dim.StartZ - Config.DimensionLandingLength - 40
+		if z >= landingStart or dim.StartZ == 0 then
+			local offset = math.floor((z - dim.StartZ) / Config.ZoneLength)
+			best = math.max(dim.FirstZone, math.min(dim.LastZone, dim.FirstZone + offset))
+		end
 	end
-	return index
+	return best
 end
 
 function Calc.GetGyattKey(zoneIndex, gyattIndex)

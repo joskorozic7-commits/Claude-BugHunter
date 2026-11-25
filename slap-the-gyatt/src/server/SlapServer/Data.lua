@@ -55,8 +55,8 @@ function Data.Default()
 		TotalDefeats = 0,
 		BestCombo = 0,
 		Upgrades = upgrades,
-		Hand = "Wood",
-		OwnedHands = { Wood = true },
+		Hand = Config.Hands[1].Id,
+		OwnedHands = { [Config.Hands[1].Id] = true },
 		Zones = 1,
 		Pets = {},
 		NextPetUid = 1,
@@ -69,6 +69,9 @@ function Data.Default()
 		Settings = settings,
 		PlayTime = 0,
 		TutorialDone = false,
+		DuelWins = 0,
+		TotalTrades = 0,
+		Receipts = {}, -- bereits gutgeschriebene Robux-Kaeufe (PurchaseId -> Zeit)
 	}
 end
 
@@ -98,6 +101,22 @@ function Data.Sanitize(raw)
 	data.TotalDefeats = num(raw.TotalDefeats)
 	data.BestCombo = num(raw.BestCombo)
 	data.PlayTime = num(raw.PlayTime)
+	data.DuelWins = num(raw.DuelWins)
+	data.TotalTrades = num(raw.TotalTrades)
+	if type(raw.Receipts) == "table" then
+		local list = {}
+		for purchaseId, time in pairs(raw.Receipts) do
+			if type(purchaseId) == "string" then
+				table.insert(list, { purchaseId, num(time) })
+			end
+		end
+		table.sort(list, function(x, y)
+			return x[2] > y[2]
+		end)
+		for i = 1, math.min(#list, 100) do
+			data.Receipts[list[i][1]] = list[i][2]
+		end
+	end
 	data.TutorialDone = raw.TutorialDone == true
 	data.AutoSlapOn = raw.AutoSlapOn == true
 

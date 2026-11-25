@@ -1,4 +1,4 @@
-# 👋 Slap the Blob 3.0
+# 👋 Slap the Blob 4.0
 
 A complete, family-friendly Roblox simulator game: slap the Blobs, collect **Slaps** and **Gems**,
 upgrade your hand, hatch pets, unlock 6 worlds and become the strongest!
@@ -17,6 +17,23 @@ the scripts when the game starts. You don't need to build anything yourself.
 Without that everything works, only progress isn't saved.
 
 With Rojo: `rojo serve` (the `default.project.json` is in this folder).
+
+## 🆕 New in 4.0
+
+- **10 worlds in 2 dimensions:** at the end of the Overworld a portal leads into **The Rift** (Candy, Cyber, Shadow and Void Rift), each with its own decor, background and lighting.
+- **More than Blobs:** slap Training Dummies, Slime Cubes, Robots, Ghosts, Golems and **Treasure Chests** (lots of Gems).
+- **Tiered upgrades:** every 10 levels you need a **⚡ TIER UP** (Slaps + Gems). Tiers: Bronze → Silver → Gold → Platinum → Diamond → Ruby → Mythic → Celestial → Cosmic → Infinite, each with a bigger multiplier.
+- **75 gloves:** 60 gloves for Slaps (#60 takes real time), 4 Gem gloves and **11 Robux gloves from R$10 to R$5000**.
+- **72 pets from 12 eggs** with lower drop rates (Legendary ~0.35%, Mythic 0.05%, **Secret** 0.002%), 24 body types and animations (wings flap, pets hop, swim, tentacles wave, auras).
+- **Pet trading:** request → both pick pets → Ready → 3 s countdown → Confirm. Checked on the server.
+- **Duels:** slap someone in the Duel Zone and you both get teleported to a floating arena: HP bars, countdown, crits, combos, dash (Q) with dodge, knockback & ring-outs, 60 s timer, Gem rewards.
+- **Buy Gems with Robux:** 6 packs from R$49 to R$3000, with safe receipt handling (never lost, never granted twice).
+
+### Robux setup (Game Passes & Developer Products)
+All IDs go into `src/shared/Config.lua` (or the `Config` ModuleScript in Studio):
+- **Gloves** (Game Passes, `GamePassId`): Starter Slapper R$10, Bubblegum R$25, Lucky Clover R$49, Thunder Fist R$99, Shadow Claw R$199, Titan Gauntlet R$299, Phantom R$499, Dragon Emperor R$999, Ultra God R$1999, Cosmic Overlord R$2999, OMNI R$5000.
+- **Gem packs** (Developer Products, `ProductId`): 150 💎 R$49, 400 💎 R$99, 1000 💎 R$199, 2500 💎 R$449, 6500 💎 R$999, 22000 💎 R$3000.
+While an ID is `0`, the item is free **in Studio only** (for testing).
 
 ## 🎮 What's inside
 

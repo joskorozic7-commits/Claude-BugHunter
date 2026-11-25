@@ -144,6 +144,7 @@ local MENU_BUTTONS = {
 	{ "Rebirth", "♻️", "Rebirth", { 160, 100, 255 } },
 	{ "Quests", "📜", "Quests", { 255, 200, 60 } },
 	{ "Daily", "🎁", "Daily", { 255, 90, 120 } },
+	{ "Trade", "🤝", "Trade", { 60, 190, 170 } },
 	{ "Codes", "🎟️", "Codes", { 120, 120, 255 } },
 	{ "Settings", "⚙️", "Settings", { 130, 130, 150 } },
 }
@@ -153,7 +154,7 @@ local function buildMenuButtons(screen)
 		Name = "MenuButtons",
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 8, 0.5, 0),
-		Size = UDim2.new(0, 132, 0, 330),
+		Size = UDim2.new(0, 132, 0, 396),
 		BackgroundTransparency = 1,
 		Parent = screen,
 	}, {
@@ -358,7 +359,9 @@ function Hud.SetGoldenEvent(zoneIndex, endsAt)
 end
 
 function Hud.SetZone(index)
-	if index == 0 then
+	if index == -1 then
+		zoneLabel.Text = "⚔️ Duel Arena"
+	elseif index == 0 then
 		zoneLabel.Text = "📍 Hub - Spawn Area"
 	else
 		local zone = Config.Zones[index]

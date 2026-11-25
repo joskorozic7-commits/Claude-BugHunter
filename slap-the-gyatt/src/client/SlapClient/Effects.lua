@@ -137,6 +137,20 @@ function Effects.OnSlap(info)
 	end
 	local isMine = info.UserId == player.UserId
 
+	if info.Kind == "DuelDodge" then
+		floatingText(position + Vector3.new(0, 3, 0), "💨 DODGE!", Color3.fromRGB(140, 200, 255), 4, 0)
+		return
+	end
+	if info.Kind == "Duel" then
+		local crit = tonumber(info.Crit) or 0
+		burst(position, { Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 80, 120) }, crit > 0 and 30 or 16, 28, 0.9)
+		floatingText(position + Vector3.new((math.random() - 0.5) * 2, 3, 0), (crit > 0 and "💥 " or "") .. "-" .. tostring(info.Damage), crit > 0 and Color3.fromRGB(255, 220, 60) or Color3.fromRGB(255, 120, 120), crit > 0 and 5 or 3.5, 0)
+		if isMine then
+			shake(0.3, 0.15)
+			fovPunch(3)
+		end
+		return
+	end
 	if info.Kind == "Pvp" then
 		burst(position, { Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 80, 160) }, 18, 25, 0.8)
 		if isMine then

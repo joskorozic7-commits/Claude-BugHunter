@@ -390,6 +390,163 @@ function decor.crystal(parent, pos, rng)
 	end
 end
 
+-- ===== Candy =====
+local CANDY_COLORS = { { 255, 90, 160 }, { 120, 220, 255 }, { 255, 230, 90 }, { 160, 255, 140 }, { 200, 130, 255 } }
+
+function decor.lollipop(parent, pos, rng)
+	local h = rng:NextNumber(6, 11)
+	pillar(parent, pos, h, 0.6, Color3.fromRGB(255, 255, 255))
+	local c = CANDY_COLORS[rng:NextInteger(1, #CANDY_COLORS)]
+	local candy = part({
+		Name = "Lollipop",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.8, 5, 5),
+		CFrame = CFrame.new(pos + Vector3.new(0, h + 2, 0)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0),
+		Color = rgb(c),
+		Material = Enum.Material.Glass,
+		Parent = parent,
+	})
+	part({
+		Name = "Swirl",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.9, 2.4, 2.4),
+		CFrame = candy.CFrame,
+		Color = Color3.fromRGB(255, 255, 255),
+		Parent = parent,
+	})
+end
+
+function decor.candyCane(parent, pos, rng)
+	local h = rng:NextNumber(7, 12)
+	local segments = math.floor(h / 1.2)
+	for i = 0, segments - 1 do
+		pillar(parent, pos + Vector3.new(0, i * 1.2, 0), 1.2, 1.2, (i % 2 == 0) and Color3.fromRGB(230, 30, 50) or Color3.fromRGB(255, 255, 255))
+	end
+	local top = pos + Vector3.new(0, segments * 1.2, 0)
+	for i = 1, 4 do
+		local angle = (i / 4) * math.pi
+		ball(parent, top + Vector3.new(math.sin(angle) * 1.5 - 0, math.cos(angle) * 1.2, 0) + Vector3.new(1.5 - math.cos(angle) * 1.5 - 1.5, 0, 0), 1.3,
+			(i % 2 == 0) and Color3.fromRGB(230, 30, 50) or Color3.fromRGB(255, 255, 255))
+	end
+end
+
+function decor.gumdrop(parent, pos, rng)
+	local c = CANDY_COLORS[rng:NextInteger(1, #CANDY_COLORS)]
+	local d = rng:NextNumber(2.5, 4.5)
+	local drop = ball(parent, pos + Vector3.new(0, d * 0.2, 0), d, rgb(c), Enum.Material.Glass)
+	drop.Transparency = 0.15
+end
+
+function decor.cupcake(parent, pos, rng)
+	local c = CANDY_COLORS[rng:NextInteger(1, #CANDY_COLORS)]
+	pillar(parent, pos, 2.5, 4, Color3.fromRGB(200, 140, 90))
+	ball(parent, pos + Vector3.new(0, 3.3, 0), 4.4, rgb(c))
+	ball(parent, pos + Vector3.new(0, 5.4, 0), 1.2, Color3.fromRGB(220, 20, 40))
+end
+
+-- ===== Cyber =====
+function decor.neonPillar(parent, pos, rng)
+	local h = rng:NextNumber(8, 18)
+	part({ Name = "CyberPillar", Size = Vector3.new(2.5, h, 2.5), CFrame = CFrame.new(pos + Vector3.new(0, h / 2, 0)), Color = Color3.fromRGB(25, 30, 50), Parent = parent })
+	local stripe = part({ Name = "CyberStripe", Size = Vector3.new(2.7, h * 0.9, 0.4), CFrame = CFrame.new(pos + Vector3.new(0, h / 2, -1.2)),
+		Color = Color3.fromRGB(0, 255, 230), Material = Enum.Material.Neon, Parent = parent })
+	addLight(stripe, Color3.fromRGB(0, 255, 230), 10, 1)
+end
+
+function decor.holoCube(parent, pos, rng)
+	local s = rng:NextNumber(1.5, 3.5)
+	local cube = part({
+		Name = "HoloCube",
+		Size = Vector3.new(s, s, s),
+		CFrame = CFrame.new(pos + Vector3.new(0, rng:NextNumber(3, 9), 0)) * CFrame.Angles(rng:NextNumber(0, 3), rng:NextNumber(0, 3), rng:NextNumber(0, 3)),
+		Color = (rng:NextNumber() < 0.5) and Color3.fromRGB(255, 0, 200) or Color3.fromRGB(0, 200, 255),
+		Material = Enum.Material.Neon,
+		Transparency = 0.35,
+		CanCollide = false,
+		Parent = parent,
+	})
+	cube.CastShadow = false
+end
+
+function decor.serverTower(parent, pos, rng)
+	local h = rng:NextNumber(6, 10)
+	part({ Name = "Server", Size = Vector3.new(4, h, 3), CFrame = CFrame.new(pos + Vector3.new(0, h / 2, 0)), Color = Color3.fromRGB(35, 40, 55), Material = Enum.Material.Metal, Parent = parent })
+	for y = 1, math.floor(h) - 1 do
+		local light = part({ Name = "ServerLight", Size = Vector3.new(0.4, 0.3, 0.2), CFrame = CFrame.new(pos + Vector3.new(rng:NextNumber(-1.4, 1.4), y, -1.55)),
+			Color = (rng:NextNumber() < 0.7) and Color3.fromRGB(60, 255, 120) or Color3.fromRGB(255, 60, 60), Material = Enum.Material.Neon, Parent = parent })
+		light.CastShadow = false
+	end
+end
+
+function decor.gridLine(parent, pos, rng)
+	local line = part({ Name = "GridLine", Size = Vector3.new(0.3, 0.1, rng:NextNumber(15, 40)), CFrame = CFrame.new(pos + Vector3.new(0, 0.05, 0)),
+		Color = Color3.fromRGB(0, 255, 230), Material = Enum.Material.Neon, CanCollide = false, Parent = parent })
+	line.CastShadow = false
+end
+
+-- ===== Shadow =====
+function decor.deadTree(parent, pos, rng)
+	local h = rng:NextNumber(7, 12)
+	local dark = Color3.fromRGB(35, 25, 40)
+	pillar(parent, pos, h, 1.2, dark, Enum.Material.Wood)
+	for i = 1, 4 do
+		local y = h * (0.45 + i * 0.12)
+		local angle = rng:NextNumber(0, 6.28)
+		part({ Name = "Branch", Size = Vector3.new(0.5, 0.5, rng:NextNumber(3, 5)),
+			CFrame = CFrame.new(pos + Vector3.new(0, y, 0)) * CFrame.Angles(0, angle, 0) * CFrame.Angles(math.rad(-30), 0, 0) * CFrame.new(0, 0, -2),
+			Color = dark, Material = Enum.Material.Wood, Parent = parent })
+	end
+end
+
+function decor.purpleLamp(parent, pos, rng)
+	pillar(parent, pos, 7, 0.6, Color3.fromRGB(30, 20, 40), Enum.Material.Metal)
+	local orb = ball(parent, pos + Vector3.new(0, 7.6, 0), 1.6, Color3.fromRGB(170, 60, 255), Enum.Material.Neon)
+	addLight(orb, Color3.fromRGB(170, 60, 255), 18, 2)
+end
+
+-- ===== Void =====
+function decor.floatingShard(parent, pos, rng)
+	local h = rng:NextNumber(2, 7)
+	local shard = part({
+		Name = "VoidShard",
+		Size = Vector3.new(h * 0.35, h, h * 0.35),
+		CFrame = CFrame.new(pos + Vector3.new(0, rng:NextNumber(3, 16), 0)) * CFrame.Angles(rng:NextNumber(-0.6, 0.6), rng:NextNumber(0, 6), rng:NextNumber(-0.6, 0.6)),
+		Color = Color3.fromRGB(15, 10, 25),
+		Material = Enum.Material.Glass,
+		CanCollide = false,
+		Parent = parent,
+	})
+	shard.CastShadow = false
+	local edge = part({ Name = "ShardGlow", Size = Vector3.new(h * 0.12, h * 1.02, h * 0.12), CFrame = shard.CFrame,
+		Color = Color3.fromRGB(200, 150, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = parent })
+	edge.CastShadow = false
+end
+
+function decor.voidRing(parent, pos, rng)
+	local r = rng:NextNumber(4, 7)
+	local center = pos + Vector3.new(0, r + 2, 0)
+	local yaw = rng:NextNumber(0, 3)
+	for i = 0, 15 do
+		local angle = (i / 16) * math.pi * 2
+		local p = ball(parent, center + CFrame.Angles(0, yaw, 0):VectorToWorldSpace(Vector3.new(math.cos(angle) * r, math.sin(angle) * r, 0)), 0.9,
+			Color3.fromRGB(255, 255, 255), Enum.Material.Neon)
+		p.CanCollide = false
+		p.CastShadow = false
+	end
+end
+
+function decor.blackHole(parent, pos, rng)
+	local center = pos + Vector3.new(0, 30, 0)
+	local hole = ball(parent, center, 14, Color3.fromRGB(0, 0, 0), Enum.Material.SmoothPlastic)
+	hole.CanCollide = false
+	hole.CastShadow = false
+	local ring = part({ Name = "AccretionDisk", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 30, 30),
+		CFrame = CFrame.new(center) * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(math.rad(15), 0, 0),
+		Color = Color3.fromRGB(190, 110, 255), Material = Enum.Material.Neon, Transparency = 0.4, CanCollide = false, Parent = parent })
+	ring.CastShadow = false
+	addLight(ring, Color3.fromRGB(190, 110, 255), 60, 2)
+end
+
 -- Welche Deko-Objekte pro Thema, mit Anzahl
 local THEMES = {
 	meadow = { { "tree", 22 }, { "flower", 60 }, { "bush", 18 }, { "rock", 10 } },
@@ -398,6 +555,10 @@ local THEMES = {
 	lava = { { "lavaPool", 14 }, { "rock", 30, { 50, 35, 35 }, "Basalt" }, { "volcano", 2, nil, nil, true } },
 	cloud = { { "cloud", 26 }, { "goldPillar", 14 }, { "rainbow", 1, nil, nil, true } },
 	space = { { "star", 70 }, { "crystal", 22 }, { "planet", 4, nil, nil, true }, { "rock", 10, { 70, 60, 90 }, "Slate" } },
+	candy = { { "lollipop", 18 }, { "candyCane", 16 }, { "gumdrop", 30 }, { "cupcake", 10 } },
+	cyber = { { "neonPillar", 16 }, { "holoCube", 20 }, { "serverTower", 10 }, { "gridLine", 12 } },
+	shadow = { { "deadTree", 18 }, { "crystal", 14 }, { "purpleLamp", 10 }, { "rock", 16, { 40, 30, 55 }, "Slate" } },
+	void = { { "floatingShard", 30 }, { "voidRing", 6 }, { "star", 50 }, { "blackHole", 2, nil, nil, true } },
 }
 
 --------------------------------------------------------------------------
@@ -597,7 +758,7 @@ local function buildHub()
 	end
 	-- Schild auf der Seite zum Spawn (+X), Text zeigt nach +X
 	sign(hub, CFrame.new(center + Vector3.new(arena.Radius + 3, 9, 0)) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(20, 5, 0.8),
-		"⚔️ SLAP ARENA (PvP) ⚔️\nSlap other players away!", Color3.fromRGB(255, 220, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Front)
+		"⚔️ DUEL ZONE ⚔️\nSlap a player here to start a duel!", Color3.fromRGB(255, 220, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Front)
 	World.Arena = { Center = center, Radius = arena.Radius }
 end
 
@@ -632,9 +793,11 @@ local function buildZone(index, zone)
 	info.GyattSpots = {
 		CFrame.new(-22, FLOOR + 0.6, startZ + 48),
 		CFrame.new(20, FLOOR + 0.6, startZ + 92),
+		CFrame.new(24, FLOOR + 0.6, startZ + 42),
+		CFrame.new(-40, FLOOR + 0.6, startZ + 82),
 	}
 	for i, spot in ipairs(info.GyattSpots) do
-		local size = zone.Gyatts[i].Size
+		local size = (zone.Gyatts[i] or zone.Gyatts[1]).Size
 		disc(zFolder, spot.Position, 0.6, size + 6, accent, Enum.Material.Neon).Name = "GyattPad"
 		disc(zFolder, spot.Position + Vector3.new(0, 0.1, 0), 0.6, size + 4, Color3.fromRGB(255, 255, 255), Enum.Material.Marble).Name = "GyattPadTop"
 	end
@@ -792,8 +955,11 @@ local function buildZone(index, zone)
 		table.insert(info.EggStands, { EggId = eggId, Prompts = prompts })
 	end
 	eggStand(zone.Egg, Vector3.new(42, FLOOR, startZ + 24))
-	if index == 1 then
-		eggStand("Golden", Vector3.new(42, FLOOR, startZ + 56))
+	if zone.ExtraEgg then
+		eggStand(zone.ExtraEgg, Vector3.new(42, FLOOR, startZ + 62))
+	end
+	if zone.ExtraEgg2 then
+		eggStand(zone.ExtraEgg2, Vector3.new(-44, FLOOR, startZ + 20))
 	end
 	if egg == nil then
 		warn("[SlapTheBlob] Zone " .. index .. " has no valid egg")
@@ -805,9 +971,13 @@ local function buildZone(index, zone)
 		{ X = -22, Z = startZ + 48, R = zone.Gyatts[1].Size + 8 },
 		{ X = 20, Z = startZ + 92, R = zone.Gyatts[2].Size + 8 },
 		{ X = 42, Z = startZ + 24, R = 9 },
-		{ X = 42, Z = startZ + 56, R = 9 },
+		{ X = 42, Z = startZ + 62, R = 9 },
+		{ X = -44, Z = startZ + 20, R = 9 },
+		{ X = 24, Z = startZ + 42, R = 14 },
+		{ X = -40, Z = startZ + 82, R = 9 },
 		{ X = -28, Z = startZ + 108, R = 14 },
 		{ X = 0, Z = startZ + 6, R = 16 },
+		{ X = 0, Z = startZ + length - 14, R = 22 },
 	}
 	local function isFree(x, z, radius)
 		if math.abs(x) < 9 + radius then
@@ -867,6 +1037,43 @@ local function buildZone(index, zone)
 		})
 	end
 
+	-- Portal in die naechste Dimension am Ende der letzten Zone einer Dimension
+	local dim, dimIndex = Calc.GetDimension(index)
+	local nextDim = Config.Dimensions[dimIndex + 1]
+	if index == dim.LastZone and nextDim then
+		local portalZ = startZ + length - 14
+		local portal = folder("RiftPortal", zFolder)
+		local purple = Color3.fromRGB(170, 70, 255)
+		for i = 0, 23 do
+			local angle = (i / 24) * math.pi * 2
+			local orb = ball(portal, Vector3.new(math.cos(angle) * 11, FLOOR + 13 + math.sin(angle) * 11, portalZ), 3, purple, Enum.Material.Neon)
+			orb.CanCollide = false
+		end
+		local swirl = disc(portal, Vector3.new(0, FLOOR + 13, portalZ), 0.4, 20, Color3.fromRGB(60, 0, 120), Enum.Material.Neon)
+		swirl.CFrame = CFrame.new(0, FLOOR + 13, portalZ) * CFrame.Angles(0, math.rad(90), 0)
+		swirl.Transparency = 0.25
+		swirl.CanCollide = false
+		swirl.Name = "PortalSwirl"
+		CollectionService:AddTag(swirl, "SlapPortal")
+		addLight(swirl, purple, 40, 3)
+		local sparkle = Instance.new("Sparkles")
+		sparkle.SparkleColor = purple
+		sparkle.Parent = swirl
+		sign(portal, CFrame.new(0, FLOOR + 28, portalZ), Vector3.new(30, 4, 1), "🌀 PORTAL TO " .. string.upper(nextDim.Name) .. " 🌀",
+			Color3.fromRGB(230, 200, 255), Color3.fromRGB(40, 10, 70), Enum.NormalId.Front)
+		local promptPart = part({ Name = "PortalPrompt", Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(0, FLOOR + 3, portalZ - 4), Transparency = 1, CanCollide = false, Parent = portal })
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "EnterPrompt"
+		prompt.ActionText = "Enter " .. nextDim.Name
+		prompt.ObjectText = "Dimension Portal"
+		prompt.HoldDuration = 0.5
+		prompt.MaxActivationDistance = 16
+		prompt.RequiresLineOfSight = false
+		prompt:SetAttribute("Dimension", dimIndex + 1)
+		prompt.Parent = promptPart
+		info.PortalPrompt = prompt
+	end
+
 	info.TeleportCFrame = CFrame.new(0, FLOOR + 4, startZ + 14)
 	World.Zones[index] = info
 	return info
@@ -874,15 +1081,19 @@ end
 
 local function buildBounds()
 	local bounds = folder("Bounds", root)
-	local totalLength = #Config.Zones * Config.ZoneLength + Config.HubLength
-	local centerZ = (#Config.Zones * Config.ZoneLength - Config.HubLength) / 2
 	local function wall(size, position)
 		part({ Name = "InvisibleWall", Size = size, CFrame = CFrame.new(position), Transparency = 1, Parent = bounds })
 	end
-	wall(Vector3.new(2, 120, totalLength), Vector3.new(-HALF_WIDTH - 1, 60, centerZ))
-	wall(Vector3.new(2, 120, totalLength), Vector3.new(HALF_WIDTH + 1, 60, centerZ))
-	wall(Vector3.new(Config.ZoneWidth, 120, 2), Vector3.new(0, 60, -Config.HubLength - 1))
-	wall(Vector3.new(Config.ZoneWidth, 120, 2), Vector3.new(0, 60, #Config.Zones * Config.ZoneLength + 1))
+	for dimIndex, dim in ipairs(Config.Dimensions) do
+		local frontZ = (dimIndex == 1) and -Config.HubLength or (dim.StartZ - Config.DimensionLandingLength)
+		local endZ = Calc.GetZoneStartZ(dim.LastZone) + Config.ZoneLength
+		local length = endZ - frontZ
+		local centerZ = (endZ + frontZ) / 2
+		wall(Vector3.new(2, 120, length), Vector3.new(-HALF_WIDTH - 1, 60, centerZ))
+		wall(Vector3.new(2, 120, length), Vector3.new(HALF_WIDTH + 1, 60, centerZ))
+		wall(Vector3.new(Config.ZoneWidth, 120, 2), Vector3.new(0, 60, frontZ - 1))
+		wall(Vector3.new(Config.ZoneWidth, 120, 2), Vector3.new(0, 60, endZ + 1))
+	end
 	-- Hub-Zaun
 	for _, side in ipairs({ -1, 1 }) do
 		part({
@@ -897,6 +1108,79 @@ local function buildBounds()
 	end
 end
 
+-- Landeplattform am Anfang jeder weiteren Dimension (mit Rueck-Portal)
+World.Dimensions = {}
+local function buildLandings()
+	for dimIndex, dim in ipairs(Config.Dimensions) do
+		if dimIndex > 1 then
+			local landing = folder("Landing_" .. dim.Name, root)
+			local length = Config.DimensionLandingLength
+			local frontZ = dim.StartZ - length
+			local firstZone = Config.Zones[dim.FirstZone]
+			part({
+				Name = "LandingFloor",
+				Size = Vector3.new(Config.ZoneWidth, 2, length),
+				CFrame = CFrame.new(0, FLOOR - 1, frontZ + length / 2),
+				Color = Color3.fromRGB(45, 25, 70),
+				Material = Enum.Material.Marble,
+				Parent = landing,
+			})
+			for x = -2, 2 do
+				part({ Name = "Rune", Size = Vector3.new(6, 0.1, 6), CFrame = CFrame.new(x * 14, FLOOR + 0.05, frontZ + length / 2) * CFrame.Angles(0, math.rad(45), 0),
+					Color = rgb(firstZone.Accent), Material = Enum.Material.Neon, CanCollide = false, Parent = landing })
+			end
+			sign(landing, CFrame.new(0, FLOOR + 14, frontZ + 8) * CFrame.Angles(0, math.pi, 0), Vector3.new(36, 7, 1),
+				"🌀 WELCOME TO " .. string.upper(dim.Name) .. " 🌀\nStronger targets, rarer pets!", Color3.fromRGB(240, 220, 255), Color3.fromRGB(40, 10, 70), Enum.NormalId.Front)
+			-- Rueck-Portal
+			local returnPart = part({ Name = "ReturnPortal", Size = Vector3.new(10, 14, 1), CFrame = CFrame.new(-40, FLOOR + 7, frontZ + 6),
+				Color = Color3.fromRGB(120, 255, 180), Material = Enum.Material.Neon, Transparency = 0.3, CanCollide = false, Parent = landing })
+			addLight(returnPart, Color3.fromRGB(120, 255, 180), 20, 2)
+			local prompt = Instance.new("ProximityPrompt")
+			prompt.Name = "ReturnPrompt"
+			prompt.ActionText = "Return to Overworld"
+			prompt.ObjectText = "Portal"
+			prompt.HoldDuration = 0.3
+			prompt.MaxActivationDistance = 14
+			prompt.RequiresLineOfSight = false
+			prompt.Parent = returnPart
+			World.Dimensions[dimIndex] = {
+				LandingCFrame = CFrame.new(0, FLOOR + 4, frontZ + 20),
+				ReturnPrompt = prompt,
+			}
+		else
+			World.Dimensions[dimIndex] = { LandingCFrame = CFrame.new(0, FLOOR + 4, Calc.GetZoneStartZ(dim.LastZone) + Config.ZoneLength - 30) }
+		end
+	end
+end
+
+-- Schwebende Duell-Arenen hoch ueber der Karte
+World.DuelArenas = {}
+local function buildDuelArenas()
+	local duel = Config.Duel
+	local arenaFolder = folder("DuelArenas", root)
+	for i = 1, duel.ArenaCount do
+		local center = Vector3.new(-450 + (i - 1) * 150, FLOOR + duel.ArenaHeight, -350)
+		local r = duel.ArenaRadius
+		disc(arenaFolder, center + Vector3.new(0, -1.5, 0), 3, r * 2 + 3, Color3.fromRGB(255, 50, 120), Enum.Material.Neon)
+		local floorPart = disc(arenaFolder, center + Vector3.new(0, -0.5, 0), 1.2, r * 2, Color3.fromRGB(45, 30, 70), Enum.Material.DiamondPlate)
+		floorPart.Name = "DuelFloor"
+		for k = 1, 10 do
+			local angle = (k / 10) * math.pi * 2
+			local p = center + Vector3.new(math.cos(angle) * (r - 1), 0, math.sin(angle) * (r - 1))
+			local orb = ball(arenaFolder, p + Vector3.new(0, 0.6, 0), 1.5, Color3.fromRGB(255, 200, 80), Enum.Material.Neon)
+			orb.CanCollide = false
+		end
+		sign(arenaFolder, CFrame.new(center + Vector3.new(0, 18, -r - 4)), Vector3.new(26, 5, 1), "⚔️ DUEL ARENA " .. i .. " ⚔️",
+			Color3.fromRGB(255, 230, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Back)
+		World.DuelArenas[i] = {
+			Center = center,
+			Spawns = {
+				CFrame.lookAt(center + Vector3.new(-r * 0.55, 3, 0), center + Vector3.new(0, 3, 0)),
+				CFrame.lookAt(center + Vector3.new(r * 0.55, 3, 0), center + Vector3.new(0, 3, 0)),
+			},
+		}
+	end
+end
 
 --------------------------------------------------------------------------
 -- Hintergrund: Himmel, Wolken, Boden und Berge rund um die Karte
@@ -908,6 +1192,10 @@ local BACKDROPS = {
 	lava = { Ground = { 50, 35, 32 }, Mountain = { 60, 40, 38 }, Cap = { 255, 90, 20 }, Kind = "volcano" },
 	cloud = { Ground = { 240, 245, 255 }, Mountain = { 255, 255, 255 }, Cap = { 255, 220, 120 }, Kind = "cloud" },
 	space = { Ground = { 25, 15, 50 }, Mountain = { 70, 55, 100 }, Cap = { 170, 120, 255 }, Kind = "asteroid" },
+	candy = { Ground = { 255, 190, 225 }, Mountain = { 255, 150, 200 }, Cap = { 255, 255, 255 }, Kind = "mountain" },
+	cyber = { Ground = { 15, 20, 35 }, Mountain = { 30, 40, 60 }, Cap = { 0, 255, 230 }, Kind = "tower" },
+	shadow = { Ground = { 30, 20, 40 }, Mountain = { 45, 30, 60 }, Cap = { 170, 60, 255 }, Kind = "mountain" },
+	void = { Ground = { 10, 5, 20 }, Mountain = { 40, 20, 70 }, Cap = { 255, 255, 255 }, Kind = "asteroid" },
 }
 
 local function backdropMountain(parent, kind, position, rng, theme)
@@ -963,6 +1251,23 @@ local function backdropMountain(parent, kind, position, rng, theme)
 		end
 		local roof = part({ Name = "TempleRoof", Size = Vector3.new(18, 2, 8), CFrame = CFrame.new(position + Vector3.new(0, lift + 23, 0)), Color = cap, Material = Enum.Material.Foil, Parent = parent })
 		roof.CastShadow = false
+	elseif kind == "tower" then
+		for i = 1, 3 do
+			local w = rng:NextNumber(14, 26)
+			local h = rng:NextNumber(60, 160)
+			local offset = Vector3.new(rng:NextNumber(-30, 30), 0, rng:NextNumber(-30, 30))
+			local tower = part({ Name = "Tower", Size = Vector3.new(w, h, w), CFrame = CFrame.new(position + offset + Vector3.new(0, h / 2, 0)),
+				Color = color, Material = Enum.Material.SmoothPlastic, Parent = parent })
+			tower.CastShadow = false
+			for y = 10, h - 6, 14 do
+				local stripe = part({ Name = "TowerStripe", Size = Vector3.new(w + 0.4, 0.8, w + 0.4), CFrame = CFrame.new(position + offset + Vector3.new(0, y, 0)),
+					Color = cap, Material = Enum.Material.Neon, CanCollide = false, Parent = parent })
+				stripe.CastShadow = false
+			end
+			if i == 1 then
+				addLight(tower, cap, 40, 2)
+			end
+		end
 	elseif kind == "asteroid" then
 		for i = 1, 4 do
 			local s = rng:NextNumber(8, 22)
@@ -1072,11 +1377,24 @@ local function buildBackground()
 	end
 
 	-- Ende der Welt: Boden und Berge hinter der letzten Zone
-	local endZ = #Config.Zones * Config.ZoneLength
-	local lastTheme = BACKDROPS[Config.Zones[#Config.Zones].Decor] or BACKDROPS.space
-	ground("EndGround", Vector3.new(Config.ZoneWidth + outer * 2, 2, outer), Vector3.new(0, FLOOR - 1.2, endZ + outer / 2), rgb(lastTheme.Ground), Enum.Material.SmoothPlastic)
-	for _ = 1, 8 do
-		backdropMountain(bg, lastTheme.Kind, Vector3.new(rng:NextNumber(-260, 260), FLOOR - 1, endZ + rng:NextNumber(60, 300)), rng, lastTheme)
+	for dimIndex, dim in ipairs(Config.Dimensions) do
+		local endZ = Calc.GetZoneStartZ(dim.LastZone) + Config.ZoneLength
+		local lastTheme = BACKDROPS[Config.Zones[dim.LastZone].Decor] or BACKDROPS.space
+		ground("EndGround", Vector3.new(Config.ZoneWidth + outer * 2, 2, outer * 0.5), Vector3.new(0, FLOOR - 1.2, endZ + outer * 0.25), rgb(lastTheme.Ground), Enum.Material.SmoothPlastic)
+		for _ = 1, 6 do
+			backdropMountain(bg, lastTheme.Kind, Vector3.new(rng:NextNumber(-260, 260), FLOOR - 1, endZ + rng:NextNumber(50, 170)), rng, lastTheme)
+		end
+		if dimIndex > 1 then
+			local frontZ = dim.StartZ - Config.DimensionLandingLength
+			local firstTheme = BACKDROPS[Config.Zones[dim.FirstZone].Decor] or BACKDROPS.space
+			for _, side in ipairs({ -1, 1 }) do
+				ground("LandingGround", Vector3.new(outer, 2, Config.DimensionLandingLength), Vector3.new(side * (HALF_WIDTH + outer / 2), FLOOR - 1.2, frontZ + Config.DimensionLandingLength / 2), rgb(firstTheme.Ground), Enum.Material.SmoothPlastic)
+			end
+			ground("RiftBackGround", Vector3.new(Config.ZoneWidth + outer * 2, 2, outer * 0.5), Vector3.new(0, FLOOR - 1.3, frontZ - outer * 0.25), rgb(firstTheme.Ground), Enum.Material.SmoothPlastic)
+			for _ = 1, 6 do
+				backdropMountain(bg, firstTheme.Kind, Vector3.new(rng:NextNumber(-260, 260), FLOOR - 1, frontZ - rng:NextNumber(50, 170)), rng, firstTheme)
+			end
+		end
 	end
 end
 
@@ -1101,6 +1419,8 @@ function World.Build()
 		buildZone(index, zone)
 	end
 	buildBounds()
+	buildLandings()
+	buildDuelArenas()
 	buildBackground()
 
 	World.GyattFolder = folder("Gyatts", root)

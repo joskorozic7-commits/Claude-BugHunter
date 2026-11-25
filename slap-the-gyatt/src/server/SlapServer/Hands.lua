@@ -207,6 +207,51 @@ function Hands.Build(data)
 		light.Brightness = 4
 		light.Parent = palm
 	end
+	if hand.Effect == "aura" or hand.Effect == "omni" then
+		local f = Instance.new("Fire")
+		f.Size = 3 * scale
+		f.Heat = 5
+		f.Color = color
+		f.SecondaryColor = Color3.fromRGB(255, 255, 255)
+		f.Parent = palm
+		local glowLight = Instance.new("PointLight")
+		glowLight.Color = color
+		glowLight.Range = 12
+		glowLight.Brightness = 2
+		glowLight.Parent = palm
+	end
+	if hand.Effect == "electric" then
+		local s = Instance.new("Sparkles")
+		s.SparkleColor = Color3.fromRGB(255, 255, 150)
+		s.Parent = palm
+		for i, x in ipairs(fingerXs) do
+			attach(handPart("Bolt" .. i, Vector3.new(0.08 * scale, 0.5 * scale, 0.08 * scale), Color3.fromRGB(255, 255, 200), Enum.Material.Neon),
+				CFrame.new(x * scale, 0.75 * scale + fingerLengths[i] * scale + 0.35 * scale, 0) * CFrame.Angles(0, 0, math.rad((i % 2 == 0) and 25 or -25)))
+		end
+	elseif hand.Effect == "shadow" then
+		local smoke = Instance.new("Smoke")
+		smoke.Size = 2 * scale
+		smoke.Opacity = 0.25
+		smoke.RiseVelocity = 2
+		smoke.Color = Color3.fromRGB(80, 30, 120)
+		smoke.Parent = palm
+	elseif hand.Effect == "orbit" or hand.Effect == "omni" then
+		for i = 0, 7 do
+			local angle = (i / 8) * math.pi * 2
+			local orb = attach(handPart("Orb" .. i, Vector3.new(0.26 * scale, 0.26 * scale, 0.26 * scale), color, Enum.Material.Neon, Enum.PartType.Ball),
+				CFrame.new(math.cos(angle) * 1.1 * scale, 0.2 * scale, math.sin(angle) * 1.1 * scale))
+			if hand.Effect == "omni" then
+				CollectionService:AddTag(orb, "RainbowHand")
+			end
+		end
+		if hand.Effect == "omni" then
+			for _, p in ipairs(parts) do
+				if p.Name ~= "Cuff" then
+					CollectionService:AddTag(p, "RainbowHand")
+				end
+			end
+		end
+	end
 	if hand.Material == "Neon" then
 		local light = Instance.new("PointLight")
 		light.Color = color

@@ -54,13 +54,57 @@ local function unit(x, y, z)
 	return Vector3.new(x, y, z).Unit
 end
 
-local function buildModel(spec)
-	local S = spec.Size
-	local r = S / 2
-	local base = spec.BaseCFrame -- Mitte des Koerpers, Vorderseite = -Z
-	local model = Instance.new("Model")
-	model.Name = "Gyatt_" .. spec.Key
+-- Flaches Gesicht (Augen, Brauen, Mund) - fuer Wuerfel, Roboter, Golems usw.
+-- cf zeigt mit -Z nach vorne, w = Breite des Gesichts
+local function addFace(model, cf, w, eyeColor, pupilColor)
+	local white = eyeColor or Color3.fromRGB(255, 255, 255)
+	local black = pupilColor or Color3.fromRGB(25, 15, 25)
+	for _, side in ipairs({ -1, 1 }) do
+		detail(model, "EyeWhite", Vector3.new(w * 0.26, w * 0.26, w * 0.26), cf * CFrame.new(side * w * 0.22, w * 0.1, 0), white, Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+		detail(model, "Pupil", Vector3.new(w * 0.13, w * 0.13, w * 0.13), cf * CFrame.new(side * w * 0.22, w * 0.1, -w * 0.1), black, Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+		detail(model, "Brow", Vector3.new(w * 0.22, w * 0.045, w * 0.05), cf * CFrame.new(side * w * 0.22, w * 0.3, -w * 0.04) * CFrame.Angles(0, 0, math.rad(side * -12)), Color3.fromRGB(25, 15, 25))
+	end
+	for i = -1, 1 do
+		detail(model, "MouthSmile", Vector3.new(w * 0.11, w * 0.045, w * 0.05), cf * CFrame.new(i * w * 0.1, -w * 0.18 + math.abs(i) * w * 0.04, -w * 0.02) * CFrame.Angles(0, 0, math.rad(i * 25)), Color3.fromRGB(25, 15, 25))
+	end
+	local mouthO = detail(model, "MouthO", Vector3.new(w * 0.15, w * 0.15, w * 0.08), cf * CFrame.new(0, -w * 0.18, -w * 0.02), Color3.fromRGB(120, 20, 50), Enum.Material.SmoothPlastic, Enum.PartType.Ball)
+	mouthO.Transparency = 1
+end
 
+local function makeBody(model, size, cframe, color, mat, shape)
+	local body = Instance.new("Part")
+	body.Name = "Body"
+	body.Size = size
+	body.CFrame = cframe
+	body.Anchored = true
+	body.CanCollide = true
+	body.Color = color
+	body.Material = mat or Enum.Material.SmoothPlastic
+	body.TopSurface = Enum.SurfaceType.Smooth
+	body.BottomSurface = Enum.SurfaceType.Smooth
+	if shape then
+		body.Shape = shape
+	end
+	body.Parent = model
+	return body
+end
+
+local function oval(model, name, size, cframe, color, mat)
+	local p = detail(model, name, size, cframe, color, mat)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Parent = p
+	return p
+end
+
+local function darker(c, amount)
+	return Color3.new(math.clamp(c.R - amount, 0, 1), math.clamp(c.G - amount, 0, 1), math.clamp(c.B - amount, 0, 1))
+end
+
+local KIND_BUILDERS = {}
+
+-- Blob: runder Koerper mit Gesicht, Fuessen und Accessoires
+function KIND_BUILDERS.blob(model, spec, S, r, base)
 	local body = Instance.new("Part")
 	body.Name = "Body"
 	body.Shape = Enum.PartType.Ball
@@ -201,6 +245,132 @@ local function buildModel(spec)
 		end
 	end
 
+	return body
+end
+
+-- Schleim-Wuerfel: durchsichtiger Wuerfel mit leuchtendem Kern
+function KIND_BUILDERS.cube(model, spec, S, r, base)
+	local color = rgb(spec.Color)
+	local body = makeBody(model, Vector3.new(S, S, S), base, color, Enum.Material.Glass)
+	body.Transparency = 0.25
+	detail(model, "Core", Vector3.new(S * 0.45, S * 0.45, S * 0.45), base, darker(color, 0.25), Enum.Material.Neon, Enum.PartType.Ball)
+	for _, offset in ipairs({ { -0.3, 0.3 }, { 0.25, -0.25 }, { 0.35, 0.35 } }) do
+		oval(model, "Drip", Vector3.new(S * 0.18, S * 0.12, S * 0.18), base * CFrame.new(offset[1] * S, S * 0.52, offset[2] * S), color, Enum.Material.Glass)
+	end
+	addFace(model, base * CFrame.new(0, S * 0.05, -S * 0.5 - 0.02), S * 0.8)
+	return body
+end
+
+-- Trainings-Dummy: Strohsack mit Zielscheibe auf einem Pfosten
+function KIND_BUILDERS.dummy(model, spec, S, r, base)
+	local sack = rgb(spec.Color)
+	local body = makeBody(model, Vector3.new(S, S * 0.72, S * 0.72), base * CFrame.Angles(0, 0, math.rad(90)), sack, Enum.Material.Fabric, Enum.PartType.Cylinder)
+	local front = -S * 0.36 - 0.04
+	local ringColors = { { 0.62, Color3.fromRGB(220, 40, 50) }, { 0.44, Color3.fromRGB(255, 255, 255) }, { 0.26, Color3.fromRGB(220, 40, 50) } }
+	for i, ring in ipairs(ringColors) do
+		detail(model, "TargetRing", Vector3.new(0.06, S * ring[1], S * ring[1]), base * CFrame.new(0, -S * 0.05, front - i * 0.03) * CFrame.Angles(0, math.rad(90), 0),
+			ring[2], Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
+	end
+	local headCf = base * CFrame.new(0, S * 0.68, 0)
+	detail(model, "Head", Vector3.new(S * 0.48, S * 0.48, S * 0.48), headCf, sack, Enum.Material.Fabric, Enum.PartType.Ball)
+	addFace(model, headCf * CFrame.new(0, 0, -S * 0.24), S * 0.36)
+	detail(model, "Arms", Vector3.new(S * 1.4, S * 0.14, S * 0.14), base * CFrame.new(0, S * 0.22, 0) * CFrame.Angles(0, 0, 0), darker(sack, 0.08), Enum.Material.Fabric)
+	detail(model, "Post", Vector3.new(S * 0.14, S * 0.5, S * 0.14), base * CFrame.new(0, -S * 0.6, 0), Color3.fromRGB(110, 70, 40), Enum.Material.Wood)
+	detail(model, "Stand", Vector3.new(S * 0.08, S * 0.7, S * 0.7), base * CFrame.new(0, -S * 0.83, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(110, 70, 40), Enum.Material.Wood, Enum.PartType.Cylinder)
+	return body
+end
+
+-- Roboter: Kasten-Koerper, Kopf mit Visier, Antenne, Arme, Beine
+function KIND_BUILDERS.robot(model, spec, S, r, base)
+	local metal = rgb(spec.Color)
+	local body = makeBody(model, Vector3.new(S * 0.8, S * 0.62, S * 0.6), base * CFrame.new(0, -S * 0.05, 0), metal, Enum.Material.DiamondPlate)
+	local headCf = base * CFrame.new(0, S * 0.45, 0)
+	detail(model, "Head", Vector3.new(S * 0.6, S * 0.42, S * 0.52), headCf, metal, Enum.Material.Metal)
+	detail(model, "Visor", Vector3.new(S * 0.5, S * 0.2, S * 0.04), headCf * CFrame.new(0, S * 0.03, -S * 0.27), Color3.fromRGB(20, 20, 30), Enum.Material.Glass)
+	addFace(model, headCf * CFrame.new(0, S * 0.02, -S * 0.3), S * 0.5, Color3.fromRGB(0, 255, 230), Color3.fromRGB(0, 120, 255))
+	detail(model, "Antenna", Vector3.new(S * 0.04, S * 0.25, S * 0.04), headCf * CFrame.new(0, S * 0.32, 0), Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
+	detail(model, "AntennaLight", Vector3.new(S * 0.1, S * 0.1, S * 0.1), headCf * CFrame.new(0, S * 0.46, 0), Color3.fromRGB(255, 60, 60), Enum.Material.Neon, Enum.PartType.Ball)
+	detail(model, "ChestLight", Vector3.new(S * 0.2, S * 0.2, S * 0.04), base * CFrame.new(0, 0, -S * 0.31), Color3.fromRGB(0, 255, 230), Enum.Material.Neon, Enum.PartType.Ball)
+	for _, side in ipairs({ -1, 1 }) do
+		detail(model, "Arm", Vector3.new(S * 0.16, S * 0.5, S * 0.16), base * CFrame.new(side * S * 0.52, -S * 0.08, 0) * CFrame.Angles(0, 0, math.rad(side * 12)), darker(metal, 0.1), Enum.Material.Metal)
+		detail(model, "Claw", Vector3.new(S * 0.2, S * 0.12, S * 0.2), base * CFrame.new(side * S * 0.58, -S * 0.36, 0), Color3.fromRGB(255, 200, 40), Enum.Material.Metal)
+		detail(model, "Leg", Vector3.new(S * 0.18, S * 0.3, S * 0.2), base * CFrame.new(side * S * 0.2, -S * 0.5, 0), darker(metal, 0.15), Enum.Material.Metal)
+		detail(model, "Foot", Vector3.new(S * 0.26, S * 0.08, S * 0.32), base * CFrame.new(side * S * 0.2, -S * 0.66, -S * 0.04), darker(metal, 0.25), Enum.Material.Metal)
+	end
+	return body
+end
+
+-- Geist: leuchtend, halb durchsichtig, wehender Schweif
+function KIND_BUILDERS.ghost(model, spec, S, r, base)
+	local color = rgb(spec.Color)
+	local body = makeBody(model, Vector3.new(S, S, S), base, color, Enum.Material.Neon, Enum.PartType.Ball)
+	body.Transparency = 0.25
+	for i = -1, 1 do
+		local tail = detail(model, "Tail", Vector3.new(S * 0.36, S * 0.36, S * 0.36), base * CFrame.new(i * S * 0.28, -S * 0.5, 0), color, Enum.Material.Neon, Enum.PartType.Ball)
+		tail.Transparency = 0.35
+	end
+	for _, side in ipairs({ -1, 1 }) do
+		oval(model, "EyeWhite", Vector3.new(S * 0.16, S * 0.26, S * 0.08), base * CFrame.new(side * S * 0.17, S * 0.1, -S * 0.46), Color3.fromRGB(20, 10, 30), Enum.Material.SmoothPlastic)
+	end
+	local mouthO = oval(model, "MouthO", Vector3.new(S * 0.16, S * 0.2, S * 0.08), base * CFrame.new(0, -S * 0.12, -S * 0.46), Color3.fromRGB(20, 10, 30), Enum.Material.SmoothPlastic)
+	mouthO.Transparency = 0
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = S * 2
+	light.Brightness = 1.5
+	light.Parent = body
+	return body
+end
+
+-- Golem: Fels-Koerper mit leuchtenden Kristallen
+function KIND_BUILDERS.golem(model, spec, S, r, base)
+	local crystal = rgb(spec.Color)
+	local rock = Color3.fromRGB(90, 85, 95)
+	local body = makeBody(model, Vector3.new(S * 0.9, S * 0.9, S * 0.9), base, rock, Enum.Material.Slate, Enum.PartType.Ball)
+	addFace(model, base * CFrame.new(0, S * 0.08, -S * 0.43), S * 0.6, crystal, Color3.fromRGB(255, 255, 255))
+	local rng = Random.new(#spec.Key * 31)
+	for i = 1, 6 do
+		local angle = rng:NextNumber(-1.2, 1.2)
+		local tilt = rng:NextNumber(-0.6, 0.6)
+		local h = S * rng:NextNumber(0.3, 0.5)
+		detail(model, "Crystal", Vector3.new(h * 0.35, h, h * 0.35),
+			base * CFrame.Angles(tilt, angle, 0) * CFrame.new(0, S * 0.42, S * 0.12) * CFrame.Angles(rng:NextNumber(-0.3, 0.3), 0, rng:NextNumber(-0.3, 0.3)),
+			crystal, Enum.Material.Neon)
+	end
+	for _, side in ipairs({ -1, 1 }) do
+		detail(model, "Fist", Vector3.new(S * 0.36, S * 0.36, S * 0.36), base * CFrame.new(side * S * 0.55, -S * 0.15, -S * 0.05), rock, Enum.Material.Slate, Enum.PartType.Ball)
+		detail(model, "FootRock", Vector3.new(S * 0.3, S * 0.2, S * 0.36), base * CFrame.new(side * S * 0.22, -S * 0.46, 0), darker(rock, 0.1), Enum.Material.Slate)
+	end
+	return body
+end
+
+-- Schatzkiste: gibt viele Gems
+function KIND_BUILDERS.chest(model, spec, S, r, base)
+	local wood = rgb(spec.Color)
+	local gold = Color3.fromRGB(255, 200, 40)
+	local body = makeBody(model, Vector3.new(S, S * 0.6, S * 0.7), base * CFrame.new(0, -S * 0.15, 0), wood, Enum.Material.WoodPlanks)
+	detail(model, "Lid", Vector3.new(S * 1.04, S * 0.32, S * 0.74), base * CFrame.new(0, S * 0.32, 0), darker(wood, 0.05), Enum.Material.WoodPlanks)
+	for _, x in ipairs({ -0.38, 0.38 }) do
+		detail(model, "Band", Vector3.new(S * 0.08, S * 0.95, S * 0.76), base * CFrame.new(x * S, 0, 0), gold, Enum.Material.Foil)
+	end
+	detail(model, "Lock", Vector3.new(S * 0.16, S * 0.2, S * 0.08), base * CFrame.new(0, S * 0.1, -S * 0.38), gold, Enum.Material.Foil)
+	local shine = Instance.new("Sparkles")
+	shine.SparkleColor = gold
+	shine.Parent = body
+	return body
+end
+
+local function buildModel(spec)
+	local S = spec.Size
+	local r = S / 2
+	local base = spec.BaseCFrame -- Mitte des Koerpers, Vorderseite = -Z
+	local model = Instance.new("Model")
+	model.Name = "Gyatt_" .. spec.Key
+
+	local kind = spec.Kind or "blob"
+	local builder = KIND_BUILDERS[kind] or KIND_BUILDERS.blob
+	local body = builder(model, spec, S, r, base)
+
 	-- Umriss
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "Outline"
@@ -285,6 +455,12 @@ local function buildModel(spec)
 	model:SetAttribute("BaseCFrame", base)
 	model:SetAttribute("Size", S)
 	model:SetAttribute("ZoneIndex", spec.ZoneIndex)
+	model:SetAttribute("Kind", kind)
+	if kind == "chest" then
+		model:SetAttribute("NoTurn", true)
+	elseif kind == "ghost" then
+		model:SetAttribute("Float", true)
+	end
 	CollectionService:AddTag(model, "SlapGyatt")
 
 	return model, body, barFill, hpText, sound
@@ -320,6 +496,8 @@ local function createGyatt(spec)
 		Alive = true,
 		Contributors = {},
 		IsGolden = spec.IsGolden == true,
+		Kind = spec.Kind or "blob",
+		Respawn = spec.Respawn or Config.GyattRespawnTime,
 	}
 	updateGui(g)
 	model.Parent = ctx.World.GyattFolder
@@ -345,6 +523,14 @@ function Gyatts.BuildAll()
 		local zoneInfo = ctx.World.Zones[zoneIndex]
 		for gyattIndex, cfg in ipairs(zone.Gyatts) do
 			local spot = zoneInfo.GyattSpots[gyattIndex]
+			local heightFactor = 0.56
+			if cfg.Kind == "ghost" then
+				heightFactor = 1.0
+			elseif cfg.Kind == "chest" then
+				heightFactor = 0.45
+			elseif cfg.Kind == "dummy" then
+				heightFactor = 0.9
+			end
 			createGyatt({
 				Key = Calc.GetGyattKey(zoneIndex, gyattIndex),
 				DisplayName = cfg.DisplayName,
@@ -356,7 +542,9 @@ function Gyatts.BuildAll()
 				RewardMultiplier = cfg.RewardMultiplier,
 				DefeatBonus = math.floor(cfg.MaxHealth * cfg.RewardMultiplier * 0.25),
 				Gems = cfg.Gems,
-				BaseCFrame = CFrame.new(spot.Position + Vector3.new(0, 0.4 + cfg.Size * 0.56, 0)),
+				Kind = cfg.Kind,
+				Respawn = cfg.Respawn,
+				BaseCFrame = CFrame.new(spot.Position + Vector3.new(0, 0.4 + cfg.Size * heightFactor, 0)),
 			})
 		end
 	end
@@ -387,6 +575,9 @@ local function rewardContributors(g, killer)
 			local gems = ctx.Data.AddGems(profile, g.Gems)
 			profile.Data.TotalDefeats = profile.Data.TotalDefeats + 1
 			ctx.Data.AddStat(profile, "Defeats", 1)
+			if g.Kind == "chest" then
+				ctx.Data.AddStat(profile, "Chests", 1)
+			end
 			local text = "🎉 " .. g.DisplayName .. " defeated!  +" .. Calc.FormatNumber(bonus) .. " Slaps"
 			if gems > 0 then
 				text = text .. "  +" .. gems .. " 💎"
@@ -422,7 +613,7 @@ local function defeat(g, killer)
 	end
 
 	g.Model.Parent = storage
-	task.delay(Config.GyattRespawnTime, function()
+	task.delay(g.Respawn, function()
 		g.Health = g.MaxHealth
 		g.Alive = true
 		g.Contributors = {}

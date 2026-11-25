@@ -80,9 +80,9 @@ local function animateGyatts(dt)
 			if (position - cameraPos).Magnitude < 260 then
 				local cache = getCache(model)
 
-				-- zum Spieler drehen
+				-- zum Spieler drehen (Schatzkisten nicht)
 				local targetYaw = cache.Yaw
-				if root then
+				if root and not model:GetAttribute("NoTurn") then
 					local d = root.Position - position
 					if d.X * d.X + d.Z * d.Z > 1 then
 						targetYaw = math.atan2(-d.X, -d.Z)
@@ -105,6 +105,11 @@ local function animateGyatts(dt)
 				end
 
 				local bounce = math.abs(math.sin(now * 2.2 + cache.Phase)) * size * 0.05
+				if model:GetAttribute("Float") then
+					bounce = math.sin(now * 1.6 + cache.Phase) * size * 0.12
+				elseif model:GetAttribute("NoTurn") then
+					bounce = 0
+				end
 				local wobble = math.sin(now * 40) * k * 0.12
 				local pivot = CFrame.new(position + Vector3.new(0, bounce - k * size * 0.04, 0))
 					* CFrame.Angles(0, cache.Yaw, 0)
@@ -139,6 +144,10 @@ local function animateEggs()
 			local p = egg.Position
 			egg.CFrame = CFrame.new(p.X, baseY + math.sin(t * 2 + p.Z) * 0.4, p.Z) * CFrame.Angles(0, t * 0.8, math.sin(t * 3) * 0.08)
 		end
+	end
+	for _, swirl in ipairs(CollectionService:GetTagged("SlapPortal")) do
+		local p = swirl.Position
+		swirl.CFrame = CFrame.new(p) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(t * 2, 0, 0)
 	end
 	local rainbow = Color3.fromHSV((t * 0.25) % 1, 0.75, 1)
 	for _, part in ipairs(CollectionService:GetTagged("RainbowHand")) do
@@ -187,6 +196,11 @@ local MOODS = {
 	[4] = { Clock = 18.1, Color = { 255, 150, 110 }, Decay = { 140, 40, 30 }, Density = 0.42, Tint = { 255, 222, 210 }, Cloud = 0.8, CloudColor = { 90, 70, 70 } },
 	[5] = { Clock = 12, Color = { 255, 255, 255 }, Decay = { 255, 230, 200 }, Density = 0.3, Tint = { 255, 250, 240 }, Cloud = 0.7, CloudColor = { 255, 250, 235 } },
 	[6] = { Clock = 0.5, Color = { 120, 90, 200 }, Decay = { 40, 20, 90 }, Density = 0.22, Tint = { 222, 212, 255 }, Cloud = 0, CloudColor = { 255, 255, 255 } },
+	[7] = { Clock = 13, Color = { 255, 200, 230 }, Decay = { 255, 140, 200 }, Density = 0.3, Tint = { 255, 235, 245 }, Cloud = 0.6, CloudColor = { 255, 210, 240 } },
+	[8] = { Clock = 21, Color = { 60, 200, 255 }, Decay = { 10, 30, 70 }, Density = 0.32, Tint = { 210, 240, 255 }, Cloud = 0.2, CloudColor = { 60, 80, 120 } },
+	[9] = { Clock = 22.5, Color = { 120, 60, 170 }, Decay = { 40, 10, 60 }, Density = 0.45, Tint = { 225, 205, 245 }, Cloud = 0.7, CloudColor = { 60, 40, 80 } },
+	[10] = { Clock = 0, Color = { 40, 20, 70 }, Decay = { 10, 0, 25 }, Density = 0.35, Tint = { 210, 200, 240 }, Cloud = 0, CloudColor = { 255, 255, 255 } },
+	[-1] = { Clock = 18.5, Color = { 255, 150, 170 }, Decay = { 120, 40, 90 }, Density = 0.25, Tint = { 255, 230, 235 }, Cloud = 0.4, CloudColor = { 255, 200, 220 } },
 }
 
 local function applyMood(zoneIndex)
@@ -218,6 +232,9 @@ local function checkZone()
 		return
 	end
 	local zone = Calc.GetZoneAtZ(root.Position.Z)
+	if root.Position.Y > Config.Duel.ArenaHeight * 0.6 then
+		zone = -1 -- Duell-Arena
+	end
 	if zone ~= currentZone then
 		currentZone = zone
 		ctx.Hud.SetZone(zone)

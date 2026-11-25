@@ -130,8 +130,8 @@ local function playOne(result)
 			end
 		end
 	end
-	ctx.PlaySound("Popup", (best == "Legendary" or best == "Mythic") and 1.4 or 1)
-	if best == "Legendary" or best == "Mythic" then
+	ctx.PlaySound("Popup", (best == "Legendary" or best == "Mythic" or best == "Secret") and 1.4 or 1)
+	if best == "Legendary" or best == "Mythic" or best == "Secret" then
 		ctx.Hud.Popup(string.upper(Config.Rarities[best].DisplayName) .. "!!!", "What luck!", Config.Rarities[best].Color)
 	end
 	hintLabel.Visible = true

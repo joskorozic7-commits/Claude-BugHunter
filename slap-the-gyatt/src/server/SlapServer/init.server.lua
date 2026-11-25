@@ -22,6 +22,8 @@ local Shop = require(script:WaitForChild("Shop"))
 local Pets = require(script:WaitForChild("Pets"))
 local Rewards = require(script:WaitForChild("Rewards"))
 local Leaderboards = require(script:WaitForChild("Leaderboards"))
+local Duel = require(script:WaitForChild("Duel"))
+local Trade = require(script:WaitForChild("Trade"))
 
 --------------------------------------------------------------------------
 -- Gemeinsamer Kontext fuer alle Module
@@ -40,6 +42,8 @@ local ctx = {
 	Pets = Pets,
 	Rewards = Rewards,
 	Leaderboards = Leaderboards,
+	Duel = Duel,
+	Trade = Trade,
 }
 
 function ctx.RegisterAction(name, handler)
@@ -49,7 +53,7 @@ end
 -- Karte zuerst bauen (andere Module brauchen die Positionen)
 World.Build()
 
-for _, module in ipairs({ Data, Gyatts, Hands, Combat, Shop, Pets, Rewards, Leaderboards }) do
+for _, module in ipairs({ Data, Gyatts, Hands, Combat, Shop, Pets, Rewards, Leaderboards, Duel, Trade }) do
 	module.Init(ctx)
 end
 
@@ -58,6 +62,7 @@ Combat.Start()
 Shop.Start()
 Pets.Start()
 Leaderboards.Start()
+Duel.Run()
 Data.StartAutosave()
 
 --------------------------------------------------------------------------
@@ -151,6 +156,8 @@ end
 
 local function onPlayerRemoving(player)
 	requestBudget[player] = nil
+	Duel.OnLeave(player)
+	Trade.OnLeave(player)
 	local profile = Data.RemoveProfile(player)
 	if profile and profile.Loaded then
 		profile.Data.PlayTime = profile.Data.PlayTime + math.floor(os.clock() - profile.JoinTime)

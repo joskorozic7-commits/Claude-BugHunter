@@ -34,21 +34,26 @@ end
 -- Shop (Upgrades)
 --------------------------------------------------------------------------
 local function buildShop()
-	local win = UI.CreateWindow(ctx.Screen, "Shop", "Hand Upgrades", "🛒", Vector2.new(580, 470))
+	local win = UI.CreateWindow(ctx.Screen, "Shop", "Hand Upgrades", "🛒", Vector2.new(600, 480))
 	local list = UI.ScrollList(win.Content, {})
+	UI.Label({ Size = UDim2.new(1, -10, 0, 34), LayoutOrder = 0, Font = UI.BodyFont, TextWrapped = true, TextColor3 = UI.Colors.SubText,
+		Text = "Every 10 levels you need a ⚡ TIER UP (Slaps + Gems). Each new tier gives a much bigger bonus!", ZIndex = 6, Parent = list })
 	local rows = {}
 	for order, id in ipairs(Config.UpgradeOrder) do
 		local upgrade = Config.Upgrades[id]
-		local row = UI.Row(list, 92, order)
-		title({ Position = UDim2.new(0, 12, 0, 6), Size = UDim2.new(0.58, -12, 0, 26), Text = upgrade.Icon .. " " .. upgrade.DisplayName, Parent = row })
-		local level = smallLabel({ Position = UDim2.new(0, 12, 0, 33), Size = UDim2.new(0.58, -12, 0, 16), TextColor3 = UI.Colors.SubText, Parent = row })
-		local stat = smallLabel({ Position = UDim2.new(0, 12, 0, 51), Size = UDim2.new(0.58, -12, 0, 16), TextColor3 = UI.Colors.Text, Parent = row })
-		local _, fill = UI.ProgressBar({ Position = UDim2.new(0, 12, 0, 72), Size = UDim2.new(0.58, -12, 0, 10), Parent = row })
+		local row = UI.Row(list, 104, order)
+		title({ Position = UDim2.new(0, 12, 0, 6), Size = UDim2.new(0.42, -12, 0, 26), Text = upgrade.Icon .. " " .. upgrade.DisplayName, Parent = row })
+		local tierBadge = UI.Label({ Position = UDim2.new(0.42, 0, 0, 9), Size = UDim2.new(0.18, -6, 0, 20), BackgroundTransparency = 0, Font = UI.Font,
+			TextColor3 = Color3.fromRGB(30, 15, 35), Text = "", ZIndex = 7, Parent = row })
+		UI.Corner(6).Parent = tierBadge
+		local level = smallLabel({ Position = UDim2.new(0, 12, 0, 35), Size = UDim2.new(0.6, -12, 0, 16), TextColor3 = UI.Colors.SubText, Parent = row })
+		local stat = smallLabel({ Position = UDim2.new(0, 12, 0, 53), Size = UDim2.new(0.6, -12, 0, 16), TextColor3 = UI.Colors.Text, Parent = row })
+		local _, fill = UI.ProgressBar({ Position = UDim2.new(0, 12, 0, 76), Size = UDim2.new(0.6, -12, 0, 12), Parent = row })
 		local buy = UI.Button({
 			Name = "Buy",
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, -10, 0, 8),
-			Size = UDim2.new(0.4, -14, 0, 44),
+			Size = UDim2.new(0.38, -14, 0, 52),
 			Color = UI.Colors.Green,
 			ZIndex = 6,
 			Parent = row,
@@ -58,8 +63,8 @@ local function buildShop()
 		local max = UI.Button({
 			Name = "Max",
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -10, 0, 56),
-			Size = UDim2.new(0.4, -14, 0, 28),
+			Position = UDim2.new(1, -10, 0, 66),
+			Size = UDim2.new(0.38, -14, 0, 30),
 			Color = UI.Colors.Purple,
 			Text = "Buy MAX",
 			ZIndex = 6,
@@ -67,7 +72,7 @@ local function buildShop()
 		}, function()
 			ctx.Request("BuyUpgradeMax", id)
 		end)
-		rows[id] = { Level = level, Stat = stat, Fill = fill, Buy = buy, Max = max }
+		rows[id] = { Level = level, Stat = stat, Fill = fill, Buy = buy, Max = max, Tier = tierBadge }
 	end
 
 	win.Refresh = function()
@@ -79,14 +84,27 @@ local function buildShop()
 			local row = rows[id]
 			local upgrade = Config.Upgrades[id]
 			local level = Calc.ClampLevel(id, s.Upgrades[id])
-			local cost = Calc.GetUpgradeCost(id, level)
+			local cost, gems = Calc.GetUpgradeCost(id, level)
+			local tierInfo = Calc.GetTierInfo(Calc.GetTier(level))
+			row.Tier.Text = string.upper(tierInfo.Name)
+			row.Tier.BackgroundColor3 = UI.rgb(tierInfo.Color)
 			row.Level.Text = "Level " .. level .. " / " .. upgrade.MaxLevel .. "  -  " .. upgrade.Description
-			UI.SetProgress(row.Fill, level / upgrade.MaxLevel)
+			-- Fortschritt innerhalb der aktuellen Tier
+			UI.SetProgress(row.Fill, (level % Config.TierSize) / Config.TierSize)
+			if level >= upgrade.MaxLevel then
+				UI.SetProgress(row.Fill, 1)
+			end
 			if cost then
 				row.Stat.Text = Calc.DescribeUpgrade(id, level) .. "  ➜  " .. Calc.DescribeUpgrade(id, level + 1)
-				row.Buy.Text = money(cost, "Slaps")
-				UI.SetButtonColor(row.Buy, s.Slaps >= cost and UI.Colors.Green or UI.Colors.Gray)
-				row.Max.Visible = true
+				if gems > 0 then
+					local nextTier = Calc.GetTierInfo(Calc.GetTier(level + 1))
+					row.Buy.Text = "⚡ TIER UP → " .. nextTier.Name .. "\n" .. money(cost, "Slaps") .. " + " .. money(gems, "Gems")
+					UI.SetButtonColor(row.Buy, (s.Slaps >= cost and s.Gems >= gems) and UI.Colors.Gold or UI.Colors.Gray)
+				else
+					row.Buy.Text = money(cost, "Slaps")
+					UI.SetButtonColor(row.Buy, s.Slaps >= cost and UI.Colors.Green or UI.Colors.Gray)
+				end
+				row.Max.Visible = gems == 0
 			else
 				row.Stat.Text = Calc.DescribeUpgrade(id, level)
 				row.Buy.Text = "MAX"
@@ -102,10 +120,32 @@ end
 -- Haende
 --------------------------------------------------------------------------
 local function buildHands()
-	local win = UI.CreateWindow(ctx.Screen, "Hands", "Hands", "✋", Vector2.new(600, 490))
-	local list = UI.ScrollList(win.Content, {})
+	local win = UI.CreateWindow(ctx.Screen, "Hands", "Gloves", "✋", Vector2.new(620, 500))
+	local tabBar = Create("Frame", { Size = UDim2.new(1, 0, 0, 38), BackgroundTransparency = 1, ZIndex = 5, Parent = win.Content }, { UI.List(8, true) })
+	local list = UI.ScrollList(win.Content, { Position = UDim2.new(0, 0, 0, 44), Size = UDim2.new(1, 0, 1, -44) })
 	local rows = {}
-	local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow", dragon = "Dragon Fire", thanos = "Cosmic Stones", ultragod = "Divine Aura" }
+	local currentTab = "Slaps"
+	local tabButtons = {}
+	local function applyFilter()
+		for _, hand in ipairs(Config.Hands) do
+			local r = rows[hand.Id]
+			if r then
+				r.Row.Visible = hand.Currency == currentTab
+			end
+		end
+		for name, button in pairs(tabButtons) do
+			UI.SetButtonColor(button, name == currentTab and UI.Colors.Pink or UI.Colors.Gray)
+		end
+	end
+	for order, info in ipairs({ { "Slaps", "👋 Slaps (60)" }, { "Gems", "💎 Gems" }, { "Robux", "👑 Robux" } }) do
+		tabButtons[info[1]] = UI.Button({ Size = UDim2.new(0, 150, 1, 0), LayoutOrder = order, Text = info[2], ZIndex = 6, Parent = tabBar }, function()
+			currentTab = info[1]
+			applyFilter()
+			list.CanvasPosition = Vector2.new(0, 0)
+		end)
+	end
+	local effectNames = { sparkles = "Sparkles", fire = "Fire", smoke = "Frost Mist", rainbow = "Rainbow", dragon = "Dragon Fire", thanos = "Cosmic Stones",
+		ultragod = "Divine Aura", aura = "Glow Aura", electric = "Lightning", shadow = "Shadow Smoke", orbit = "Orbiting Orbs", omni = "OMNI Aura" }
 	for order, hand in ipairs(Config.Hands) do
 		local rarity = Config.Rarities[hand.Rarity] or Config.Rarities.Common
 		local rarityColor = UI.rgb(rarity.Color)
@@ -130,7 +170,7 @@ local function buildHands()
 		}, { UI.Corner(12), UI.Stroke(isUltra and 3.5 or 2, isUltra and UI.Colors.Gold or nil) })
 		UI.Label({ Size = UDim2.fromScale(1, 1), Text = isUltra and (hand.Effect == "thanos" and "🫰" or "👑") or "✋", ZIndex = 7, Parent = swatch })
 
-		title({ Position = UDim2.new(0, 76, 0, 6), Size = UDim2.new(0.58, -76, 0, 26), Text = hand.DisplayName, Parent = row })
+		title({ Position = UDim2.new(0, 76, 0, 6), Size = UDim2.new(0.58, -76, 0, 26), Text = (hand.Number and ("#" .. hand.Number .. "  ") or "") .. hand.DisplayName, Parent = row })
 		local badge = UI.Label({
 			Position = UDim2.new(0, 76, 0, 34),
 			Size = UDim2.new(0, 96, 0, 18),
@@ -165,6 +205,7 @@ local function buildHands()
 		end)
 		rows[hand.Id] = { Row = row, Button = button }
 	end
+	applyFilter()
 
 	win.Refresh = function()
 		local s = state()
@@ -378,7 +419,11 @@ local function buildZones()
 	for index, zone in ipairs(Config.Zones) do
 		local row = UI.Row(list, 76, index)
 		Create("Frame", { Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 10, 1, 0), BackgroundColor3 = UI.rgb(zone.Accent), ZIndex = 6, Parent = row }, { UI.Corner(8) })
-		title({ Position = UDim2.new(0, 18, 0, 6), Size = UDim2.new(0.6, -18, 0, 28), Text = "Zone " .. index .. ": " .. zone.Name, Parent = row })
+		local dimName = Calc.GetDimension(index).Name
+		title({ Position = UDim2.new(0, 18, 0, 6), Size = UDim2.new(0.6, -18, 0, 28), Text = (index > 6 and "🌀 " or "") .. "Zone " .. index .. ": " .. zone.Name, Parent = row })
+		if index > 6 then
+			smallLabel({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(0.62, 0, 0, 2), Size = UDim2.new(0.25, 0, 0, 12), TextXAlignment = Enum.TextXAlignment.Right, TextColor3 = Color3.fromRGB(200, 150, 255), Text = dimName, Parent = row })
+		end
 		local names = {}
 		for _, g in ipairs(zone.Gyatts) do
 			table.insert(names, g.DisplayName)
@@ -434,6 +479,26 @@ local function buildGems()
 	local balance = smallLabel({ Size = UDim2.new(1, 0, 0, 24), TextColor3 = Color3.fromRGB(140, 220, 255), Parent = win.Content })
 	local list = UI.ScrollList(win.Content, { Position = UDim2.new(0, 0, 0, 30), Size = UDim2.new(1, 0, 1, -30) })
 	local rows = {}
+	-- Gems fuer Robux
+	UI.Label({ Size = UDim2.new(1, -10, 0, 28), LayoutOrder = -100, TextXAlignment = Enum.TextXAlignment.Left, Text = "💎 BUY GEMS", TextColor3 = Color3.fromRGB(140, 220, 255), ZIndex = 6, Parent = list })
+	local packGrid = Create("Frame", { Size = UDim2.new(1, -10, 0, 236), LayoutOrder = -99, BackgroundTransparency = 1, ZIndex = 5, Parent = list }, {
+		Create("UIGridLayout", { CellSize = UDim2.new(0.32, 0, 0, 110), CellPadding = UDim2.new(0.02, 0, 0, 10), SortOrder = Enum.SortOrder.LayoutOrder }),
+	})
+	for order, pack in ipairs(Config.GemPacks) do
+		local card = Create("Frame", { LayoutOrder = order, BackgroundColor3 = UI.Colors.Panel, ZIndex = 6, Parent = packGrid }, { UI.Corner(12), UI.Stroke(2.5, Color3.fromRGB(120, 210, 255)) })
+		local amount = UI.Label({ Position = UDim2.new(0, 4, 0, 6), Size = UDim2.new(1, -8, 0, 30), Text = "💎 " .. Calc.FormatNumber(pack.Gems), TextColor3 = Color3.fromRGB(150, 225, 255), ZIndex = 7, Parent = card })
+		UI.TextStroke(1.5).Parent = amount
+		if pack.Tag then
+			local tag = UI.Label({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 38), Size = UDim2.new(0.8, 0, 0, 16), BackgroundTransparency = 0,
+				BackgroundColor3 = UI.Colors.Gold, Font = UI.Font, TextColor3 = Color3.fromRGB(40, 20, 10), Text = pack.Tag, ZIndex = 7, Parent = card })
+			UI.Corner(6).Parent = tag
+		end
+		UI.Button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(0.86, 0, 0, 38), Color = UI.Colors.Green,
+			Text = "R$ " .. pack.Robux, ZIndex = 7, Parent = card }, function()
+			ctx.Request("BuyGemPack", pack.Id)
+		end)
+	end
+	UI.Label({ Size = UDim2.new(1, -10, 0, 28), LayoutOrder = -98, TextXAlignment = Enum.TextXAlignment.Left, Text = "🛒 SPEND GEMS", TextColor3 = UI.Colors.Gold, ZIndex = 6, Parent = list })
 	for order, item in ipairs(Config.GemShop) do
 		local row = UI.Row(list, 72, order)
 		title({ Position = UDim2.new(0, 12, 0, 6), Size = UDim2.new(0.6, -12, 0, 28), Text = item.Icon .. " " .. item.DisplayName, Parent = row })
@@ -699,7 +764,7 @@ local function buildSettings()
 			ctx.Request("SetSetting", name, not ctx.Setting(name))
 		end)
 	end
-	local statsRow = UI.Row(list, 190, 10)
+	local statsRow = UI.Row(list, 220, 10)
 	local stats = smallLabel({ Position = UDim2.new(0, 12, 0, 8), Size = UDim2.new(1, -24, 1, -16), TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, Parent = statsRow })
 	win.Refresh = function()
 		local s = state()
@@ -719,7 +784,8 @@ local function buildSettings()
 			.. "🔥 Best combo: " .. Calc.FormatNumber(s.BestCombo) .. "\n"
 			.. "♻️ Rebirths: " .. tostring(s.Rebirths) .. "\n"
 			.. "✋ Hand: " .. hand.DisplayName .. "   🐾 Pets: " .. #(s.Pets or {}) .. "\n"
-			.. "⏱️ Playtime: " .. Calc.FormatTime(s.PlayTime or 0)
+			.. "⏱️ Playtime: " .. Calc.FormatTime(s.PlayTime or 0) .. "\n"
+			.. "⚔️ Duel wins: " .. tostring(s.DuelWins or 0) .. "   🤝 Trades: " .. tostring(s.TotalTrades or 0)
 	end
 	return win
 end
