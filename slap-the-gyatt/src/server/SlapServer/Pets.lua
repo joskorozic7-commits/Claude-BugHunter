@@ -54,8 +54,15 @@ function Pets.Hatch(player, eggId, amount)
 		return
 	end
 	local egg = Config.Eggs[eggId]
-	if not egg then
-		return
+	if not egg or egg.Robux then
+		return -- Robux-Eier gehen nur ueber den Shop-Kauf
+	end
+	if egg.Event then
+		local current = Calc.GetCurrentEvent(os.time())
+		if not current or current.Id ~= egg.Event then
+			ctx.Remotes.Notify(player, "⭐ This event egg is not available this week!", RED)
+			return
+		end
 	end
 	amount = (amount == 3) and 3 or 1
 	local data = profile.Data
@@ -84,7 +91,12 @@ function Pets.Hatch(player, eggId, amount)
 	end
 	profile.LastHatch = now
 	data[balanceKey] = data[balanceKey] - price
+	Pets.GrantEgg(player, profile, eggId, amount)
+end
 
+-- Pets aus einem Ei geben (ohne Preis; Robux-Kaeufe duerfen das Inventar ueberfuellen)
+function Pets.GrantEgg(player, profile, eggId, amount)
+	local data = profile.Data
 	local lucky = Calc.IsBoostActive(data, "LuckyEggs", os.time())
 	local slots = Calc.GetPetSlots(data)
 	local results = {}
@@ -101,7 +113,7 @@ function Pets.Hatch(player, eggId, amount)
 		table.insert(results, { Id = petId, Uid = pet.Uid })
 
 		local petCfg = Config.Pets[petId]
-		if petCfg.Rarity == "Legendary" or petCfg.Rarity == "Mythic" or petCfg.Rarity == "Secret" then
+		if Config.Rarities[petCfg.Rarity].Order >= 4 then
 			local rarity = Config.Rarities[petCfg.Rarity]
 			ctx.Remotes.NotifyAll("🌟 " .. player.DisplayName .. " hatched " .. petCfg.DisplayName .. " (" .. rarity.DisplayName .. ")!", rarity.Color)
 		end
@@ -109,6 +121,7 @@ function Pets.Hatch(player, eggId, amount)
 	ctx.Data.AddStat(profile, "Eggs", amount)
 	ctx.Remotes.Fire("Hatch", player, { EggId = eggId, Pets = results })
 	changed(player)
+	return results
 end
 
 function Pets.Equip(player, uid)
@@ -218,7 +231,34 @@ function Pets.Init(context)
 	ctx.RegisterAction("DeleteRarity", Pets.DeleteRarity)
 end
 
+-- Anzeige am Event-Stand im Hub aktualisieren
+local function updateEventStand()
+	local stand = ctx.World.EventStand
+	if not stand then
+		return
+	end
+	local event, endsAt = Calc.GetCurrentEvent(os.time())
+	if not event then
+		return
+	end
+	local left = math.max(0, endsAt - os.time())
+	local days = math.floor(left / 86400)
+	local hours = math.floor((left % 86400) / 3600)
+	local minutes = math.floor((left % 3600) / 60)
+	stand.Title.Text = "⭐ " .. string.upper(event.Name) .. " ⭐"
+	stand.Title.TextColor3 = Color3.fromRGB(event.Color[1], event.Color[2], event.Color[3])
+	stand.Timer.Text = "Exclusive pets!  Ends in " .. days .. "d " .. hours .. "h " .. minutes .. "m"
+	stand.Egg.Color = Color3.fromRGB(event.Color[1], event.Color[2], event.Color[3])
+	stand.Prompt.ObjectText = event.Name .. " Egg (💎 " .. Calc.FormatNumber(Config.EventEggPrice) .. ")"
+end
+
 function Pets.Start()
+	task.spawn(function()
+		while true do
+			pcall(updateEventStand)
+			task.wait(30)
+		end
+	end)
 	for _, zoneInfo in ipairs(ctx.World.Zones) do
 		for _, stand in ipairs(zoneInfo.EggStands) do
 			for _, prompt in ipairs(stand.Prompts) do

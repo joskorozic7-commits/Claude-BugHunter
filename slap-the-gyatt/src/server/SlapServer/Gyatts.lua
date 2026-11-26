@@ -360,6 +360,32 @@ function KIND_BUILDERS.chest(model, spec, S, r, base)
 	return body
 end
 
+-- Pinata: bunter Esel aus Papierstreifen, laesst Items fallen
+function KIND_BUILDERS.pinata(model, spec, S, r, base)
+	local main = rgb(spec.Color)
+	local stripes = { main, Color3.fromRGB(255, 220, 70), Color3.fromRGB(80, 200, 255), Color3.fromRGB(255, 110, 180), Color3.fromRGB(120, 230, 120) }
+	local body = makeBody(model, Vector3.new(S * 0.95, S * 0.5, S * 0.5), base * CFrame.Angles(0, math.rad(90), 0), main, Enum.Material.Fabric)
+	for i = 0, 4 do
+		detail(model, "Stripe", Vector3.new(S * 0.52, S * 0.52, S * 0.1), base * CFrame.new(0, 0, (i - 2) * S * 0.18), stripes[i + 1], Enum.Material.Fabric)
+	end
+	local headCf = base * CFrame.new(0, S * 0.35, -S * 0.5)
+	detail(model, "Head", Vector3.new(S * 0.36, S * 0.4, S * 0.36), headCf, stripes[2], Enum.Material.Fabric)
+	detail(model, "Snout", Vector3.new(S * 0.28, S * 0.2, S * 0.24), headCf * CFrame.new(0, -S * 0.08, -S * 0.22), stripes[4], Enum.Material.Fabric)
+	addFace(model, headCf * CFrame.new(0, S * 0.04, -S * 0.19), S * 0.34)
+	for _, side in ipairs({ -1, 1 }) do
+		detail(model, "Ear", Vector3.new(S * 0.08, S * 0.3, S * 0.1), headCf * CFrame.new(side * S * 0.12, S * 0.3, 0) * CFrame.Angles(0, 0, math.rad(side * -15)), stripes[3], Enum.Material.Fabric)
+		for _, front in ipairs({ -1, 1 }) do
+			detail(model, "Leg", Vector3.new(S * 0.14, S * 0.4, S * 0.14), base * CFrame.new(side * S * 0.16, -S * 0.42, front * S * 0.3), stripes[(side + front + 4) % 5 + 1], Enum.Material.Fabric)
+		end
+	end
+	detail(model, "Tail", Vector3.new(S * 0.08, S * 0.08, S * 0.35), base * CFrame.new(0, S * 0.1, S * 0.6) * CFrame.Angles(math.rad(-30), 0, 0), stripes[5], Enum.Material.Fabric)
+	detail(model, "Rope", Vector3.new(S * 0.04, S * 0.8, S * 0.04), base * CFrame.new(0, S * 0.65, 0), Color3.fromRGB(150, 110, 60), Enum.Material.Fabric)
+	local confetti = Instance.new("Sparkles")
+	confetti.SparkleColor = Color3.fromRGB(255, 220, 90)
+	confetti.Parent = body
+	return body
+end
+
 local function buildModel(spec)
 	local S = spec.Size
 	local r = S / 2
@@ -501,6 +527,7 @@ local function createGyatt(spec)
 		Alive = true,
 		Contributors = {},
 		IsGolden = spec.IsGolden == true,
+		IsBoss = spec.IsBoss == true,
 		Kind = spec.Kind or "blob",
 		Respawn = spec.Respawn or Config.GyattRespawnTime,
 	}
@@ -535,6 +562,8 @@ function Gyatts.BuildAll()
 				heightFactor = 0.45
 			elseif cfg.Kind == "dummy" then
 				heightFactor = 0.9
+			elseif cfg.Kind == "pinata" then
+				heightFactor = 0.62
 			end
 			createGyatt({
 				Key = Calc.GetGyattKey(zoneIndex, gyattIndex),
@@ -549,6 +578,7 @@ function Gyatts.BuildAll()
 				Gems = cfg.Gems,
 				Kind = cfg.Kind,
 				Respawn = cfg.Respawn,
+				IsBoss = gyattIndex == 2,
 				BaseCFrame = CFrame.new(spot.Position + Vector3.new(0, 0.4 + cfg.Size * heightFactor, 0)),
 			})
 		end
@@ -582,6 +612,12 @@ local function rewardContributors(g, killer)
 			ctx.Data.AddStat(profile, "Defeats", 1)
 			if g.Kind == "chest" then
 				ctx.Data.AddStat(profile, "Chests", 1)
+			end
+			if ctx.Items then
+				local ok, err = pcall(ctx.Items.RollDrop, player, profile, g)
+				if not ok then
+					warn("[SlapTheBlob] Item drop failed: " .. tostring(err))
+				end
 			end
 			local text = "🎉 " .. g.DisplayName .. " defeated!  +" .. Calc.FormatNumber(bonus) .. " Slaps"
 			if gems > 0 then

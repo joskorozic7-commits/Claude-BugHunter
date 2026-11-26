@@ -14,6 +14,7 @@ local Calc = require(Shared:WaitForChild("Calc"))
 
 local Shop = {}
 local ctx
+local rebirthRng = Random.new()
 
 local RED = { 255, 120, 120 }
 local GREEN = { 120, 255, 140 }
@@ -65,6 +66,9 @@ local function afterUpgrade(player, profile, id, bought, tierUp)
 	ctx.Remotes.Fire("Event", player, "Purchased")
 	if id == "Power" then
 		ctx.Hands.Give(player, false) -- Hand waechst
+	end
+	if id == "Legs" or id == "Jump" then
+		ctx.Items.ApplyStats(player) -- schneller laufen / hoeher springen
 	end
 	ctx.Data.Push(player, true)
 end
@@ -283,6 +287,11 @@ function Shop.Rebirth(player)
 	end
 	local data = profile.Data
 	local cost = Calc.GetRebirthCost(data.Rebirths)
+	if data.Zones < Config.RebirthMinZone then
+		ctx.Remotes.Notify(player, "♻️ Unlock Zone " .. Config.RebirthMinZone .. " before you can rebirth!", RED)
+		ctx.Remotes.Fire("Event", player, "Denied")
+		return
+	end
 	if data.Slaps < cost then
 		notEnough(player, cost, "Slaps")
 		return
@@ -295,6 +304,19 @@ function Shop.Rebirth(player)
 	data.Zones = 1
 	local gems = ctx.Data.AddGems(profile, Calc.GetRebirthGems(data.Rebirths))
 	profile.Combo = 0
+	-- Bonus-Item: je mehr Rebirths, desto seltener
+	local r = data.Rebirths
+	local weights = { Rare = 60, Epic = 25 + r * 2, Legendary = 6 + r, Mythic = 0.5 + r * 0.4, Ultra = r >= 10 and (r * 0.1) or 0 }
+	local bonusId = Calc.PickItem(Calc.RollRarity(weights, function()
+		return rebirthRng:NextNumber()
+	end), function()
+		return rebirthRng:NextNumber()
+	end)
+	if bonusId then
+		ctx.Items.Give(profile, bonusId, 1)
+		local bonusCfg = Config.Items[bonusId]
+		ctx.Remotes.Notify(player, "🎁 Rebirth bonus: " .. bonusCfg.DisplayName .. " (" .. Config.Rarities[bonusCfg.Rarity].DisplayName .. ")!", Config.Rarities[bonusCfg.Rarity].Color)
+	end
 
 	ctx.Remotes.Popup(player, "REBIRTH " .. data.Rebirths .. "!", "Forever " .. Calc.FormatMultiplier(Calc.GetRebirthSlapMultiplier(data.Rebirths))
 		.. " Slaps & " .. Calc.FormatMultiplier(Calc.GetRebirthDamageMultiplier(data.Rebirths)) .. " Damage  (+" .. gems .. " 💎)", { 200, 150, 255 })
@@ -306,6 +328,7 @@ function Shop.Rebirth(player)
 		character:PivotTo(ctx.World.Spawn.CFrame * CFrame.new(0, 4, 0))
 	end
 	ctx.Hands.Give(player, false)
+	ctx.Items.ApplyCharacter(player)
 	ctx.Data.Push(player, true)
 	task.spawn(ctx.Data.Save, profile)
 end
@@ -452,45 +475,137 @@ function Shop.BuyGemPack(player, packId)
 	end
 end
 
+-- Alle Developer Products: Gem-Pakete, Robux-Eier und Robux-Kisten
+local function findProduct(productId)
+	if not productId or productId == 0 then
+		return nil
+	end
+	for _, pack in ipairs(Config.GemPacks) do
+		if tonumber(pack.ProductId) == productId then
+			return "Gems", pack
+		end
+	end
+	for _, egg in ipairs(Config.RobuxEggs) do
+		if tonumber(egg.ProductId) == productId then
+			return "Egg", egg
+		end
+	end
+	for _, crate in ipairs(Config.ItemCrates) do
+		if crate.Currency == "Robux" and tonumber(crate.ProductId) == productId then
+			return "Crate", crate
+		end
+	end
+	return nil
+end
+
+local function grantProduct(player, profile, kind, def, isTest)
+	if kind == "Gems" then
+		grantGemPack(player, profile, def, isTest)
+	elseif kind == "Egg" then
+		ctx.Pets.GrantEgg(player, profile, def.Id, 1)
+		if isTest then
+			ctx.Remotes.Notify(player, "🥚 " .. def.Name .. " (Studio test)", { 255, 220, 120 })
+		end
+	elseif kind == "Crate" then
+		ctx.Items.GrantCrate(player, profile, def)
+		if isTest then
+			ctx.Remotes.Notify(player, "🎁 " .. def.Name .. " (Studio test)", { 255, 220, 120 })
+		end
+	end
+end
+
+-- Kauf starten (ID 0 = in Studio gratis testen)
+local function promptProduct(player, kind, def)
+	local profile = ctx.Data.Get(player)
+	if not profile then
+		return
+	end
+	if (tonumber(def.ProductId) or 0) <= 0 then
+		if RunService:IsStudio() then
+			grantProduct(player, profile, kind, def, true)
+		else
+			ctx.Remotes.Notify(player, "🛒 This item is coming soon!", { 255, 220, 120 })
+		end
+		return
+	end
+	local ok, err = pcall(function()
+		MarketplaceService:PromptProductPurchase(player, def.ProductId)
+	end)
+	if not ok then
+		warn("[SlapTheBlob] Product prompt failed: " .. tostring(err))
+	end
+end
+
+function Shop.BuyRobuxEgg(player, eggId)
+	for _, egg in ipairs(Config.RobuxEggs) do
+		if egg.Id == eggId then
+			promptProduct(player, "Egg", egg)
+			return
+		end
+	end
+end
+
+function Shop.BuyCrate(player, crateId)
+	local crate = type(crateId) == "string" and ctx.Items.CrateById(crateId)
+	if not crate then
+		return
+	end
+	if crate.Currency == "Robux" then
+		promptProduct(player, "Crate", crate)
+	else
+		ctx.Items.OpenCrate(player, crateId)
+	end
+end
+
 -- Roblox ruft das fuer jeden Robux-Kauf auf (auch nach einem Absturz erneut,
 -- bis wir PurchaseGranted zurueckgeben). Jeder Kauf wird genau einmal gutgeschrieben.
 local function processReceipt(info)
-	local pack = nil
-	for _, candidate in ipairs(Config.GemPacks) do
-		if tonumber(candidate.ProductId) == info.ProductId and info.ProductId ~= 0 then
-			pack = candidate
-		end
-	end
-	if not pack then
+	local kind, def = findProduct(info.ProductId)
+	if not kind then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	local player = Players:GetPlayerByUserId(info.PlayerId)
 	local profile = player and ctx.Data.Get(player)
-	if not profile then
+	if not profile or not profile.Loaded then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	if ctx.Data.HasStore() and not profile.CanSave then
 		-- Spielstand nicht sicher geladen: spaeter nochmal versuchen
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
+	local data = profile.Data
 	local purchaseId = tostring(info.PurchaseId)
-	if profile.Data.Receipts[purchaseId] then
+	if data.Receipts[purchaseId] then
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
-	profile.Data.Receipts[purchaseId] = os.time()
-	grantGemPack(player, profile, pack, false)
-	if ctx.Data.HasStore() then
-		local saved = ctx.Data.Save(profile)
-		if not saved then
-			-- nicht gespeichert: zuruecknehmen und spaeter erneut versuchen
-			profile.Data.Receipts[purchaseId] = nil
-			profile.Data.Gems = math.max(0, profile.Data.Gems - pack.Gems)
-			ctx.Data.Push(player, true)
-			return Enum.ProductPurchaseDecision.NotProcessedYet
+	-- Zustand merken, um bei einem Speicherfehler alles zurueckzunehmen
+	local before = { Gems = data.Gems, Pets = #data.Pets, Items = #data.Items, NextPetUid = data.NextPetUid, NextItemUid = data.NextItemUid }
+	data.Receipts[purchaseId] = os.time()
+	local ok, err = pcall(grantProduct, player, profile, kind, def, false)
+	if ok and ctx.Data.HasStore() then
+		ok = ctx.Data.Save(profile)
+		err = "save failed"
+	end
+	if not ok then
+		warn("[SlapTheBlob] Purchase " .. purchaseId .. " not granted: " .. tostring(err))
+		data.Receipts[purchaseId] = nil
+		data.Gems = before.Gems
+		for i = #data.Pets, before.Pets + 1, -1 do
+			table.remove(data.Pets, i)
 		end
+		for i = #data.Items, before.Items + 1, -1 do
+			table.remove(data.Items, i)
+		end
+		data.NextPetUid = before.NextPetUid
+		data.NextItemUid = before.NextItemUid
+		ctx.Pets.UpdateAttribute(player)
+		ctx.Items.ApplyCharacter(player)
+		ctx.Data.Push(player, true)
+		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
+Shop.ProcessReceipt = processReceipt
 
 function Shop.Init(context)
 	ctx = context
@@ -505,6 +620,8 @@ function Shop.Init(context)
 	ctx.RegisterAction("ToggleAutoSlap", Shop.ToggleAutoSlap)
 	ctx.RegisterAction("SetSetting", Shop.SetSetting)
 	ctx.RegisterAction("BuyGemPack", Shop.BuyGemPack)
+	ctx.RegisterAction("BuyRobuxEgg", Shop.BuyRobuxEgg)
+	ctx.RegisterAction("BuyCrate", Shop.BuyCrate)
 end
 
 function Shop.Start()

@@ -72,6 +72,8 @@ function Data.Default()
 		DuelWins = 0,
 		TotalTrades = 0,
 		Receipts = {}, -- bereits gutgeschriebene Robux-Kaeufe (PurchaseId -> Zeit)
+		Items = {}, -- Accessoires: { Uid, Id, Level, Equipped }
+		NextItemUid = 1,
 	}
 end
 
@@ -102,6 +104,29 @@ function Data.Sanitize(raw)
 	data.BestCombo = num(raw.BestCombo)
 	data.PlayTime = num(raw.PlayTime)
 	data.DuelWins = num(raw.DuelWins)
+	-- Items
+	local seenItemUids, highestItemUid, equippedCategory = {}, 0, {}
+	if type(raw.Items) == "table" then
+		for _, item in ipairs(raw.Items) do
+			if #data.Items >= Config.ItemInventory + 50 then
+				break
+			end
+			if type(item) == "table" and type(item.Id) == "string" and Config.Items[item.Id] then
+				local uid = num(item.Uid)
+				if uid > 0 and not seenItemUids[uid] then
+					seenItemUids[uid] = true
+					highestItemUid = math.max(highestItemUid, uid)
+					local category = Config.Items[item.Id].Category
+					local equipped = item.Equipped == true and not equippedCategory[category]
+					if equipped then
+						equippedCategory[category] = true
+					end
+					table.insert(data.Items, { Uid = uid, Id = item.Id, Level = math.max(1, math.min(Config.ItemMaxLevel, num(item.Level))), Equipped = equipped })
+				end
+			end
+		end
+	end
+	data.NextItemUid = math.max(num(raw.NextItemUid), highestItemUid + 1, 1)
 	data.TotalTrades = num(raw.TotalTrades)
 	if type(raw.Receipts) == "table" then
 		local list = {}

@@ -24,6 +24,7 @@ local Rewards = require(script:WaitForChild("Rewards"))
 local Leaderboards = require(script:WaitForChild("Leaderboards"))
 local Duel = require(script:WaitForChild("Duel"))
 local Trade = require(script:WaitForChild("Trade"))
+local Items = require(script:WaitForChild("Items"))
 
 --------------------------------------------------------------------------
 -- Gemeinsamer Kontext fuer alle Module
@@ -44,6 +45,7 @@ local ctx = {
 	Leaderboards = Leaderboards,
 	Duel = Duel,
 	Trade = Trade,
+	Items = Items,
 }
 
 function ctx.RegisterAction(name, handler)
@@ -53,7 +55,7 @@ end
 -- Karte zuerst bauen (andere Module brauchen die Positionen)
 World.Build()
 
-for _, module in ipairs({ Data, Gyatts, Hands, Combat, Shop, Pets, Rewards, Leaderboards, Duel, Trade }) do
+for _, module in ipairs({ Data, Gyatts, Hands, Combat, Shop, Pets, Rewards, Leaderboards, Duel, Trade, Items }) do
 	module.Init(ctx)
 end
 
@@ -113,6 +115,7 @@ local function onCharacterAdded(player, character)
 		return
 	end
 	Hands.Give(player, true)
+	Items.ApplyCharacter(player)
 end
 
 local function onPlayerAdded(player)

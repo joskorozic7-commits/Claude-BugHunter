@@ -68,7 +68,7 @@ local function fromServer(field)
 	local entries = {}
 	for _, profile in pairs(ctx.Data.Profiles) do
 		if profile.Loaded then
-			table.insert(entries, { Name = profile.Player.DisplayName, Value = profile.Data[field] })
+			table.insert(entries, { Name = profile.Player.DisplayName, Value = profile.Data[field], UserId = profile.UserId })
 		end
 	end
 	table.sort(entries, function(a, b)
@@ -95,10 +95,60 @@ local function readGlobal(store, isEncoded)
 		local userId = tonumber(string.match(tostring(item.key), "%d+"))
 		local value = tonumber(item.value) or 0
 		if userId then
-			table.insert(entries, { Name = getName(userId), Value = isEncoded and decode(value) or value })
+			table.insert(entries, { Name = getName(userId), Value = isEncoded and decode(value) or value, UserId = userId })
 		end
 	end
 	return entries
+end
+
+-- Top 3 als Avatar-Statuen auf das Siegertreppchen stellen
+local podiumUsers = {}
+local function updatePodium(entries)
+	local podium = ctx.World.Podium
+	if not podium then
+		return
+	end
+	for rank = 1, 3 do
+		local spot = podium[rank]
+		local entry = entries[rank]
+		local userId = entry and entry.UserId or nil
+		if spot then
+			spot.Label.Text = (rank == 1 and "👑 " or "") .. "#" .. rank .. "  " .. (entry and (entry.Name .. "\n" .. Calc.FormatNumber(entry.Value) .. " Slaps") or "...")
+			if podiumUsers[rank] ~= userId then
+				podiumUsers[rank] = userId
+				if spot.Model then
+					spot.Model:Destroy()
+					spot.Model = nil
+				end
+				if userId and userId > 0 then
+					local ok, model = pcall(function()
+						return Players:CreateHumanoidModelFromUserId(userId)
+					end)
+					if ok and model then
+						model.Name = "PodiumAvatar" .. rank
+						for _, d in ipairs(model:GetDescendants()) do
+							if d:IsA("BasePart") then
+								d.Anchored = true
+								d.CanCollide = false
+							elseif d:IsA("Script") or d:IsA("LocalScript") then
+								d:Destroy()
+							end
+						end
+						local humanoid = model:FindFirstChildOfClass("Humanoid")
+						if humanoid then
+							humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+						end
+						local hipHeight = (humanoid and humanoid.HipHeight or 2) + 1
+						pcall(function()
+							model:PivotTo(spot.Top * CFrame.new(0, hipHeight + 0.6, 0))
+						end)
+						model.Parent = ctx.World.Root
+						spot.Model = model
+					end
+				end
+			end
+		end
+	end
 end
 
 function Leaderboards.Refresh()
@@ -120,10 +170,15 @@ function Leaderboards.Refresh()
 	end
 
 	local earned = stores.Earned and readGlobal(stores.Earned, true)
-	if earned then
-		fill("Earned", earned, Calc.FormatNumber, nil)
+	if not earned then
+		earned = fromServer("TotalEarned")
+		fill("Earned", earned, Calc.FormatNumber, "(this server only)")
 	else
-		fill("Earned", fromServer("TotalEarned"), Calc.FormatNumber, "(this server only)")
+		fill("Earned", earned, Calc.FormatNumber, nil)
+	end
+	local okPodium, errPodium = pcall(updatePodium, earned)
+	if not okPodium then
+		warn("[SlapTheBlob] Podium: " .. tostring(errPodium))
 	end
 	local rebirths = stores.Rebirths and readGlobal(stores.Rebirths, false)
 	if rebirths then

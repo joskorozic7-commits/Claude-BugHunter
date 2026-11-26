@@ -252,6 +252,27 @@ function Hands.Build(data)
 			end
 		end
 	end
+	-- Schweif beim Schlagen (in der Farbe der Hand)
+	local trailTop = Instance.new("Attachment")
+	trailTop.Name = "TrailTop"
+	trailTop.Position = Vector3.new(0, 0.9 * scale, 0)
+	trailTop.Parent = palm
+	local trailBottom = Instance.new("Attachment")
+	trailBottom.Name = "TrailBottom"
+	trailBottom.Position = Vector3.new(0, -0.6 * scale, 0)
+	trailBottom.Parent = palm
+	local trail = Instance.new("Trail")
+	trail.Name = "SlapTrail"
+	trail.Attachment0 = trailTop
+	trail.Attachment1 = trailBottom
+	trail.Lifetime = 0.18
+	trail.MinLength = 0.1
+	trail.FaceCamera = true
+	trail.LightEmission = 0.6
+	trail.Color = ColorSequence.new(color, Color3.fromRGB(255, 255, 255))
+	trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 1) })
+	trail.Parent = palm
+
 	if hand.Material == "Neon" then
 		local light = Instance.new("PointLight")
 		light.Color = color

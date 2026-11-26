@@ -54,6 +54,7 @@ local function sendUpdate(duel)
 	end
 	for _, player in ipairs({ duel.A, duel.B }) do
 		local opponent = other(duel, player)
+		local profile = ctx.Data.Get(player)
 		ctx.Remotes.Fire("Duel", player, {
 			Kind = "Update",
 			MyHealth = duel.Health[player],
@@ -61,6 +62,7 @@ local function sendUpdate(duel)
 			MaxHealth = D.Health,
 			TimeLeft = timeLeft,
 			Opponent = opponent.DisplayName,
+			MyCombo = profile and profile.DuelCombo or 0,
 		})
 	end
 end
@@ -94,6 +96,7 @@ local function finish(duel, winner, reason)
 	arenaInUse[duel.ArenaIndex] = nil
 
 	for _, player in ipairs({ duel.A, duel.B }) do
+		player:SetAttribute("InDuel", nil)
 		local profile = ctx.Data.Get(player)
 		if profile then
 			profile.Duel = nil
@@ -163,7 +166,9 @@ function Duel.Start(a, b)
 	profileA.LastDuelHit, profileB.LastDuelHit = 0, 0
 	profileA.DashUntil, profileB.DashUntil = 0, 0
 
+	profileA.LastDash, profileB.LastDash = 0, 0
 	for i, player in ipairs({ a, b }) do
+		player:SetAttribute("InDuel", true)
 		if player.Character then
 			player.Character:PivotTo(arena.Spawns[i])
 		end
@@ -224,6 +229,12 @@ function Duel.Slap(player, profile, root)
 	if crit then
 		damage = damage * D.CritMultiplier
 	end
+	-- Dash-Schlag: kurz nach einem Dash trifft man haerter
+	local dashStrike = now - (profile.LastDash or 0) <= D.DashStrikeWindow
+	if dashStrike then
+		damage = damage * D.DashStrikeMultiplier
+		profile.LastDash = profile.LastDash - D.DashStrikeWindow -- nur einmal pro Dash
+	end
 	damage = math.floor(damage * 10 + 0.5) / 10
 	duel.Health[opponent] = math.max(0, duel.Health[opponent] - damage)
 
@@ -234,7 +245,7 @@ function Duel.Slap(player, profile, root)
 	if flat.Magnitude < 0.01 then
 		flat = Vector3.new(0, 0, 1)
 	end
-	local strength = D.Knockback * (1 + missing * D.KnockbackGrowth) * (crit and 1.3 or 1)
+	local strength = D.Knockback * (1 + missing * D.KnockbackGrowth) * (crit and 1.3 or 1) * (dashStrike and 1.4 or 1)
 	ctx.Remotes.Fire("Knockback", opponent, flat.Unit * strength + Vector3.new(0, D.UpForce, 0), player.DisplayName)
 	ctx.Remotes.FireAll("SlapFx", {
 		Kind = "Duel",
@@ -244,6 +255,8 @@ function Duel.Slap(player, profile, root)
 		Crit = crit and 1 or 0,
 		UserId = player.UserId,
 		TargetId = opponent.UserId,
+		Combo = profile.DuelCombo,
+		Special = dashStrike and "DashStrike" or nil,
 	})
 	ctx.Data.AddStat(profile, "PvpSlaps", 1)
 

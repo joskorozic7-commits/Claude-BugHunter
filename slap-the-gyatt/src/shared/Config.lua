@@ -9,7 +9,7 @@
 local Config = {}
 
 Config.GameName = "Slap the Blob"
-Config.Version = "5.0"
+Config.Version = "6.0"
 
 --------------------------------------------------------------------------
 -- Speichern
@@ -34,18 +34,19 @@ Config.AutoSlapSlowdown = 1.35 -- Auto-Slap ist etwas langsamer als Klicken
 --------------------------------------------------------------------------
 -- Rebirth
 --------------------------------------------------------------------------
-Config.RebirthBaseCost = 250000
-Config.RebirthCostGrowth = 3.5
-Config.RebirthSlapBonus = 0.5 -- +50% Slaps pro Rebirth
-Config.RebirthDamageBonus = 0.25 -- +25% Schaden pro Rebirth
-Config.RebirthGems = 25 -- Gems pro Rebirth (mal Rebirth-Nummer)
+Config.RebirthBaseCost = 2500000
+Config.RebirthCostGrowth = 6
+Config.RebirthMinZone = 3 -- man muss mindestens Zone 3 haben
+Config.RebirthSlapBonus = 1 -- +100% Slaps pro Rebirth
+Config.RebirthDamageBonus = 0.5 -- +50% Schaden pro Rebirth
+Config.RebirthGems = 50 -- Gems pro Rebirth (mal Rebirth-Nummer)
 
 --------------------------------------------------------------------------
 -- Upgrades (mit Slaps kaufen, werden bei Rebirth zurueckgesetzt)
 -- Alle 10 Level kommt ein TIER-UP: teuer (Slaps + Gems), aber jede neue
 -- Stufe gibt einen viel groesseren Multiplikator als die letzte.
 --------------------------------------------------------------------------
-Config.UpgradeOrder = { "Power", "Speed", "Reach", "Luck", "Greed", "Combo" }
+Config.UpgradeOrder = { "Power", "Speed", "Reach", "Luck", "Greed", "Combo", "Legs", "Jump" }
 
 Config.TierSize = 10 -- Level pro Tier
 Config.TierCostGrowth = 4 -- jede Tier macht alle Level 4x teurer
@@ -72,6 +73,8 @@ Config.Upgrades = {
 	Luck = { DisplayName = "Crit Luck", Icon = "🍀", Description = "Higher chance for critical slaps (x3 damage).", MaxLevel = 50, BaseCost = 100, CostGrowth = 1.38 },
 	Greed = { DisplayName = "Slap Greed", Icon = "💰", Description = "More Slaps for every hit.", MaxLevel = 100, BaseCost = 150, CostGrowth = 1.3 },
 	Combo = { DisplayName = "Combo Master", Icon = "🔥", Description = "Higher max combo = more bonus Slaps.", MaxLevel = 40, BaseCost = 500, CostGrowth = 1.5 },
+	Legs = { DisplayName = "Leg Power", Icon = "🦵", Description = "Run faster through the worlds.", MaxLevel = 40, BaseCost = 200, CostGrowth = 1.45 },
+	Jump = { DisplayName = "Jump Power", Icon = "🦘", Description = "Jump higher.", MaxLevel = 30, BaseCost = 250, CostGrowth = 1.5 },
 }
 
 --------------------------------------------------------------------------
@@ -104,9 +107,24 @@ local GLOVE_MATERIALS = {
 	{ "Shadow", { 70, 25, 110 }, "Neon" },
 	{ "Galaxy", { 120, 50, 220 }, "Neon" },
 	{ "Rainbow", { 255, 80, 200 }, "Neon" },
+	{ "Plasma", { 255, 60, 255 }, "Neon" },
+	{ "Nebula", { 150, 60, 255 }, "Neon" },
+	{ "Solar", { 255, 190, 30 }, "Neon" },
+	{ "Lunar", { 210, 220, 255 }, "Neon" },
+	{ "Celestial", { 255, 240, 200 }, "Neon" },
+	{ "Void", { 30, 10, 60 }, "Neon" },
+	{ "Chrono", { 80, 255, 220 }, "Neon" },
+	{ "Quantum", { 0, 180, 255 }, "Neon" },
+	{ "Dragon", { 220, 20, 40 }, "Neon" },
+	{ "Titan", { 255, 150, 40 }, "Neon" },
+	{ "Divine", { 255, 255, 220 }, "Neon" },
+	{ "Eternal", { 255, 80, 120 }, "Neon" },
+	{ "Infinity", { 255, 255, 255 }, "Neon" },
 }
 local GLOVE_GRADES = { "", "Reinforced ", "Mega " }
-local SPECIAL_BASE_EFFECT = { Frost = "smoke", Lava = "fire", Thunder = "electric", Shadow = "shadow", Rainbow = "rainbow" }
+local SPECIAL_BASE_EFFECT = { Frost = "smoke", Lava = "fire", Thunder = "electric", Shadow = "shadow", Rainbow = "rainbow",
+	Plasma = "electric", Nebula = "orbit", Solar = "fire", Void = "shadow", Chrono = "orbit", Quantum = "electric", Dragon = "dragon",
+	Divine = "aura", Eternal = "orbit", Infinity = "rainbow" }
 do
 	local index = 0
 	for _, mat in ipairs(GLOVE_MATERIALS) do
@@ -119,7 +137,9 @@ do
 				effect = (mat[1] == "Rainbow") and "rainbow" or "aura"
 			end
 			local rarity = "Common"
-			if index > 48 then
+			if index > 84 then
+				rarity = "Ultra"
+			elseif index > 48 then
 				rarity = "Mythic"
 			elseif index > 36 then
 				rarity = "Legendary"
@@ -159,6 +179,14 @@ local GEM_GLOVES = {
 		SlapMultiplier = 2, CritBonus = 0.05 },
 	{ Id = "StarForge", DisplayName = "Star Forge Gauntlet", Rarity = "Mythic", Damage = 5000, Price = 40000, Currency = "Gems", Color = { 90, 200, 255 }, Material = "Neon", Effect = "orbit",
 		SlapMultiplier = 3, CritBonus = 0.08, ReachBonus = 4 },
+	{ Id = "FrostPhoenix", DisplayName = "Frost Phoenix Claw", Rarity = "Mythic", Damage = 15000, Price = 80000, Currency = "Gems", Color = { 150, 230, 255 }, Material = "Neon", Effect = "smoke",
+		SlapMultiplier = 4, CritBonus = 0.1, ReachBonus = 5 },
+	{ Id = "CelestialGauntlet", DisplayName = "Celestial Gauntlet", Rarity = "Ultra", Damage = 50000, Price = 150000, Currency = "Gems", Color = { 255, 240, 180 }, Material = "Neon", Effect = "aura",
+		SlapMultiplier = 6, CritBonus = 0.12, ReachBonus = 6 },
+	{ Id = "VoidReaper", DisplayName = "Void Reaper", Rarity = "Ultra", Damage = 150000, Price = 300000, Currency = "Gems", Color = { 60, 20, 100 }, Material = "Neon", Effect = "shadow",
+		SlapMultiplier = 8, CritBonus = 0.15, ReachBonus = 8, Snap = 0.02 },
+	{ Id = "EternalFist", DisplayName = "Eternal Fist", Rarity = "Ultra", Damage = 500000, Price = 600000, Currency = "Gems", Color = { 255, 90, 140 }, Material = "Neon", Effect = "omni",
+		SlapMultiplier = 12, CritBonus = 0.2, ReachBonus = 10, Snap = 0.04 },
 }
 for _, glove in ipairs(GEM_GLOVES) do
 	table.insert(Config.Hands, glove)
@@ -212,7 +240,7 @@ end
 --------------------------------------------------------------------------
 -- Seltenheiten
 --------------------------------------------------------------------------
-Config.RarityOrder = { "Common", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
+Config.RarityOrder = { "Common", "Rare", "Epic", "Legendary", "Mythic", "Ultra", "Secret", "UltraMaster" }
 Config.Rarities = {
 	Common = { DisplayName = "Common", Color = { 200, 200, 200 }, Order = 1 },
 	Rare = { DisplayName = "Rare", Color = { 80, 170, 255 }, Order = 2 },
@@ -221,6 +249,7 @@ Config.Rarities = {
 	Mythic = { DisplayName = "Mythic", Color = { 255, 60, 120 }, Order = 5 },
 	Ultra = { DisplayName = "ULTRA", Color = { 255, 240, 120 }, Order = 6 },
 	Secret = { DisplayName = "SECRET", Color = { 255, 255, 255 }, Order = 7 },
+	UltraMaster = { DisplayName = "ULTRA MASTER", Color = { 255, 90, 255 }, Order = 8 },
 }
 
 --------------------------------------------------------------------------
@@ -317,8 +346,8 @@ for _, def in ipairs(EGG_DEFS) do
 	table.insert(Config.EggOrder, eggId)
 end
 
-Config.BasePetSlots = 3
-Config.BaseInventory = 40
+Config.BasePetSlots = 4
+Config.BaseInventory = 60
 Config.LuckyBoostFactor = 2.5 -- Gewicht seltener Pets mit Glueck-Boost
 
 --------------------------------------------------------------------------
@@ -327,8 +356,8 @@ Config.LuckyBoostFactor = 2.5 -- Gewicht seltener Pets mit Glueck-Boost
 --   Decor: meadow, desert, ice, lava, cloud, space, candy, cyber, shadow, void
 --   Accessories (nur Blobs): bow, glasses, cowboy, scarf, horns, halo, antenna, crown
 --------------------------------------------------------------------------
-Config.ZoneLength = 130
-Config.ZoneWidth = 120
+Config.ZoneLength = 200
+Config.ZoneWidth = 160
 
 -- Dimensionen: am Ende der Oberwelt fuehrt ein Portal in die Rift-Dimension.
 Config.Dimensions = {
@@ -338,6 +367,7 @@ Config.Dimensions = {
 	{ Name = "Mythic Realm", FirstZone = 16, LastZone = 20, StartZ = 4050 },
 	{ Name = "Cosmic Realm", FirstZone = 21, LastZone = 25, StartZ = 5400 },
 	{ Name = "The Infinite", FirstZone = 26, LastZone = 30, StartZ = 6750 },
+	{ Name = "The Beyond", FirstZone = 31, LastZone = 37, StartZ = 8100 },
 }
 
 -- Ab Zone 11 gibt jede freigeschaltete Zone x3 Schaden (sonst waeren die
@@ -506,6 +536,14 @@ local EXTRA_ZONES = {
 	{ "Rainbow Road", "candy", { 255, 255, 255 }, "SmoothPlastic", { 255, 100, 200 }, { 200, 220, 255 }, "Rainbow", { "cube", "ghost" }, "Rainbow Overlord Blob", { "halo", "crown", "bow" } },
 	{ "Golden Paradise", "desert", { 255, 220, 120 }, "Sand", { 255, 200, 40 }, { 240, 190, 90 }, "Golden", { "golem", "robot" }, "Golden God Blob", { "crown", "glasses" } },
 	{ "INFINITY", "void", { 255, 255, 255 }, "Glass", { 0, 0, 0 }, { 200, 200, 210 }, "Infinity", { "ghost", "golem" }, "THE INFINITE BLOB", { "halo", "crown", "glasses" } },
+	-- The Beyond: 7 Welten mit eigener Spielmechanik
+	{ "Gravity Garden", "meadow", { 120, 220, 160 }, "Grass", { 120, 255, 220 }, { 200, 240, 220 }, "Gravity", { "ghost", "cube" }, "Zero-G Blob", { "halo", "bow" }, "lowgrav" },
+	{ "Glacier Slide", "ice", { 210, 240, 255 }, "Ice", { 60, 180, 255 }, { 170, 210, 240 }, "Slide", { "golem", "cube" }, "Glacier Titan Blob", { "scarf", "crown" }, "ice" },
+	{ "Bounce Castle", "candy", { 255, 210, 250 }, "SmoothPlastic", { 255, 120, 220 }, { 255, 240, 250 }, "Bounce", { "cube", "dummy" }, "Bouncy King Blob", { "crown", "bow" }, "bounce" },
+	{ "Hyper Highway", "cyber", { 15, 20, 40 }, "SmoothPlastic", { 255, 230, 0 }, { 50, 60, 90 }, "Hyper", { "robot", "cube" }, "Turbo Blob", { "antenna", "glasses" }, "boost" },
+	{ "Eclipse Valley", "shadow", { 15, 10, 20 }, "Slate", { 255, 140, 40 }, { 40, 30, 45 }, "Eclipse", { "ghost", "golem" }, "Eclipse Blob", { "horns", "halo" }, "dark" },
+	{ "Titan's Core", "lava", { 70, 20, 10 }, "Basalt", { 255, 70, 0 }, { 110, 40, 20 }, "Core", { "golem", "robot" }, "Core Titan Blob", { "horns", "crown" }, "heavy" },
+	{ "Tempest Peak", "cloud", { 120, 130, 160 }, "SmoothPlastic", { 120, 220, 255 }, { 100, 110, 140 }, "Tempest", { "ghost", "dummy" }, "TEMPEST GOD BLOB", { "halo", "crown", "glasses" }, "storm" },
 }
 
 local KIND_NAMES = { ghost = "Ghost", cube = "Cube", robot = "Bot", golem = "Golem", dummy = "Dummy" }
@@ -523,7 +561,7 @@ for k, def in ipairs(EXTRA_ZONES) do
 	local zoneIndex = 10 + k
 	local name, decorName, floor, floorMat, accent, path, word, kinds, bossName, bossAcc =
 		def[1], def[2], def[3], def[4], def[5], def[6], def[7], def[8], def[9], def[10]
-	local hp = 4 ^ k
+	local hp = 5 ^ k
 	local reward = 3.2 ^ k
 	local eggId = "Z" .. zoneIndex
 	local function shade(c, f)
@@ -531,7 +569,7 @@ for k, def in ipairs(EXTRA_ZONES) do
 			math.floor(math.min(255, c[2] * f)), math.floor(math.min(255, c[3] * f)) }
 	end
 	table.insert(Config.Zones, {
-		Name = name, Price = math.floor(basePrice * (25 ^ k)), Decor = decorName,
+		Name = name, Price = math.floor(basePrice * (40 ^ k)), Decor = decorName, Mechanic = def[11],
 		Floor = floor, FloorMaterial = floorMat, Accent = accent, Path = path,
 		Egg = eggId,
 		Gyatts = {
@@ -563,9 +601,242 @@ for k, def in ipairs(EXTRA_ZONES) do
 		}
 		table.insert(entries, { petId, slot.Weight })
 	end
-	Config.Eggs[eggId] = { DisplayName = word .. " Egg", Price = math.floor(basePrice * (25 ^ k) * 5), Currency = "Slaps", Color = accent, Zone = zoneIndex, Pets = entries }
+	Config.Eggs[eggId] = { DisplayName = word .. " Egg", Price = math.floor(basePrice * (40 ^ k) * 5), Currency = "Slaps", Color = accent, Zone = zoneIndex, Pets = entries }
 	table.insert(Config.EggOrder, eggId)
 end
+
+--------------------------------------------------------------------------
+-- Dimensionen automatisch hintereinander legen (700 Studs Luecke dazwischen)
+--------------------------------------------------------------------------
+do
+	local z = 0
+	for _, dim in ipairs(Config.Dimensions) do
+		dim.StartZ = z
+		z = z + (dim.LastZone - dim.FirstZone + 1) * Config.ZoneLength + 700
+	end
+end
+
+--------------------------------------------------------------------------
+-- Zonen-Mechaniken (Standard je Thema, einzelne Zonen koennen eine eigene haben)
+--   lowgrav  = wenig Schwerkraft      heavy = starke Schwerkraft
+--   floaty   = leicht schwebend       ice   = rutschiger Boden
+--   bounce   = Sprungpolster          boost = Turbo-Felder
+--   dark     = Dunkelheit             storm = Windboeen
+--------------------------------------------------------------------------
+Config.DecorMechanic = { space = "lowgrav", void = "lowgrav", ice = "ice", candy = "bounce", cyber = "boost", shadow = "dark", cloud = "floaty", desert = "storm" }
+Config.MechanicInfo = {
+	lowgrav = { Name = "Low Gravity", Icon = "🪐" },
+	heavy = { Name = "Heavy Gravity", Icon = "🪨" },
+	floaty = { Name = "Floaty Air", Icon = "☁️" },
+	ice = { Name = "Slippery Ice", Icon = "🧊" },
+	bounce = { Name = "Bounce Pads", Icon = "🟣" },
+	boost = { Name = "Turbo Pads", Icon = "⚡" },
+	dark = { Name = "Darkness", Icon = "🌑" },
+	storm = { Name = "Wind Gusts", Icon = "💨" },
+}
+for _, zone in ipairs(Config.Zones) do
+	if zone.Mechanic == nil then
+		zone.Mechanic = Config.DecorMechanic[zone.Decor]
+	end
+end
+
+--------------------------------------------------------------------------
+-- Pinata in jeder Zone: wenig Slaps, aber hohe Chance auf Items
+--------------------------------------------------------------------------
+for _, zone in ipairs(Config.Zones) do
+	local boss = zone.Gyatts[2]
+	table.insert(zone.Gyatts, {
+		Id = "Pinata", Kind = "pinata", DisplayName = "Lucky Pinata", MaxHealth = math.floor(boss.MaxHealth * 0.15) + 30, Size = 7,
+		Color = zone.Accent, RewardMultiplier = math.max(1, math.floor(boss.RewardMultiplier * 0.3)), Gems = 2, Respawn = 30,
+	})
+end
+
+-- Item-Dropchance pro Zieltyp (beim Besiegen, pro Spieler der geholfen hat)
+Config.KindDrops = { blob = 0.012, cube = 0.018, dummy = 0.01, robot = 0.022, ghost = 0.022, golem = 0.03, chest = 0.25, pinata = 0.15 }
+Config.BossDropBonus = 2 -- der Boss jeder Zone (2. Ziel) hat doppelte Chance
+-- Seltenheit von gefundenen Items. Je weiter die Zone, desto besser.
+Config.DropRarityWeights = { Common = 60, Rare = 26, Epic = 10, Legendary = 3.5, Mythic = 0.5 }
+
+--------------------------------------------------------------------------
+-- Weitere Eier: Gem-Eier, Robux-Eier, Wochen-Event-Eier
+--------------------------------------------------------------------------
+local function addEgg(eggId, eggName, price, currency, color, zone, baseBoost, slots, petDefs, extra)
+	local entries = {}
+	for i, slot in ipairs(slots) do
+		local petDef = petDefs[i]
+		local petId = eggId .. "_" .. i
+		local boost = baseBoost * slot.Factor
+		boost = boost >= 10 and math.floor(boost) or math.floor(boost * 100 + 0.5) / 100
+		Config.Pets[petId] = { DisplayName = petDef[1], Rarity = slot.Rarity, Boost = boost, Color = petDef[3], Style = petDef[2], Egg = eggId }
+		table.insert(entries, { petId, slot.Weight })
+	end
+	local egg = { DisplayName = eggName, Price = price, Currency = currency, Color = color, Zone = zone, Pets = entries }
+	for k, v in pairs(extra or {}) do
+		egg[k] = v
+	end
+	Config.Eggs[eggId] = egg
+	table.insert(Config.EggOrder, eggId)
+	return egg
+end
+
+-- Gem-Eier (Diamanten)
+addEgg("Diamond", "Diamond Egg", 1500, "Gems", { 120, 230, 255 }, 1, 60, {
+	{ Rarity = "Epic", Weight = 60, Factor = 7 }, { Rarity = "Epic", Weight = 28, Factor = 9 }, { Rarity = "Legendary", Weight = 9, Factor = 20 },
+	{ Rarity = "Legendary", Weight = 2.5, Factor = 26 }, { Rarity = "Mythic", Weight = 0.48, Factor = 60 }, { Rarity = "Ultra", Weight = 0.02, Factor = 150 },
+}, { { "Diamond Pup", "dog", { 150, 230, 255 } }, { "Diamond Cat", "cat", { 170, 240, 255 } }, { "Gem Fox", "fox", { 90, 210, 255 } },
+	{ "Crystal Owl", "owl", { 200, 250, 255 } }, { "Diamond Dragon", "dragon", { 120, 230, 255 } }, { "Prism Unicorn", "unicorn", { 230, 250, 255 } } }, { Shop = true })
+addEgg("Mythic", "Mythic Egg", 5000, "Gems", { 255, 80, 160 }, 1, 200, {
+	{ Rarity = "Legendary", Weight = 60, Factor = 20 }, { Rarity = "Legendary", Weight = 28, Factor = 26 }, { Rarity = "Mythic", Weight = 9, Factor = 55 },
+	{ Rarity = "Mythic", Weight = 2.5, Factor = 70 }, { Rarity = "Ultra", Weight = 0.49, Factor = 150 }, { Rarity = "Secret", Weight = 0.01, Factor = 1000 },
+}, { { "Mythic Wolf", "dog", { 255, 90, 160 } }, { "Mythic Phoenix", "bird", { 255, 120, 60 } }, { "Mythic Kraken", "octopus", { 200, 60, 255 } },
+	{ "Mythic Dragon", "dragon", { 255, 60, 140 } }, { "Mythic Whale", "whale", { 255, 140, 220 } }, { "The Mythic One", "ghost", { 255, 200, 255 } } }, { Shop = true })
+
+-- ROBUX-EIER (Developer Products, R$100 bis R$1000). ProductId eintragen wie bei den Gems.
+Config.RobuxEggs = {
+	{ Id = "RobuxEgg1", Name = "Robux Egg", Robux = 100, ProductId = 0, Color = { 120, 255, 140 }, Base = 50,
+		Slots = { { Rarity = "Rare", Weight = 50, Factor = 3 }, { Rarity = "Epic", Weight = 25, Factor = 7 }, { Rarity = "Epic", Weight = 10, Factor = 9 },
+			{ Rarity = "Legendary", Weight = 9, Factor = 20 }, { Rarity = "Legendary", Weight = 3, Factor = 26 }, { Rarity = "Mythic", Weight = 3, Factor = 60 } },
+		Pets = { { "Lucky Pup", "dog", { 120, 255, 140 } }, { "Clover Cat", "cat", { 90, 220, 110 } }, { "Emerald Fox", "fox", { 60, 200, 120 } },
+			{ "Jade Dragon", "dragon", { 80, 220, 140 } }, { "Fortune Owl", "owl", { 255, 220, 90 } }, { "Lucky Unicorn", "unicorn", { 180, 255, 190 } } } },
+	{ Id = "RobuxEgg2", Name = "Super Egg", Robux = 250, ProductId = 0, Color = { 90, 180, 255 }, Base = 200,
+		Slots = { { Rarity = "Epic", Weight = 50, Factor = 7 }, { Rarity = "Legendary", Weight = 25, Factor = 20 }, { Rarity = "Legendary", Weight = 10, Factor = 26 },
+			{ Rarity = "Mythic", Weight = 9, Factor = 60 }, { Rarity = "Mythic", Weight = 4, Factor = 75 }, { Rarity = "Ultra", Weight = 2, Factor = 150 } },
+		Pets = { { "Super Shark", "shark", { 90, 180, 255 } }, { "Super Bee", "bee", { 255, 230, 90 } }, { "Storm Bat", "bat", { 120, 140, 255 } },
+			{ "Super Dino", "dino", { 90, 200, 255 } }, { "Sky Whale", "whale", { 150, 210, 255 } }, { "Super Dragon", "dragon", { 60, 140, 255 } } } },
+	{ Id = "RobuxEgg3", Name = "Mega Egg", Robux = 500, ProductId = 0, Color = { 200, 90, 255 }, Base = 800,
+		Slots = { { Rarity = "Legendary", Weight = 50, Factor = 20 }, { Rarity = "Mythic", Weight = 25, Factor = 60 }, { Rarity = "Mythic", Weight = 13, Factor = 75 },
+			{ Rarity = "Ultra", Weight = 8, Factor = 150 }, { Rarity = "Ultra", Weight = 3, Factor = 180 }, { Rarity = "UltraMaster", Weight = 1, Factor = 400 } },
+		Pets = { { "Mega Golem", "golem", { 200, 90, 255 } }, { "Mega Panda", "panda", { 230, 200, 255 } }, { "Mega Kraken", "octopus", { 170, 60, 255 } },
+			{ "Mega Phoenix", "bird", { 255, 90, 220 } }, { "Mega Unicorn", "unicorn", { 220, 160, 255 } }, { "Mega Overlord", "dragon", { 150, 40, 255 } } } },
+	{ Id = "RobuxEgg4", Name = "Ultra Master Egg", Robux = 1000, ProductId = 0, Color = { 255, 90, 255 }, Base = 3000,
+		Slots = { { Rarity = "Mythic", Weight = 45, Factor = 60 }, { Rarity = "Ultra", Weight = 25, Factor = 150 }, { Rarity = "Ultra", Weight = 20, Factor = 180 },
+			{ Rarity = "UltraMaster", Weight = 6, Factor = 400 }, { Rarity = "UltraMaster", Weight = 3, Factor = 500 }, { Rarity = "UltraMaster", Weight = 1, Factor = 800 } },
+		Pets = { { "Master Wolf", "dog", { 255, 120, 255 } }, { "Master Dragon", "dragon", { 255, 60, 220 } }, { "Master Whale", "whale", { 255, 150, 255 } },
+			{ "Ultra Master Phoenix", "bird", { 255, 200, 90 } }, { "Ultra Master Kraken", "octopus", { 255, 80, 200 } }, { "THE ULTRA MASTER", "ghost", { 255, 255, 255 } } } },
+}
+for _, robuxEgg in ipairs(Config.RobuxEggs) do
+	addEgg(robuxEgg.Id, robuxEgg.Name, robuxEgg.Robux, "Robux", robuxEgg.Color, 1, robuxEgg.Base, robuxEgg.Slots, robuxEgg.Pets, { Robux = true })
+end
+
+-- WOCHEN-EVENTS: jede Woche ein anderes Event-Ei mit exklusiven Pets (nur in dieser Woche!)
+local EVENT_SLOTS = {
+	{ Rarity = "Legendary", Weight = 60, Factor = 20 }, { Rarity = "Legendary", Weight = 28, Factor = 26 }, { Rarity = "Mythic", Weight = 9, Factor = 60 },
+	{ Rarity = "Mythic", Weight = 2.5, Factor = 75 }, { Rarity = "Ultra", Weight = 0.48, Factor = 160 }, { Rarity = "Secret", Weight = 0.02, Factor = 1200 },
+}
+Config.WeeklyEvents = {
+	{ Id = "Spooky", Name = "Spooky Week", Color = { 255, 120, 30 }, Pets = { { "Pumpkin Pup", "dog", { 255, 140, 30 } }, { "Witch Cat", "cat", { 90, 40, 120 } },
+		{ "Spooky Bat", "bat", { 60, 30, 70 } }, { "Ghost Owl", "owl", { 230, 230, 255 } }, { "Headless Dragon", "dragon", { 255, 100, 20 } }, { "Phantom King", "ghost", { 200, 255, 200 } } } },
+	{ Id = "Winter", Name = "Winter Wonderland", Color = { 170, 220, 255 }, Pets = { { "Snow Pup", "dog", { 240, 250, 255 } }, { "Reindeer", "unicorn", { 170, 110, 70 } },
+		{ "Ice Penguin", "bird", { 60, 70, 100 } }, { "Frost Panda", "panda", { 200, 230, 255 } }, { "Gift Golem", "golem", { 220, 40, 60 } }, { "Santa Blob", "ghost", { 255, 60, 60 } } } },
+	{ Id = "Spring", Name = "Spring Bloom", Color = { 255, 170, 220 }, Pets = { { "Easter Bunny", "bunny", { 255, 220, 240 } }, { "Flower Bee", "bee", { 255, 230, 120 } },
+		{ "Petal Fox", "fox", { 255, 160, 200 } }, { "Garden Frog", "frog", { 120, 220, 120 } }, { "Blossom Dragon", "dragon", { 255, 180, 230 } }, { "Spring Spirit", "ghost", { 230, 255, 220 } } } },
+	{ Id = "Summer", Name = "Summer Splash", Color = { 80, 200, 255 }, Pets = { { "Beach Crab", "octopus", { 255, 110, 80 } }, { "Surf Shark", "shark", { 90, 160, 220 } },
+		{ "Sunny Turtle", "turtle", { 90, 200, 120 } }, { "Coconut Cat", "cat", { 200, 150, 90 } }, { "Tidal Whale", "whale", { 40, 140, 255 } }, { "Sun God", "ghost", { 255, 220, 80 } } } },
+	{ Id = "Space", Name = "Space Week", Color = { 140, 90, 255 }, Pets = { { "Astro Pup", "dog", { 220, 220, 240 } }, { "UFO Alien", "alien", { 120, 255, 160 } },
+		{ "Comet Jelly", "jelly", { 120, 200, 255 } }, { "Rocket Robot", "robot", { 200, 200, 220 } }, { "Nebula Dragon", "dragon", { 160, 80, 255 } }, { "Black Hole", "ghost", { 40, 0, 80 } } } },
+	{ Id = "Dragon", Name = "Dragon Festival", Color = { 255, 60, 60 }, Pets = { { "Lantern Pup", "dog", { 255, 80, 60 } }, { "Lucky Cat", "cat", { 255, 220, 120 } },
+		{ "Fire Dino", "dino", { 255, 100, 30 } }, { "Jade Turtle", "turtle", { 60, 200, 130 } }, { "Golden Dragon King", "dragon", { 255, 200, 40 } }, { "Dragon Spirit", "ghost", { 255, 90, 90 } } } },
+}
+Config.EventEggPrice = 500 -- Gems
+for _, event in ipairs(Config.WeeklyEvents) do
+	event.EggId = "Event_" .. event.Id
+	addEgg(event.EggId, event.Name .. " Egg", Config.EventEggPrice, "Gems", event.Color, 1, 300, EVENT_SLOTS, event.Pets, { Event = event.Id })
+end
+
+--------------------------------------------------------------------------
+-- ITEMS / ACCESSOIRES: 3 Kategorien x 25. Veraendern das Aussehen und
+-- geben Werte. 3 gleiche Items (gleiche Stufe) = 1 Item mit +1 Stern (max 5).
+--------------------------------------------------------------------------
+Config.ItemCategories = { "Hat", "Back", "Aura" }
+Config.ItemCategoryInfo = {
+	Hat = { Name = "Hats", Icon = "🎩", Stat = "Damage" },
+	Back = { Name = "Wings & Backs", Icon = "🪽", Stat = "Speed" },
+	Aura = { Name = "Auras", Icon = "✨", Stat = "Slaps" },
+}
+Config.StatInfo = {
+	Damage = { Name = "Damage", Icon = "💪" },
+	Slaps = { Name = "Slaps", Icon = "💰" },
+	Speed = { Name = "Walk Speed", Icon = "🦵" },
+	Luck = { Name = "Crit Luck", Icon = "🍀" },
+	Gems = { Name = "Gem Find", Icon = "💎" },
+}
+Config.ItemRarityValue = { Common = 0.05, Rare = 0.12, Epic = 0.25, Legendary = 0.5, Mythic = 1, Ultra = 2.5, UltraMaster = 6 }
+Config.ItemLevelMultiplier = { 1, 1.6, 2.5, 4, 6.5 }
+Config.ItemMaxLevel = 5
+Config.ItemInventory = 120
+Config.Items = {}
+Config.ItemOrder = {}
+
+local ITEM_RARITY_BY_INDEX = { "Common", "Common", "Common", "Common", "Common", "Rare", "Rare", "Rare", "Rare", "Rare",
+	"Epic", "Epic", "Epic", "Epic", "Legendary", "Legendary", "Legendary", "Legendary", "Mythic", "Mythic", "Mythic", "Ultra", "Ultra", "UltraMaster", "UltraMaster" }
+-- { Name, Form, Farbe, Material, Effekt }
+local ITEM_DEFS = {
+	Hat = {
+		{ "Party Hat", "cone", { 255, 90, 160 } }, { "Baseball Cap", "cap", { 60, 120, 255 } }, { "Beanie", "beanie", { 230, 60, 60 } },
+		{ "Top Hat", "tophat", { 30, 30, 35 } }, { "Cowboy Hat", "brim", { 150, 100, 60 } }, { "Chef Hat", "chef", { 255, 255, 255 } },
+		{ "Bunny Ears", "ears_long", { 255, 220, 235 } }, { "Cat Ears", "ears_cat", { 255, 170, 90 } }, { "Viking Helmet", "horns", { 180, 180, 190 } },
+		{ "Ninja Band", "band", { 30, 30, 40 } }, { "Wizard Hat", "wizard", { 90, 60, 200 } }, { "Flower Crown", "ring", { 255, 150, 200 } },
+		{ "Knight Helmet", "helm", { 200, 205, 215 }, "Metal" }, { "Space Helmet", "dome", { 200, 230, 255 }, "Glass" }, { "Golden Crown", "crown", { 255, 200, 40 }, "Foil" },
+		{ "Angel Halo", "halo", { 255, 240, 120 }, "Neon" }, { "Demon Horns", "horns", { 200, 20, 30 }, "Neon" }, { "Antlers", "antlers", { 140, 100, 70 } },
+		{ "Ice Crown", "crown", { 160, 220, 255 }, "Ice" }, { "Flame Crown", "crown", { 255, 110, 20 }, "Neon", "fire" }, { "Samurai Kabuto", "helm", { 180, 30, 40 }, "Metal" },
+		{ "Galaxy Crown", "crown", { 120, 60, 255 }, "Neon", "sparkles" }, { "Cosmic Halo", "halo", { 160, 120, 255 }, "Neon", "sparkles" },
+		{ "Ultra Master Crown", "crown", { 255, 90, 255 }, "Neon", "rainbow" }, { "Infinity Halo", "halo", { 255, 255, 255 }, "Neon", "rainbow" },
+	},
+	Back = {
+		{ "Small Backpack", "backpack", { 230, 90, 60 } }, { "Cape", "cape", { 200, 30, 50 } }, { "Fairy Wings", "wings_round", { 200, 255, 240 }, "Glass" },
+		{ "Bee Wings", "wings_round", { 230, 240, 255 }, "Glass" }, { "Leaf Wings", "wings_feather", { 90, 200, 90 } }, { "Butterfly Wings", "wings_round", { 255, 150, 60 } },
+		{ "Bat Wings", "wings_bat", { 50, 30, 60 } }, { "Jetpack", "jetpack", { 180, 180, 190 }, "Metal" }, { "Royal Cape", "cape", { 120, 40, 200 } },
+		{ "Feather Cape", "cape", { 240, 240, 255 } }, { "Angel Wings", "wings_feather", { 255, 255, 255 } }, { "Rocket Pack", "jetpack", { 255, 80, 60 }, "Metal", "fire" },
+		{ "Dragon Wings", "wings_bat", { 200, 30, 30 } }, { "Ice Wings", "wings_feather", { 170, 225, 255 }, "Ice" }, { "Phoenix Wings", "wings_feather", { 255, 140, 30 }, "Neon", "fire" },
+		{ "Shadow Wings", "wings_bat", { 40, 10, 60 }, "Neon", "smoke" }, { "Crystal Wings", "wings_round", { 150, 230, 255 }, "Glass", "sparkles" }, { "Mecha Wings", "wings_feather", { 120, 130, 150 }, "Metal" },
+		{ "Golden Wings", "wings_feather", { 255, 200, 40 }, "Foil", "sparkles" }, { "Thunder Wings", "wings_feather", { 255, 240, 80 }, "Neon" }, { "Lava Wings", "wings_bat", { 255, 90, 20 }, "Neon", "fire" },
+		{ "Galaxy Wings", "wings_round", { 120, 60, 255 }, "Neon", "sparkles" }, { "Void Wings", "wings_bat", { 20, 0, 40 }, "Neon", "smoke" },
+		{ "Celestial Wings", "wings_feather", { 255, 240, 200 }, "Neon", "rainbow" }, { "Ultra Master Wings", "wings_feather", { 255, 90, 255 }, "Neon", "rainbow" },
+	},
+	Aura = {
+		{ "Sparkle Aura", "aura", { 255, 255, 200 } }, { "Bubble Aura", "aura", { 150, 220, 255 } }, { "Leaf Aura", "aura", { 100, 220, 100 } },
+		{ "Heart Aura", "aura", { 255, 90, 150 } }, { "Snow Aura", "aura", { 240, 250, 255 } }, { "Smoke Aura", "aura", { 150, 150, 160 }, nil, "smoke" },
+		{ "Star Aura", "aura", { 255, 230, 90 } }, { "Music Aura", "aura", { 200, 120, 255 } }, { "Toxic Aura", "aura", { 140, 255, 60 } },
+		{ "Ice Aura", "aura", { 160, 230, 255 } }, { "Fire Aura", "aura", { 255, 110, 20 }, nil, "fire" }, { "Lightning Aura", "aura", { 255, 250, 120 } },
+		{ "Pixel Aura", "aura", { 60, 255, 200 } }, { "Ghost Aura", "aura", { 220, 230, 255 }, nil, "smoke" }, { "Gold Aura", "aura", { 255, 200, 40 }, nil, "sparkles" },
+		{ "Crystal Aura", "aura", { 150, 240, 255 }, nil, "sparkles" }, { "Lava Aura", "aura", { 255, 70, 0 }, nil, "fire" }, { "Shadow Aura", "aura", { 60, 0, 90 }, nil, "smoke" },
+		{ "Rainbow Aura", "aura", { 255, 120, 220 }, nil, "rainbow" }, { "Angel Aura", "aura", { 255, 250, 220 }, nil, "sparkles" }, { "Demon Aura", "aura", { 255, 30, 60 }, nil, "fire" },
+		{ "Cosmic Aura", "aura", { 140, 90, 255 }, nil, "sparkles" }, { "Galaxy Aura", "aura", { 100, 60, 255 }, nil, "rainbow" },
+		{ "Ultra Master Aura", "aura", { 255, 90, 255 }, nil, "rainbow" }, { "Infinity Aura", "aura", { 255, 255, 255 }, nil, "rainbow" },
+	},
+}
+for _, category in ipairs(Config.ItemCategories) do
+	for i, def in ipairs(ITEM_DEFS[category]) do
+		local itemId = category .. "_" .. i
+		local stat = Config.ItemCategoryInfo[category].Stat
+		if category == "Aura" then
+			stat = ({ "Slaps", "Luck", "Gems" })[(i % 3) + 1]
+		elseif category == "Back" and i % 4 == 0 then
+			stat = "Slaps"
+		end
+		Config.Items[itemId] = {
+			Id = itemId, Category = category, DisplayName = def[1], Form = def[2], Color = def[3], Material = def[4] or "SmoothPlastic",
+			Effect = def[5], Rarity = ITEM_RARITY_BY_INDEX[i], Stat = stat,
+		}
+		table.insert(Config.ItemOrder, itemId)
+	end
+end
+
+-- Kisten mit zufaelligen Items. Gewichte nach Seltenheit.
+Config.ItemCrates = {
+	{ Id = "StarterCrate", Name = "Starter Crate", Price = 5000, Currency = "Slaps", Count = 1, Weights = { Common = 80, Rare = 18, Epic = 2 } },
+	{ Id = "BasicCrate", Name = "Basic Crate", Price = 60, Currency = "Gems", Count = 1, Weights = { Common = 55, Rare = 32, Epic = 12, Legendary = 1 } },
+	{ Id = "RoyalCrate", Name = "Royal Crate", Price = 400, Currency = "Gems", Count = 1, Weights = { Rare = 40, Epic = 40, Legendary = 17, Mythic = 3 } },
+	{ Id = "MythicCrate", Name = "Mythic Crate", Price = 2500, Currency = "Gems", Count = 1, Weights = { Epic = 40, Legendary = 45, Mythic = 15 } },
+	-- ROBUX-KISTEN (Developer Products, R$100 bis R$10000). ProductId eintragen.
+	{ Id = "RobuxCrate1", Name = "Bronze Robux Crate", Robux = 100, ProductId = 0, Currency = "Robux", Count = 1, Weights = { Epic = 70, Legendary = 28, Mythic = 2 } },
+	{ Id = "RobuxCrate2", Name = "Silver Robux Crate", Robux = 250, ProductId = 0, Currency = "Robux", Count = 1, Weights = { Legendary = 70, Mythic = 28, Ultra = 2 } },
+	{ Id = "RobuxCrate3", Name = "Gold Robux Crate", Robux = 500, ProductId = 0, Currency = "Robux", Count = 1, Weights = { Legendary = 40, Mythic = 50, Ultra = 10 } },
+	{ Id = "RobuxCrate4", Name = "Diamond Robux Crate", Robux = 1000, ProductId = 0, Currency = "Robux", Count = 2, Weights = { Mythic = 60, Ultra = 38, UltraMaster = 2 } },
+	{ Id = "RobuxCrate5", Name = "Ultra Crate", Robux = 2500, ProductId = 0, Currency = "Robux", Count = 2, Weights = { Mythic = 30, Ultra = 60, UltraMaster = 10 } },
+	{ Id = "RobuxCrate6", Name = "Master Crate", Robux = 5000, ProductId = 0, Currency = "Robux", Count = 3, Weights = { Ultra = 70, UltraMaster = 30 } },
+	{ Id = "RobuxCrate7", Name = "Ultra Master Crate", Robux = 10000, ProductId = 0, Currency = "Robux", Count = 3, Weights = { UltraMaster = 100 } },
+}
 
 -- Goldener Gyatt (Server-Event)
 Config.GoldenGyatt = {
@@ -585,8 +856,8 @@ Config.GoldenGyatt = {
 --------------------------------------------------------------------------
 Config.GemShop = {
 	{ Id = "AutoSlap", DisplayName = "Auto-Slap", Icon = "🤖", Description = "Slaps automatically when you are close to a Blob.", Prices = { 200 } },
-	{ Id = "PetSlot", DisplayName = "+1 Pet Slot", Icon = "🐾", Description = "Equip one more pet at the same time.", Prices = { 150, 400, 900 } },
-	{ Id = "Inventory", DisplayName = "+20 Pet Storage", Icon = "🎒", Description = "More room for your pets.", Prices = { 80, 200, 450 } },
+	{ Id = "PetSlot", DisplayName = "+1 Pet Slot", Icon = "🐾", Description = "Equip one more pet at the same time (up to 10).", Prices = { 150, 400, 900, 2000, 4500, 9000 } },
+	{ Id = "Inventory", DisplayName = "+20 Pet Storage", Icon = "🎒", Description = "More room for your pets.", Prices = { 80, 200, 450, 1000, 2200 } },
 	{ Id = "DoubleSlaps", DisplayName = "2x Slaps (15 min)", Icon = "⏫", Description = "Double Slaps for 15 minutes.", Prices = { 60 }, Boost = "DoubleSlaps", Duration = 900, Repeatable = true },
 	{ Id = "LuckyEggs", DisplayName = "Egg Luck (15 min)", Icon = "🌈", Description = "Rare pets show up much more often.", Prices = { 40 }, Boost = "LuckyEggs", Duration = 900, Repeatable = true },
 	{ Id = "DoubleDamage", DisplayName = "2x Damage (15 min)", Icon = "🥊", Description = "Double damage for 15 minutes.", Prices = { 60 }, Boost = "DoubleDamage", Duration = 900, Repeatable = true },
@@ -647,9 +918,9 @@ Config.Codes = {
 -- Duell: beide werden in eine eigene Arena teleportiert.
 --------------------------------------------------------------------------
 Config.Arena = { -- die Duell-Zone im Hub
-	CenterX = -34,
-	CenterZ = -38,
-	Radius = 20,
+	CenterX = -45,
+	CenterZ = -90,
+	Radius = 22,
 }
 Config.Duel = {
 	Health = 150,
@@ -671,6 +942,8 @@ Config.Duel = {
 	DashCooldown = 2.5,
 	DashInvulnerable = 0.35,
 	DashSpeed = 75,
+	DashStrikeWindow = 0.6, -- Schlag kurz nach dem Dash = Dash-Schlag
+	DashStrikeMultiplier = 1.5,
 	RingOutDepth = 25,
 	WinGems = 10,
 	LoseGems = 2,
@@ -704,7 +977,7 @@ Config.Trade = {
 }
 
 -- Hub (Startbereich) liegt bei Z < 0
-Config.HubLength = 80
-Config.SpawnPosition = { 10, -52 }
+Config.HubLength = 120
+Config.SpawnPosition = { 0, -55 }
 
 return Config

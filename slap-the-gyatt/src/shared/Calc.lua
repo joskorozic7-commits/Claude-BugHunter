@@ -162,6 +162,16 @@ function Calc.GetComboMultiplier(combo)
 	return 1 + combo * Config.ComboBonusPerStack
 end
 
+function Calc.GetLegSpeed(legLevel)
+	legLevel = Calc.ClampLevel("Legs", legLevel)
+	return 16 + legLevel * 0.4 + Calc.GetTier(legLevel) * 2
+end
+
+function Calc.GetJumpPower(jumpLevel)
+	jumpLevel = Calc.ClampLevel("Jump", jumpLevel)
+	return 50 + jumpLevel * 1.2 + Calc.GetTier(jumpLevel) * 5
+end
+
 function Calc.GetHandScale(powerLevel)
 	powerLevel = Calc.ClampLevel("Power", powerLevel)
 	return 1 + math.min(powerLevel, 60) * 0.025
@@ -180,6 +190,10 @@ function Calc.DescribeUpgrade(id, level)
 		return Calc.FormatMultiplier(Calc.GetGreedMultiplier(level)) .. " Slaps"
 	elseif id == "Combo" then
 		return "Max Combo " .. Calc.GetMaxCombo(level)
+	elseif id == "Legs" then
+		return string.format("%.1f walk speed", Calc.GetLegSpeed(level))
+	elseif id == "Jump" then
+		return string.format("%d jump power", math.floor(Calc.GetJumpPower(level)))
 	end
 	return ""
 end
@@ -370,6 +384,7 @@ function Calc.GetDamage(data, now)
 	local hand = Calc.GetHand(data.Hand)
 	local damage = Calc.GetBaseDamage(upgrades.Power) * hand.Damage * Calc.GetRebirthDamageMultiplier(data.Rebirths)
 		* Calc.GetZonePower(data.Zones)
+		* (1 + Calc.GetItemBonuses(data).Damage)
 	if Calc.IsBoostActive(data, "DoubleDamage", now) then
 		damage = damage * 2
 	end
@@ -384,16 +399,115 @@ function Calc.GetSlapMultiplier(data, now)
 		* Calc.GetRebirthSlapMultiplier(data.Rebirths)
 		* Calc.GetPetBoost(Calc.GetEquippedPetIds(data))
 		* (hand.SlapMultiplier or 1)
+		* (1 + Calc.GetItemBonuses(data).Slaps)
 	if Calc.IsBoostActive(data, "DoubleSlaps", now) then
 		multiplier = multiplier * 2
 	end
 	return multiplier
 end
 
+--------------------------------------------------------------------------
+-- Items (Accessoires)
+--------------------------------------------------------------------------
+function Calc.GetItemValue(itemId, level)
+	local item = Config.Items[itemId]
+	if not item then
+		return 0
+	end
+	level = math.max(1, math.min(Config.ItemMaxLevel, math.floor(tonumber(level) or 1)))
+	return (Config.ItemRarityValue[item.Rarity] or 0) * Config.ItemLevelMultiplier[level]
+end
+
+function Calc.DescribeItem(itemId, level)
+	local item = Config.Items[itemId]
+	if not item then
+		return ""
+	end
+	local value = Calc.GetItemValue(itemId, level)
+	local stat = Config.StatInfo[item.Stat]
+	if item.Stat == "Speed" then
+		return stat.Icon .. " +" .. string.format("%.1f", math.min(30, value * 10)) .. " " .. stat.Name
+	elseif item.Stat == "Luck" then
+		return stat.Icon .. " +" .. string.format("%.1f", value * 10) .. "% " .. stat.Name
+	end
+	return stat.Icon .. " +" .. Calc.FormatNumber(math.floor(value * 100 + 0.5)) .. "% " .. stat.Name
+end
+
+-- Summe aller ausgeruesteten Items: { Damage, Slaps, Speed, Luck, Gems }
+function Calc.GetItemBonuses(data)
+	local bonus = { Damage = 0, Slaps = 0, Speed = 0, Luck = 0, Gems = 0 }
+	if type(data) ~= "table" or type(data.Items) ~= "table" then
+		return bonus
+	end
+	for _, owned in ipairs(data.Items) do
+		local item = owned.Equipped and Config.Items[owned.Id]
+		if item then
+			bonus[item.Stat] = bonus[item.Stat] + Calc.GetItemValue(owned.Id, owned.Level)
+		end
+	end
+	return bonus
+end
+
+function Calc.GetWalkSpeed(data)
+	local upgrades = (type(data) == "table" and data.Upgrades) or {}
+	local bonus = Calc.GetItemBonuses(data)
+	return Calc.GetLegSpeed(upgrades.Legs) + math.min(30, bonus.Speed * 10)
+end
+
+--------------------------------------------------------------------------
+-- Wochen-Events (Woche beginnt Montag 00:00 UTC)
+--------------------------------------------------------------------------
+function Calc.GetWeekNumber(unixTime)
+	return math.floor(((tonumber(unixTime) or 0) - 345600) / 604800)
+end
+
+function Calc.GetCurrentEvent(unixTime)
+	local week = Calc.GetWeekNumber(unixTime)
+	local event = Config.WeeklyEvents[(week % #Config.WeeklyEvents) + 1]
+	local endsAt = (week + 1) * 604800 + 345600
+	return event, endsAt
+end
+
+-- Seltenheit nach Gewichten wuerfeln. randomFn() liefert [0,1)
+function Calc.RollRarity(weights, randomFn)
+	local total = 0
+	for _, rarity in ipairs(Config.RarityOrder) do
+		total = total + (weights[rarity] or 0)
+	end
+	local roll = randomFn() * total
+	local last = nil
+	for _, rarity in ipairs(Config.RarityOrder) do
+		local w = weights[rarity] or 0
+		if w > 0 then
+			last = rarity
+			if roll < w then
+				return rarity
+			end
+			roll = roll - w
+		end
+	end
+	return last
+end
+
+-- zufaelliges Item einer Seltenheit (optional nur aus einer Kategorie)
+function Calc.PickItem(rarity, randomFn, category)
+	local pool = {}
+	for _, itemId in ipairs(Config.ItemOrder) do
+		local item = Config.Items[itemId]
+		if item.Rarity == rarity and (category == nil or item.Category == category) then
+			table.insert(pool, itemId)
+		end
+	end
+	if #pool == 0 then
+		return nil
+	end
+	return pool[math.min(#pool, math.floor(randomFn() * #pool) + 1)]
+end
+
 -- Krit-Chance inklusive Hand-Bonus
 function Calc.GetTotalCritChance(data)
 	local hand = Calc.GetHand(data.Hand)
-	return math.min(0.95, Calc.GetCritChance((data.Upgrades or {}).Luck) + (hand.CritBonus or 0))
+	return math.min(0.95, Calc.GetCritChance((data.Upgrades or {}).Luck) + (hand.CritBonus or 0) + Calc.GetItemBonuses(data).Luck * 0.1)
 end
 
 -- Reichweite inklusive Hand-Bonus

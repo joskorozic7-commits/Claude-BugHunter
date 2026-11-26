@@ -609,6 +609,68 @@ local function buildLighting()
 	rays.Spread = 0.8
 end
 
+-- Verkaufsstand (Kiosk). Oeffnet beim Benutzen ein Menue (Attribut OpenMenu).
+World.Kiosks = {}
+local function kiosk(parent, position, facing, title, icon, menu, color, sub)
+	local k = folder("Kiosk_" .. menu, parent)
+	local look = CFrame.lookAt(position, position + facing)
+	local function at(x, y, z)
+		return look * CFrame.new(x, y, z)
+	end
+	local wood = Color3.fromRGB(120, 80, 50)
+	-- Theke
+	part({ Name = "Counter", Size = Vector3.new(14, 3.4, 4), CFrame = at(0, FLOOR + 1.7, 0), Color = wood, Material = Enum.Material.Wood, Parent = k })
+	part({ Name = "CounterTop", Size = Vector3.new(14.6, 0.4, 4.6), CFrame = at(0, FLOOR + 3.6, 0), Color = color, Material = Enum.Material.SmoothPlastic, Parent = k })
+	-- Rueckwand + Pfosten
+	part({ Name = "Back", Size = Vector3.new(14, 10, 0.6), CFrame = at(0, FLOOR + 5, 5), Color = Color3.fromRGB(70, 45, 90), Parent = k })
+	for _, x in ipairs({ -6.8, 6.8 }) do
+		part({ Name = "Post", Size = Vector3.new(0.8, 11, 0.8), CFrame = at(x, FLOOR + 5.5, -1.6), Color = wood, Material = Enum.Material.Wood, Parent = k })
+	end
+	-- gestreiftes Dach
+	for i = 0, 6 do
+		part({ Name = "Awning", Size = Vector3.new(2, 0.3, 8), CFrame = at(-6 + i * 2, FLOOR + 11.3, 1.6) * CFrame.Angles(math.rad(-14), 0, 0),
+			Color = (i % 2 == 0) and color or Color3.fromRGB(255, 255, 255), Parent = k })
+	end
+	-- Schild
+	local board = sign(k, at(0, FLOOR + 13.6, 1), Vector3.new(14, 3.2, 0.5), icon .. " " .. title, Color3.fromRGB(255, 255, 255), color, Enum.NormalId.Front)
+	board.Name = "KioskSign"
+	-- Ware auf der Theke
+	local display = ball(k, at(0, FLOOR + 5.2, 0.5).Position, 2.6, color, Enum.Material.Neon)
+	display.Name = "Display"
+	display.CanCollide = false
+	addLight(display, color, 16, 1.4)
+	-- Verkaeufer-Blob
+	local seller = ball(k, at(0, FLOOR + 5, 3).Position, 3.4, Color3.fromRGB(255, 190, 215), Enum.Material.SmoothPlastic)
+	seller.Name = "Seller"
+	for _, side in ipairs({ -1, 1 }) do
+		ball(k, (at(side * 0.6, FLOOR + 5.6, 1.5)).Position, 0.8, Color3.fromRGB(255, 255, 255)).Name = "Eye"
+		ball(k, (at(side * 0.6, FLOOR + 5.6, 1.2)).Position, 0.4, Color3.fromRGB(25, 20, 30)).Name = "Pupil"
+	end
+	local promptPart = part({ Name = "KioskPrompt", Size = Vector3.new(1, 1, 1), CFrame = at(0, FLOOR + 3, -3), Transparency = 1, CanCollide = false, Parent = k })
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "OpenPrompt"
+	prompt.ActionText = "Open"
+	prompt.ObjectText = title .. (sub and (" (" .. sub .. ")") or "")
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt:SetAttribute("OpenMenu", menu)
+	prompt.Parent = promptPart
+	table.insert(World.Kiosks, { Menu = menu, Prompt = prompt, Position = position })
+	return k
+end
+World.BuildKiosk = kiosk
+
+local KIOSKS = {
+	{ -1, -15, "UPGRADES", "🛒", "Shop", { 255, 110, 180 }, "Slaps" },
+	{ -1, -38, "GLOVES", "✋", "Hands", { 255, 170, 60 }, "Slaps / Gems / Robux" },
+	{ -1, -61, "EGG SHOP", "🥚", "EggShop", { 120, 200, 255 }, "Gems / Robux" },
+	{ 1, -15, "ITEM CRATES", "🎁", "ItemShop", { 170, 110, 255 }, "Slaps / Gems / Robux" },
+	{ 1, -38, "GEM SHOP", "💎", "Gems", { 80, 230, 255 }, "Gems / Robux" },
+	{ 1, -61, "FORGE", "🔨", "Items", { 255, 90, 90 }, "Merge items" },
+}
+
 local function buildHub()
 	local hub = folder("Hub", root)
 	local length = Config.HubLength
@@ -621,21 +683,12 @@ local function buildHub()
 		Material = Enum.Material.Pebble,
 		Parent = hub,
 	})
-	-- Muster-Fliesen
-	for x = -2, 2 do
-		for z = 1, 3 do
-			if (x + z) % 2 == 0 then
-				part({
-					Name = "Tile",
-					Size = Vector3.new(10, 0.1, 10),
-					CFrame = CFrame.new(x * 10, FLOOR + 0.05, -z * 10 - 20),
-					Color = Color3.fromRGB(255, 160, 200),
-					Material = Enum.Material.Marble,
-					CanCollide = false,
-					Parent = hub,
-				})
-			end
-		end
+	-- Weg zur ersten Zone + Marktplatz-Fliesen
+	part({ Name = "HubPath", Size = Vector3.new(14, 0.1, length), CFrame = CFrame.new(0, FLOOR + 0.05, -length / 2),
+		Color = Color3.fromRGB(255, 225, 240), Material = Enum.Material.Marble, CanCollide = false, Parent = hub })
+	for _, side in ipairs({ -1, 1 }) do
+		part({ Name = "MarketStrip", Size = Vector3.new(22, 0.1, 72), CFrame = CFrame.new(side * 66, FLOOR + 0.06, -38),
+			Color = Color3.fromRGB(255, 170, 205), Material = Enum.Material.Marble, CanCollide = false, Parent = hub })
 	end
 
 	local spawnPos = Config.SpawnPosition
@@ -652,14 +705,13 @@ local function buildHub()
 	spawn.Parent = hub
 	World.Spawn = spawn
 
-	-- Brunnen
-	local fx, fz = 10, -22
+	-- Brunnen hinter dem Spawn
+	local fx, fz = 0, -80
 	pillar(hub, Vector3.new(fx, FLOOR, fz), 1.5, 16, Color3.fromRGB(230, 230, 240), Enum.Material.Marble)
 	local water = disc(hub, Vector3.new(fx, FLOOR + 1.45, fz), 0.2, 14, Color3.fromRGB(110, 200, 255), Enum.Material.Glass)
 	water.Transparency = 0.25
 	water.CanCollide = false
 	pillar(hub, Vector3.new(fx, FLOOR, fz), 5, 2, Color3.fromRGB(230, 230, 240), Enum.Material.Marble)
-	-- Mini-Blob-Statue mit Gesicht
 	local statue = ball(hub, Vector3.new(fx, FLOOR + 7.5, fz), 5, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
 	local face = Instance.new("Decal")
 	face.Texture = "rbxasset://textures/face.png"
@@ -669,23 +721,28 @@ local function buildHub()
 	sparkle.SparkleColor = Color3.fromRGB(255, 200, 230)
 	sparkle.Parent = statue
 
-	-- Laternen
-	for _, pos in ipairs({ { -20, -8 }, { 20, -8 }, { -20, -60 }, { 30, -60 }, { 50, -8 }, { -50, -8 } }) do
-		local base = Vector3.new(pos[1], FLOOR, pos[2])
-		pillar(hub, base, 9, 0.6, Color3.fromRGB(50, 40, 60), Enum.Material.Metal)
-		local lamp = ball(hub, base + Vector3.new(0, 9.5, 0), 1.6, Color3.fromRGB(255, 230, 180), Enum.Material.Neon)
-		addLight(lamp, Color3.fromRGB(255, 220, 170), 22, 1.6)
+	-- Laternen am Weg
+	for _, z in ipairs({ -10, -35, -60 }) do
+		for _, side in ipairs({ -1, 1 }) do
+			local base = Vector3.new(side * 12, FLOOR, z)
+			pillar(hub, base, 9, 0.6, Color3.fromRGB(50, 40, 60), Enum.Material.Metal)
+			local lamp = ball(hub, base + Vector3.new(0, 9.5, 0), 1.6, Color3.fromRGB(255, 230, 180), Enum.Material.Neon)
+			addLight(lamp, Color3.fromRGB(255, 220, 170), 22, 1.6)
+		end
 	end
 
-	-- Schilder
-	sign(hub, CFrame.new(-8, FLOOR + 8, -12) * CFrame.Angles(0, math.rad(-20), 0), Vector3.new(16, 7, 0.8),
-		"👋 SLAP THE BLOB 👋\nClick the Blobs with your hand!", Color3.fromRGB(255, 170, 220), nil, Enum.NormalId.Front)
-	pillar(hub, Vector3.new(-8, FLOOR, -12), 4.5, 0.8, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
+	-- Willkommens-Bogen ueber dem Weg (vom Spawn aus lesbar)
+	for _, side in ipairs({ -1, 1 }) do
+		pillar(hub, Vector3.new(side * 10, FLOOR, -4), 15, 1.6, Color3.fromRGB(255, 110, 180), Enum.Material.Neon)
+	end
+	sign(hub, CFrame.new(0, FLOOR + 16, -4), Vector3.new(24, 4, 0.8), "👋 SLAP THE BLOB → ZONE 1", Color3.fromRGB(255, 255, 255),
+		Color3.fromRGB(120, 40, 100), Enum.NormalId.Front)
 
-	sign(hub, CFrame.new(28, FLOOR + 7, -12) * CFrame.Angles(0, math.rad(20), 0), Vector3.new(16, 9, 0.8),
-		"📖 HOW TO PLAY\n1. Slap Blobs = Slaps\n2. Upgrade your hand in the Shop\n3. New zones & eggs\n4. Rebirth for a mega bonus!",
-		Color3.fromRGB(255, 255, 255), Color3.fromRGB(70, 40, 90), Enum.NormalId.Front)
-	pillar(hub, Vector3.new(28, FLOOR, -12), 2.6, 0.8, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
+	-- Verkaufsstaende links und rechts
+	for _, k in ipairs(KIOSKS) do
+		local side = k[1]
+		kiosk(hub, Vector3.new(side * 72, 0, k[2]), Vector3.new(-side, 0, 0), k[3], k[4], k[5], rgb(k[6]), k[7])
+	end
 
 	-- Bestenlisten
 	World.Leaderboards = {}
@@ -740,25 +797,134 @@ local function buildHub()
 		World.Leaderboards[id] = rows
 	end
 	-- stehen rechts und schauen zur Mitte (-X)
-	leaderboard("Earned", "🏆 MOST SLAPS", CFrame.new(50, FLOOR + 14, -32) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 110, 180))
-	leaderboard("Rebirths", "♻️ MOST REBIRTHS", CFrame.new(50, FLOOR + 14, -56) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(150, 90, 255))
+	leaderboard("Earned", "🏆 MOST SLAPS", CFrame.new(72, FLOOR + 14, -85) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 110, 180))
+	leaderboard("Rebirths", "♻️ MOST REBIRTHS", CFrame.new(72, FLOOR + 14, -108) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(150, 90, 255))
 
-	-- PvP-Arena
+	-- Siegertreppchen fuer die Top 3 (Spieler-Avatare werden vom Server draufgestellt)
+	World.Podium = {}
+	local podiumCenter = Vector3.new(38, FLOOR, -96)
+	local steps = {
+		{ Rank = 1, X = 0, H = 6, Color = Color3.fromRGB(255, 205, 40) },
+		{ Rank = 2, X = -8, H = 4, Color = Color3.fromRGB(205, 210, 225) },
+		{ Rank = 3, X = 8, H = 2.5, Color = Color3.fromRGB(215, 135, 70) },
+	}
+	part({ Name = "PodiumBase", Size = Vector3.new(28, 0.6, 12), CFrame = CFrame.new(podiumCenter + Vector3.new(0, 0.3, 0)), Color = Color3.fromRGB(70, 40, 90), Material = Enum.Material.Marble, Parent = hub })
+	for _, st in ipairs(steps) do
+		local pos = podiumCenter + Vector3.new(st.X, 0, 0)
+		local block = part({ Name = "PodiumStep" .. st.Rank, Size = Vector3.new(7.6, st.H, 7.6), CFrame = CFrame.new(pos + Vector3.new(0, st.H / 2 + 0.6, 0)), Color = st.Color, Material = Enum.Material.Foil, Parent = hub })
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front
+		gui.LightInfluence = 0
+		gui.Parent = block
+		local num = Instance.new("TextLabel")
+		num.Size = UDim2.fromScale(1, 1)
+		num.BackgroundTransparency = 1
+		num.Font = Enum.Font.FredokaOne
+		num.TextScaled = true
+		num.TextColor3 = Color3.fromRGB(255, 255, 255)
+		num.TextStrokeTransparency = 0
+		num.Text = tostring(st.Rank)
+		num.Parent = gui
+		-- Namensschild
+		local billboard = Instance.new("BillboardGui")
+		billboard.Name = "PodiumName"
+		billboard.Size = UDim2.new(10, 0, 2.4, 0)
+		billboard.StudsOffsetWorldSpace = Vector3.new(0, st.H / 2 + 8.5, 0)
+		billboard.MaxDistance = 90
+		billboard.LightInfluence = 0
+		billboard.Parent = block
+		local label = Instance.new("TextLabel")
+		label.Name = "Text"
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.TextColor3 = st.Color
+		label.TextStrokeTransparency = 0
+		label.Text = (st.Rank == 1 and "👑 " or "") .. "#" .. st.Rank .. "  ..."
+		label.Parent = billboard
+		World.Podium[st.Rank] = { Top = CFrame.new(pos + Vector3.new(0, st.H + 0.6, 0)) * CFrame.Angles(0, math.rad(180), 0), Label = label, Block = block }
+	end
+	sign(hub, CFrame.new(podiumCenter + Vector3.new(0, 17, 4)), Vector3.new(22, 3.5, 0.6), "🏆 TOP 3 SLAPPERS 🏆", Color3.fromRGB(255, 230, 120),
+		Color3.fromRGB(70, 30, 90), Enum.NormalId.Back)
+
+	-- Wochen-Event-Stand (Ei wechselt jede Woche)
+	local eventPos = Vector3.new(0, FLOOR, -104)
+	local standFolder = folder("EventStand", hub)
+	local base = pillar(standFolder, eventPos, 2.5, 11, Color3.fromRGB(60, 40, 75), Enum.Material.Marble)
+	base.Name = "EventBase"
+	disc(standFolder, eventPos + Vector3.new(0, 2.55, 0), 0.3, 11.6, Color3.fromRGB(255, 220, 90), Enum.Material.Neon)
+	local eventEgg = part({ Name = "Egg", Size = Vector3.new(6, 7.8, 6), CFrame = CFrame.new(eventPos + Vector3.new(0, 7, 0)), Color = Color3.fromRGB(255, 200, 90), Material = Enum.Material.Foil, Parent = standFolder })
+	local eggMesh = Instance.new("SpecialMesh")
+	eggMesh.MeshType = Enum.MeshType.Sphere
+	eggMesh.Parent = eventEgg
+	eventEgg:SetAttribute("BaseY", eventPos.Y + 7)
+	CollectionService:AddTag(eventEgg, "SlapEgg")
+	addLight(eventEgg, Color3.fromRGB(255, 220, 120), 18, 2)
+	local eventSparkle = Instance.new("Sparkles")
+	eventSparkle.SparkleColor = Color3.fromRGB(255, 230, 120)
+	eventSparkle.Parent = eventEgg
+	local eventBoard = Instance.new("BillboardGui")
+	eventBoard.Name = "EventInfo"
+	eventBoard.Size = UDim2.new(14, 0, 5, 0)
+	eventBoard.StudsOffsetWorldSpace = Vector3.new(0, 13, 0)
+	eventBoard.MaxDistance = 90
+	eventBoard.LightInfluence = 0
+	eventBoard.Adornee = base
+	eventBoard.Parent = base
+	local eventTitle = Instance.new("TextLabel")
+	eventTitle.Name = "Title"
+	eventTitle.Size = UDim2.fromScale(1, 0.55)
+	eventTitle.BackgroundTransparency = 1
+	eventTitle.Font = Enum.Font.FredokaOne
+	eventTitle.TextScaled = true
+	eventTitle.TextColor3 = Color3.fromRGB(255, 220, 90)
+	eventTitle.TextStrokeTransparency = 0
+	eventTitle.Text = "⭐ WEEKLY EVENT"
+	eventTitle.Parent = eventBoard
+	local eventTimer = Instance.new("TextLabel")
+	eventTimer.Name = "Timer"
+	eventTimer.Position = UDim2.fromScale(0, 0.55)
+	eventTimer.Size = UDim2.fromScale(1, 0.4)
+	eventTimer.BackgroundTransparency = 1
+	eventTimer.Font = Enum.Font.GothamBold
+	eventTimer.TextScaled = true
+	eventTimer.TextColor3 = Color3.fromRGB(255, 255, 255)
+	eventTimer.TextStrokeTransparency = 0.2
+	eventTimer.Text = "Exclusive pets!"
+	eventTimer.Parent = eventBoard
+	local eventPrompt = Instance.new("ProximityPrompt")
+	eventPrompt.Name = "OpenPrompt"
+	eventPrompt.ActionText = "Open Event Shop"
+	eventPrompt.ObjectText = "Weekly Event Egg"
+	eventPrompt.HoldDuration = 0
+	eventPrompt.MaxActivationDistance = 13
+	eventPrompt.RequiresLineOfSight = false
+	eventPrompt:SetAttribute("OpenMenu", "EggShop")
+	eventPrompt.Parent = base
+	World.EventStand = { Egg = eventEgg, Title = eventTitle, Timer = eventTimer, Prompt = eventPrompt }
+
+	-- PvP-Duell-Zone (flach, ohne Pfosten = freie Sicht)
 	local arena = Config.Arena
 	local center = Vector3.new(arena.CenterX, FLOOR, arena.CenterZ)
 	disc(hub, center + Vector3.new(0, 0.4, 0), 0.8, arena.Radius * 2 + 2, Color3.fromRGB(255, 60, 140), Enum.Material.Neon)
 	local platform = disc(hub, center + Vector3.new(0, 0.6, 0), 1, arena.Radius * 2, Color3.fromRGB(60, 40, 80), Enum.Material.DiamondPlate)
 	platform.Name = "ArenaFloor"
-	for i = 1, 8 do
-		local angle = (i / 8) * math.pi * 2
-		local postPos = center + Vector3.new(math.cos(angle) * (arena.Radius + 0.5), 0, math.sin(angle) * (arena.Radius + 0.5))
-		pillar(hub, postPos, 5, 1, Color3.fromRGB(255, 255, 255), Enum.Material.Metal)
-		local top = ball(hub, postPos + Vector3.new(0, 5.4, 0), 1.3, Color3.fromRGB(255, 60, 140), Enum.Material.Neon)
-		addLight(top, Color3.fromRGB(255, 80, 160), 10, 1)
-	end
-	-- Schild auf der Seite zum Spawn (+X), Text zeigt nach +X
-	sign(hub, CFrame.new(center + Vector3.new(arena.Radius + 3, 9, 0)) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(20, 5, 0.8),
-		"⚔️ DUEL ZONE ⚔️\nSlap a player here to start a duel!", Color3.fromRGB(255, 220, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Front)
+	local markGui = Instance.new("SurfaceGui")
+	markGui.Face = Enum.NormalId.Right
+	markGui.LightInfluence = 0
+	markGui.Parent = platform
+	local markText = Instance.new("TextLabel")
+	markText.Size = UDim2.fromScale(1, 1)
+	markText.BackgroundTransparency = 1
+	markText.Font = Enum.Font.FredokaOne
+	markText.TextScaled = true
+	markText.TextTransparency = 0.5
+	markText.TextColor3 = Color3.fromRGB(255, 120, 180)
+	markText.Text = "⚔️"
+	markText.Parent = markGui
+	sign(hub, CFrame.new(center + Vector3.new(0, 7, -arena.Radius - 3)), Vector3.new(22, 5, 0.8),
+		"⚔️ DUEL ZONE ⚔️\nSlap a player here to start a duel!", Color3.fromRGB(255, 220, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Back)
 	World.Arena = { Center = center, Radius = arena.Radius }
 end
 
@@ -770,8 +936,15 @@ local function buildZone(index, zone)
 	local centerZ = startZ + length / 2
 	local accent = rgb(zone.Accent)
 	local info = { Index = index, StartZ = startZ, Folder = zFolder }
+	-- Positionen wurden fuer 120x130 entworfen und auf die grosse Zone skaliert
+	local SX, SZ = Config.ZoneWidth / 120, length / 130
+	local function at(x, z)
+		return x * SX, startZ + z * SZ
+	end
+	local mechanic = zone.Mechanic or "none"
+	info.Mechanic = mechanic
 
-	part({
+	local floorPart = part({
 		Name = "Floor",
 		Size = Vector3.new(Config.ZoneWidth, 2, length),
 		CFrame = CFrame.new(0, FLOOR - 1, centerZ),
@@ -779,6 +952,11 @@ local function buildZone(index, zone)
 		Material = material(zone.FloorMaterial),
 		Parent = zFolder,
 	})
+	if mechanic == "ice" then
+		-- rutschiger Boden
+		floorPart.Material = Enum.Material.Ice
+		floorPart.CustomPhysicalProperties = PhysicalProperties.new(0.9, 0.02, 0.1, 100, 1)
+	end
 	part({
 		Name = "Path",
 		Size = Vector3.new(12, 0.2, length),
@@ -790,24 +968,32 @@ local function buildZone(index, zone)
 	})
 
 	-- Gyatt-Plaetze (Podeste)
-	info.GyattSpots = {
-		CFrame.new(-22, FLOOR + 0.6, startZ + 48),
-		CFrame.new(20, FLOOR + 0.6, startZ + 92),
-		CFrame.new(24, FLOOR + 0.6, startZ + 42),
-		CFrame.new(-40, FLOOR + 0.6, startZ + 82),
-	}
+	local SPOTS = { { -22, 48 }, { 20, 92 }, { 24, 42 }, { -40, 82 }, { 34, 112 } }
+	info.GyattSpots = {}
+	for i, s in ipairs(SPOTS) do
+		local x, z = at(s[1], s[2])
+		info.GyattSpots[i] = CFrame.new(x, FLOOR + 0.6, z)
+	end
 	for i, spot in ipairs(info.GyattSpots) do
 		local size = (zone.Gyatts[i] or zone.Gyatts[1]).Size
 		disc(zFolder, spot.Position, 0.6, size + 6, accent, Enum.Material.Neon).Name = "GyattPad"
 		disc(zFolder, spot.Position + Vector3.new(0, 0.1, 0), 0.6, size + 4, Color3.fromRGB(255, 255, 255), Enum.Material.Marble).Name = "GyattPadTop"
 	end
-	info.GoldenSpot = CFrame.new(-28, FLOOR + 0.6, startZ + 108)
+	do
+		local gx, gz = at(-28, 108)
+		info.GoldenSpot = CFrame.new(gx, FLOOR + 0.6, gz)
+	end
 
 	-- Eingangsbogen
 	local archZ = startZ + 6
 	pillar(zFolder, Vector3.new(-14, FLOOR, archZ), 16, 2.5, accent, Enum.Material.Neon)
 	pillar(zFolder, Vector3.new(14, FLOOR, archZ), 16, 2.5, accent, Enum.Material.Neon)
-	sign(zFolder, CFrame.new(0, FLOOR + 17.5, archZ), Vector3.new(32, 4, 1), "Zone " .. index .. ": " .. zone.Name,
+	local mechInfo = Config.MechanicInfo and Config.MechanicInfo[mechanic]
+	local archText = "Zone " .. index .. ": " .. zone.Name
+	if mechInfo and mechanic ~= "none" then
+		archText = archText .. "  " .. mechInfo.Icon
+	end
+	sign(zFolder, CFrame.new(0, FLOOR + 17.5, archZ), Vector3.new(32, 4, 1), archText,
 		Color3.fromRGB(255, 255, 255), Color3.fromRGB(40, 25, 55), Enum.NormalId.Front)
 
 	-- Tor (ab Zone 2)
@@ -954,12 +1140,16 @@ local function buildZone(index, zone)
 		end
 		table.insert(info.EggStands, { EggId = eggId, Prompts = prompts })
 	end
-	eggStand(zone.Egg, Vector3.new(42, FLOOR, startZ + 24))
+	local function eggAt(x, z)
+		local ex, ez = at(x, z)
+		return Vector3.new(ex, FLOOR, ez)
+	end
+	eggStand(zone.Egg, eggAt(42, 24))
 	if zone.ExtraEgg then
-		eggStand(zone.ExtraEgg, Vector3.new(42, FLOOR, startZ + 62))
+		eggStand(zone.ExtraEgg, eggAt(42, 62))
 	end
 	if zone.ExtraEgg2 then
-		eggStand(zone.ExtraEgg2, Vector3.new(-44, FLOOR, startZ + 20))
+		eggStand(zone.ExtraEgg2, eggAt(-44, 20))
 	end
 	if egg == nil then
 		warn("[SlapTheBlob] Zone " .. index .. " has no valid egg")
@@ -968,17 +1158,53 @@ local function buildZone(index, zone)
 	-- Deko
 	local rng = Random.new(1000 + index * 77)
 	local blocked = {
-		{ X = -22, Z = startZ + 48, R = zone.Gyatts[1].Size + 8 },
-		{ X = 20, Z = startZ + 92, R = zone.Gyatts[2].Size + 8 },
-		{ X = 42, Z = startZ + 24, R = 9 },
-		{ X = 42, Z = startZ + 62, R = 9 },
-		{ X = -44, Z = startZ + 20, R = 9 },
-		{ X = 24, Z = startZ + 42, R = 14 },
-		{ X = -40, Z = startZ + 82, R = 9 },
-		{ X = -28, Z = startZ + 108, R = 14 },
-		{ X = 0, Z = startZ + 6, R = 16 },
-		{ X = 0, Z = startZ + length - 14, R = 22 },
+		{ X = 42, Z = 24, R = 9 },
+		{ X = 42, Z = 62, R = 9 },
+		{ X = -44, Z = 20, R = 9 },
+		{ X = -28, Z = 108, R = 14 },
 	}
+	for i, s in ipairs(SPOTS) do
+		local cfg = zone.Gyatts[i] or zone.Gyatts[1]
+		table.insert(blocked, { X = s[1], Z = s[2], R = cfg.Size + 8 })
+	end
+	for _, b in ipairs(blocked) do
+		b.X, b.Z = at(b.X, b.Z)
+	end
+	table.insert(blocked, { X = 0, Z = startZ + 6, R = 16 })
+	table.insert(blocked, { X = 0, Z = startZ + length - 14, R = 22 })
+	info.Pads = {}
+	if mechanic == "bounce" or mechanic == "boost" then
+		-- Sprung- bzw. Turbo-Felder in der Zone verteilen
+		local padRng = Random.new(5000 + index)
+		for n = 1, 10 do
+			local px, pz
+			local tries = 0
+			repeat
+				px = padRng:NextNumber(-HALF_WIDTH + 12, HALF_WIDTH - 12)
+				pz = padRng:NextNumber(startZ + 24, startZ + length - 30)
+				tries = tries + 1
+				local ok = true
+				for _, b in ipairs(blocked) do
+					local dx, dz = px - b.X, pz - b.Z
+					if math.sqrt(dx * dx + dz * dz) < b.R + 6 then
+						ok = false
+					end
+				end
+			until ok or tries > 30
+			if mechanic == "bounce" then
+				local pad = disc(zFolder, Vector3.new(px, FLOOR + 0.3, pz), 0.6, 9, Color3.fromRGB(255, 120, 220), Enum.Material.Neon)
+				pad.Name = "BouncePad"
+				CollectionService:AddTag(pad, "SlapBouncePad")
+				table.insert(info.Pads, pad)
+			else
+				local pad = part({ Name = "BoostPad", Size = Vector3.new(8, 0.4, 12), CFrame = CFrame.new(px, FLOOR + 0.2, pz) * CFrame.Angles(0, (n % 2 == 0) and 0 or math.pi, 0),
+					Color = Color3.fromRGB(80, 230, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = zFolder })
+				CollectionService:AddTag(pad, "SlapBoostPad")
+				table.insert(info.Pads, pad)
+			end
+			table.insert(blocked, { X = px, Z = pz, R = 6 })
+		end
+	end
 	local function isFree(x, z, radius)
 		if math.abs(x) < 9 + radius then
 			return false -- Weg frei lassen
@@ -1079,7 +1305,7 @@ local function buildZone(index, zone)
 	end
 
 	-- Blick in die Zone hinein (+Z)
-	info.TeleportCFrame = CFrame.new(0, FLOOR + 4, startZ + 14) * CFrame.Angles(0, math.pi, 0)
+	info.TeleportCFrame = CFrame.new(0, FLOOR + 4, startZ + 16) * CFrame.Angles(0, math.pi, 0)
 	World.Zones[index] = info
 	return info
 end
@@ -1148,6 +1374,12 @@ local function buildLandings()
 			prompt.MaxActivationDistance = 14
 			prompt.RequiresLineOfSight = false
 			prompt.Parent = returnPart
+			-- kleine Verkaufsstaende auch hier, damit man nicht zurueck muss
+			local kz = frontZ + length / 2
+			kiosk(landing, Vector3.new(-60, 0, kz - 10), Vector3.new(1, 0, 0), "UPGRADES", "🛒", "Shop", Color3.fromRGB(255, 110, 180), "Slaps")
+			kiosk(landing, Vector3.new(-60, 0, kz + 12), Vector3.new(1, 0, 0), "GLOVES", "✋", "Hands", Color3.fromRGB(255, 170, 60), "Slaps / Gems")
+			kiosk(landing, Vector3.new(60, 0, kz - 10), Vector3.new(-1, 0, 0), "ITEM CRATES", "🎁", "ItemShop", Color3.fromRGB(170, 110, 255), "Slaps / Gems")
+			kiosk(landing, Vector3.new(60, 0, kz + 12), Vector3.new(-1, 0, 0), "FORGE", "🔨", "Items", Color3.fromRGB(255, 90, 90), "Merge items")
 			World.Dimensions[dimIndex] = {
 				LandingCFrame = CFrame.new(0, FLOOR + 4, frontZ + 20) * CFrame.Angles(0, math.pi, 0),
 				ReturnPrompt = prompt,
@@ -1169,14 +1401,12 @@ local function buildDuelArenas()
 		disc(arenaFolder, center + Vector3.new(0, -1.5, 0), 3, r * 2 + 3, Color3.fromRGB(255, 50, 120), Enum.Material.Neon)
 		local floorPart = disc(arenaFolder, center + Vector3.new(0, -0.5, 0), 1.2, r * 2, Color3.fromRGB(45, 30, 70), Enum.Material.DiamondPlate)
 		floorPart.Name = "DuelFloor"
-		for k = 1, 10 do
-			local angle = (k / 10) * math.pi * 2
-			local p = center + Vector3.new(math.cos(angle) * (r - 1), 0, math.sin(angle) * (r - 1))
-			local orb = ball(arenaFolder, p + Vector3.new(0, 0.6, 0), 1.5, Color3.fromRGB(255, 200, 80), Enum.Material.Neon)
-			orb.CanCollide = false
-		end
-		sign(arenaFolder, CFrame.new(center + Vector3.new(0, 18, -r - 4)), Vector3.new(26, 5, 1), "⚔️ DUEL ARENA " .. i .. " ⚔️",
-			Color3.fromRGB(255, 230, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Back)
+		-- nur ein flacher Leuchtring am Rand: freie Sicht im Kampf
+		local edge = disc(arenaFolder, center + Vector3.new(0, 0.12, 0), 0.1, r * 2 - 1, Color3.fromRGB(255, 120, 180), Enum.Material.Neon)
+		edge.CanCollide = false
+		edge.Transparency = 0.6
+		local inner = disc(arenaFolder, center + Vector3.new(0, 0.15, 0), 0.1, r * 2 - 4, Color3.fromRGB(45, 30, 70), Enum.Material.DiamondPlate)
+		inner.CanCollide = false
 		World.DuelArenas[i] = {
 			Center = center,
 			Spawns = {
