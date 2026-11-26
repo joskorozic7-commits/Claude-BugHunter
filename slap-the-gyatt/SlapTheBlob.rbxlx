@@ -2946,6 +2946,10 @@ local function buildModel(spec)
 	hpText.Parent = barBack
 
 	model.PrimaryPart = body
+	-- beim Streaming (Standard in neuen Spielen) immer das ganze Modell auf einmal laden
+	pcall(function()
+		model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	end)
 	model:SetAttribute("Key", spec.Key)
 	model:SetAttribute("BaseCFrame", base)
 	model:SetAttribute("Size", S)
@@ -3172,7 +3176,13 @@ function Gyatts.SpawnGolden(zoneIndex)
 		return
 	end
 	local golden = Config.GoldenGyatt
-	local bigGyatt = zone.Gyatts[#zone.Gyatts]
+	-- staerkstes Ziel der Zone (nicht die Schatzkiste)
+	local bigGyatt = zone.Gyatts[1]
+	for _, target in ipairs(zone.Gyatts) do
+		if target.Kind ~= "chest" and target.MaxHealth > bigGyatt.MaxHealth then
+			bigGyatt = target
+		end
+	end
 	local maxHealth = math.floor(bigGyatt.MaxHealth * golden.HealthFactor)
 	local g = createGyatt({
 		Key = "Golden",
