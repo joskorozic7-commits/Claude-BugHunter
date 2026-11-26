@@ -12,7 +12,7 @@ local DuelUI = {}
 local ctx, UI, Config, Create
 
 local player = Players.LocalPlayer
-local frame, myBar, theirBar, myLabel, theirLabel, timerLabel, bigLabel, bigScale, dashButton
+local frame, myBar, theirBar, myLabel, theirLabel, timerLabel, bigLabel, bigScale, dashButton, comboLabel, comboScale
 local active = false
 local duelScale
 local dashReadyAt = 0
@@ -42,6 +42,10 @@ local function build()
 	local _, a = UI.ProgressBar({ Position = UDim2.new(0, 10, 0, 34), Size = UDim2.new(0.5, -20, 0, 22), Color = Color3.fromRGB(80, 220, 120), Parent = frame })
 	local _, b = UI.ProgressBar({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 34), Size = UDim2.new(0.5, -20, 0, 22), Color = Color3.fromRGB(255, 70, 90), Parent = frame })
 	myBar, theirBar = a, b
+	comboLabel = UI.Label({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.new(0.5, 0, 0, 26), Text = "",
+		TextColor3 = Color3.fromRGB(255, 170, 60), ZIndex = 11, Parent = frame })
+	UI.TextStroke(2).Parent = comboLabel
+	comboScale = Create("UIScale", { Scale = 1, Parent = comboLabel })
 
 	bigLabel = UI.Label({
 		Name = "DuelBig",
@@ -120,6 +124,7 @@ function DuelUI.OnEvent(info)
 		dashButton.Visible = true
 		theirLabel.Text = tostring(info.Opponent)
 		myLabel.Text = player.DisplayName
+		comboLabel.Text = "💨 Dash + slap = DASH STRIKE!"
 		UI.SetProgress(myBar, 1)
 		UI.SetProgress(theirBar, 1)
 		timerLabel.Text = tostring(info.Duration or 60)
@@ -142,6 +147,14 @@ function DuelUI.OnEvent(info)
 		myLabel.Text = player.DisplayName .. "  " .. math.ceil(myHealth)
 		theirLabel.Text = math.ceil(theirHealth) .. "  " .. tostring(info.Opponent or "")
 		timerLabel.Text = tostring(math.ceil(tonumber(info.TimeLeft) or 0))
+		local combo = tonumber(info.MyCombo) or 0
+		if combo >= 1 then
+			comboLabel.Text = "🔥 " .. (combo + 1) .. " HIT COMBO!"
+			comboScale.Scale = 1.3
+			TweenService:Create(comboScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		else
+			comboLabel.Text = ""
+		end
 	elseif info.Kind == "DashOk" then
 		dashReadyAt = math.max(dashReadyAt, os.clock() + (tonumber(info.Cooldown) or 2.5) - 0.2)
 	elseif info.Kind == "End" then
@@ -162,6 +175,13 @@ function DuelUI.OnEvent(info)
 				ctx.Hud.SetDuelMode(false)
 			end
 		end)
+	end
+end
+
+-- Dash-Schlag anzeigen (vom Effekt-System aufgerufen)
+function DuelUI.OnDashStrike(mine)
+	if active then
+		showBig(mine and "⚡ DASH STRIKE!" or "⚡ OUCH!", mine and Color3.fromRGB(120, 220, 255) or Color3.fromRGB(255, 120, 120), 0.7)
 	end
 end
 

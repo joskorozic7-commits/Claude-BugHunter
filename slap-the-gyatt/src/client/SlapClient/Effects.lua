@@ -143,6 +143,22 @@ function Effects.OnSlap(info)
 	end
 	if info.Kind == "Duel" then
 		local crit = tonumber(info.Crit) or 0
+		if info.Special == "DashStrike" then
+			burst(position, { Color3.fromRGB(120, 220, 255), Color3.fromRGB(255, 255, 255), Color3.fromRGB(80, 120, 255) }, 40, 40, 1.2)
+			floatingText(position + Vector3.new(0, 5, 0), "⚡ DASH STRIKE!", Color3.fromRGB(130, 220, 255), 5, 0)
+			if isMine or info.TargetId == player.UserId then
+				shake(0.6, 0.25)
+				fovPunch(7)
+				screenFlash(Color3.fromRGB(150, 220, 255), 0.25)
+			end
+			if ctx.DuelUI and ctx.DuelUI.OnDashStrike and (isMine or info.TargetId == player.UserId) then
+				ctx.DuelUI.OnDashStrike(isMine)
+			end
+		end
+		local combo = tonumber(info.Combo) or 0
+		if combo >= 2 then
+			floatingText(position + Vector3.new(0, 6.5, 0), "x" .. (combo + 1) .. " COMBO", Color3.fromRGB(255, 170, 60), 3.5, 0)
+		end
 		burst(position, { Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 80, 120) }, crit > 0 and 30 or 16, 28, 0.9)
 		floatingText(position + Vector3.new((math.random() - 0.5) * 2, 3, 0), (crit > 0 and "💥 " or "") .. "-" .. tostring(info.Damage), crit > 0 and Color3.fromRGB(255, 220, 60) or Color3.fromRGB(255, 120, 120), crit > 0 and 5 or 3.5, 0)
 		if isMine then

@@ -429,7 +429,9 @@ local function buildZones()
 			table.insert(names, g.DisplayName)
 		end
 		local egg = Config.Eggs[zone.Egg]
-		smallLabel({ Position = UDim2.new(0, 18, 0, 36), Size = UDim2.new(0.6, -18, 0, 16), TextColor3 = UI.Colors.SubText, Text = table.concat(names, " & ") .. "  •  " .. (egg and egg.DisplayName or ""), Parent = row })
+		local mech = Config.MechanicInfo[zone.Mechanic or "none"]
+		local mechText = (mech and zone.Mechanic ~= "none") and (mech.Icon .. " " .. mech.Name .. "  •  ") or ""
+		smallLabel({ Position = UDim2.new(0, 18, 0, 36), Size = UDim2.new(0.6, -18, 0, 16), TextScaled = true, TextColor3 = UI.Colors.SubText, Text = mechText .. table.concat(names, ", ") .. "  •  " .. (egg and egg.DisplayName or ""), Parent = row })
 		local status = smallLabel({ Position = UDim2.new(0, 18, 0, 54), Size = UDim2.new(0.6, -18, 0, 16), Parent = row })
 		local button = UI.Button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.new(0.35, 0, 0, 46), ZIndex = 6, Parent = row }, function()
 			local s = state()
@@ -791,6 +793,385 @@ local function buildSettings()
 end
 
 --------------------------------------------------------------------------
+-- Shop-Uebersicht (ein Knopf fuer alle Laeden)
+--------------------------------------------------------------------------
+local function buildShopHub()
+	local win = UI.CreateWindow(ctx.Screen, "ShopHub", "Shops", "🛒", Vector2.new(560, 430))
+	local grid = Create("ScrollingFrame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 6,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ZIndex = 5,
+		Parent = win.Content,
+	}, {
+		Create("UIGridLayout", { CellSize = UDim2.new(0.31, 0, 0, 108), CellPadding = UDim2.new(0.025, 0, 0, 10), SortOrder = Enum.SortOrder.LayoutOrder }),
+		UI.Padding(4, 4),
+	})
+	local shops = {
+		{ "Shop", "🛒", "Upgrades", "Slaps", { 255, 105, 180 } },
+		{ "Hands", "✋", "Gloves", "Slaps · Gems · R$", { 255, 160, 60 } },
+		{ "EggShop", "🥚", "Egg Shop", "Gems · R$ · Event", { 90, 190, 255 } },
+		{ "ItemShop", "🎁", "Item Crates", "Slaps · Gems · R$", { 170, 110, 255 } },
+		{ "Items", "🔨", "Items & Forge", "Equip · Merge", { 255, 90, 90 } },
+		{ "Gems", "💎", "Gem Shop", "Gems · R$", { 80, 220, 255 } },
+		{ "Codes", "🎟️", "Codes", "Free rewards", { 120, 120, 255 } },
+	}
+	for order, info in ipairs(shops) do
+		local button = UI.Button({ LayoutOrder = order, Color = UI.rgb(info[5]), Text = "", ZIndex = 6, Parent = grid }, function()
+			UI.Open(info[1])
+		end)
+		UI.Label({ Size = UDim2.new(1, 0, 0.45, 0), Text = info[2], ZIndex = 7, Parent = button })
+		local name = UI.Label({ Position = UDim2.new(0, 0, 0.45, 0), Size = UDim2.new(1, 0, 0.3, 0), Text = info[3], ZIndex = 7, Parent = button })
+		UI.TextStroke(1.5).Parent = name
+		UI.Label({ Position = UDim2.new(0, 0, 0.75, 0), Size = UDim2.new(1, 0, 0.22, 0), Font = UI.BodyFont, Text = info[4], TextColor3 = Color3.fromRGB(255, 245, 255), ZIndex = 7, Parent = button })
+	end
+	return win
+end
+
+local function chanceText(eggId)
+	local parts = {}
+	for _, entry in ipairs(Calc.GetEggChances(eggId, false)) do
+		local pet = Config.Pets[entry.PetId]
+		table.insert(parts, pet.DisplayName .. " " .. Calc.FormatChance(entry.Chance))
+	end
+	return table.concat(parts, " · ")
+end
+
+local function rarityRange(eggId)
+	local egg = Config.Eggs[eggId]
+	local best = nil
+	for _, entry in ipairs(egg.Pets) do
+		local r = Config.Rarities[Config.Pets[entry[1]].Rarity]
+		if not best or r.Order > best.Order then
+			best = r
+		end
+	end
+	return best
+end
+
+--------------------------------------------------------------------------
+-- Eier-Shop: Event-Ei, Gem-Eier, Robux-Eier
+--------------------------------------------------------------------------
+local function buildEggShop()
+	local win = UI.CreateWindow(ctx.Screen, "EggShop", "Egg Shop", "🥚", Vector2.new(620, 520))
+	local balance = smallLabel({ Size = UDim2.new(1, 0, 0, 22), TextColor3 = Color3.fromRGB(140, 220, 255), Parent = win.Content })
+	local list = UI.ScrollList(win.Content, { Position = UDim2.new(0, 0, 0, 26), Size = UDim2.new(1, 0, 1, -26) })
+	local eventRows = {}
+
+	local function eggRow(order, eggId, buttonText, onBuy, onBuy3)
+		local egg = Config.Eggs[eggId]
+		local best = rarityRange(eggId)
+		local row = UI.Row(list, 112, order)
+		Create("Frame", { Size = UDim2.new(0, 10, 1, 0), BackgroundColor3 = UI.rgb(egg.Color), ZIndex = 6, Parent = row }, { UI.Corner(8) })
+		local name = title({ Position = UDim2.new(0, 18, 0, 6), Size = UDim2.new(0.6, -18, 0, 26), Text = "🥚 " .. egg.DisplayName, TextColor3 = UI.rgb(egg.Color), Parent = row })
+		smallLabel({ Position = UDim2.new(0, 18, 0, 32), Size = UDim2.new(0.6, -18, 0, 16), TextColor3 = UI.rgb(best.Color), Text = "Up to " .. string.upper(best.DisplayName) .. " pets!", Parent = row })
+		smallLabel({ Position = UDim2.new(0, 18, 0, 50), Size = UDim2.new(0.6, -18, 0, 56), TextWrapped = true, TextScaled = true, TextYAlignment = Enum.TextYAlignment.Top,
+			TextColor3 = UI.Colors.SubText, Text = chanceText(eggId), Parent = row })
+		local b1 = UI.Button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10), Size = UDim2.new(0.36, 0, 0, onBuy3 and 44 or 90), Color = UI.Colors.Green,
+			Text = buttonText, ZIndex = 6, Parent = row }, onBuy)
+		local b3 = nil
+		if onBuy3 then
+			b3 = UI.Button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 58), Size = UDim2.new(0.36, 0, 0, 44), Color = UI.Colors.Purple,
+				Text = "Hatch x3", ZIndex = 6, Parent = row }, onBuy3)
+		end
+		return { Row = row, Name = name, Buy = b1, Buy3 = b3 }
+	end
+
+	UI.Label({ Size = UDim2.new(1, -10, 0, 28), LayoutOrder = 1, TextXAlignment = Enum.TextXAlignment.Left, Text = "⭐ WEEKLY EVENT (exclusive pets!)", TextColor3 = UI.Colors.Gold, ZIndex = 6, Parent = list })
+	local eventTimer = smallLabel({ Size = UDim2.new(1, -10, 0, 18), LayoutOrder = 2, TextColor3 = UI.Colors.SubText, Parent = list })
+	for i, event in ipairs(Config.WeeklyEvents) do
+		local eggId = event.EggId
+		eventRows[event.Id] = eggRow(10 + i, eggId, "💎 " .. Calc.FormatNumber(Config.EventEggPrice), function()
+			ctx.Request("Hatch", eggId, 1)
+		end, function()
+			ctx.Request("Hatch", eggId, 3)
+		end)
+	end
+	UI.Label({ Size = UDim2.new(1, -10, 0, 28), LayoutOrder = 100, TextXAlignment = Enum.TextXAlignment.Left, Text = "💎 GEM EGGS", TextColor3 = Color3.fromRGB(140, 220, 255), ZIndex = 6, Parent = list })
+	local gemRows = {}
+	local order = 101
+	for _, eggId in ipairs(Config.EggOrder) do
+		local egg = Config.Eggs[eggId]
+		if egg.Shop then
+			gemRows[eggId] = eggRow(order, eggId, "💎 " .. Calc.FormatNumber(egg.Price), function()
+				ctx.Request("Hatch", eggId, 1)
+			end, function()
+				ctx.Request("Hatch", eggId, 3)
+			end)
+			order = order + 1
+		end
+	end
+	UI.Label({ Size = UDim2.new(1, -10, 0, 28), LayoutOrder = 200, TextXAlignment = Enum.TextXAlignment.Left, Text = "💸 ROBUX EGGS (best pets!)", TextColor3 = Color3.fromRGB(120, 255, 140), ZIndex = 6, Parent = list })
+	for i, robuxEgg in ipairs(Config.RobuxEggs) do
+		eggRow(200 + i, robuxEgg.Id, "R$ " .. robuxEgg.Robux, function()
+			ctx.Request("BuyRobuxEgg", robuxEgg.Id)
+		end, nil)
+	end
+
+	win.Refresh = function()
+		local s = state()
+		if not s then
+			return
+		end
+		balance.Text = "Your Gems: 💎 " .. Calc.FormatNumber(s.Gems) .. "    Pets: " .. #(s.Pets or {}) .. " / " .. Calc.GetInventorySize(s)
+		local current, endsAt = Calc.GetCurrentEvent(ctx.Now())
+		for id, r in pairs(eventRows) do
+			r.Row.Visible = current ~= nil and current.Id == id
+		end
+		if current then
+			eventTimer.Text = current.Name .. " ends in " .. Calc.FormatTime(math.max(0, endsAt - ctx.Now()))
+		end
+		for eggId, r in pairs(gemRows) do
+			UI.SetButtonColor(r.Buy, s.Gems >= Config.Eggs[eggId].Price and UI.Colors.Green or UI.Colors.Gray)
+		end
+		if current and eventRows[current.Id] then
+			UI.SetButtonColor(eventRows[current.Id].Buy, s.Gems >= Config.EventEggPrice and UI.Colors.Green or UI.Colors.Gray)
+		end
+	end
+	return win
+end
+
+--------------------------------------------------------------------------
+-- Item-Kisten
+--------------------------------------------------------------------------
+local function weightText(weights)
+	local total = 0
+	for _, w in pairs(weights) do
+		total = total + w
+	end
+	local parts = {}
+	for _, rarity in ipairs(Config.RarityOrder) do
+		local w = weights[rarity]
+		if w and w > 0 then
+			table.insert(parts, Config.Rarities[rarity].DisplayName .. " " .. Calc.FormatChance(w / total))
+		end
+	end
+	return table.concat(parts, " · ")
+end
+
+local function buildItemShop()
+	local win = UI.CreateWindow(ctx.Screen, "ItemShop", "Item Crates", "🎁", Vector2.new(600, 500))
+	local balance = smallLabel({ Size = UDim2.new(1, 0, 0, 22), TextColor3 = UI.Colors.SubText, Parent = win.Content })
+	local list = UI.ScrollList(win.Content, { Position = UDim2.new(0, 0, 0, 26), Size = UDim2.new(1, 0, 1, -26) })
+	smallLabel({ Size = UDim2.new(1, -10, 0, 34), LayoutOrder = 0, TextWrapped = true, TextColor3 = UI.Colors.SubText,
+		Text = "Hats, wings and auras change your look and give bonuses. Merge 3 of the same item in the Forge for a stronger one!", Parent = list })
+	local rows = {}
+	for order, crate in ipairs(Config.ItemCrates) do
+		local row = UI.Row(list, 84, order)
+		local best = nil
+		for rarity in pairs(crate.Weights) do
+			local r = Config.Rarities[rarity]
+			if not best or r.Order > best.Order then
+				best = r
+			end
+		end
+		Create("Frame", { Size = UDim2.new(0, 10, 1, 0), BackgroundColor3 = UI.rgb(best.Color), ZIndex = 6, Parent = row }, { UI.Corner(8) })
+		title({ Position = UDim2.new(0, 18, 0, 6), Size = UDim2.new(0.6, -18, 0, 26), Text = "🎁 " .. crate.Name .. ((crate.Count or 1) > 1 and ("  x" .. crate.Count) or ""), TextColor3 = UI.rgb(best.Color), Parent = row })
+		smallLabel({ Position = UDim2.new(0, 18, 0, 34), Size = UDim2.new(0.6, -18, 0, 44), TextWrapped = true, TextScaled = true, TextYAlignment = Enum.TextYAlignment.Top,
+			TextColor3 = UI.Colors.SubText, Text = weightText(crate.Weights), Parent = row })
+		local text
+		if crate.Currency == "Robux" then
+			text = "R$ " .. Calc.FormatNumber(crate.Robux)
+		else
+			text = money(crate.Price, crate.Currency)
+		end
+		local button = UI.Button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.new(0.34, 0, 0, 50),
+			Color = crate.Currency == "Robux" and UI.Colors.Green or UI.Colors.Blue, Text = text, ZIndex = 6, Parent = row }, function()
+			ctx.Request("BuyCrate", crate.Id)
+		end)
+		rows[crate.Id] = button
+	end
+	win.Refresh = function()
+		local s = state()
+		if not s then
+			return
+		end
+		balance.Text = money(s.Slaps, "Slaps") .. "    " .. money(s.Gems, "Gems") .. "    🎒 " .. #(s.Items or {}) .. " / " .. Config.ItemInventory
+		for _, crate in ipairs(Config.ItemCrates) do
+			if crate.Currency ~= "Robux" then
+				local have = crate.Currency == "Gems" and s.Gems or s.Slaps
+				UI.SetButtonColor(rows[crate.Id], have >= crate.Price and UI.Colors.Blue or UI.Colors.Gray)
+			end
+		end
+	end
+	return win
+end
+
+--------------------------------------------------------------------------
+-- Items & Schmiede: ausruesten, verschmelzen, loeschen
+--------------------------------------------------------------------------
+local function buildItems()
+	local win = UI.CreateWindow(ctx.Screen, "Items", "Items & Forge", "🔨", Vector2.new(660, 520))
+	local bonusLabel = smallLabel({ Size = UDim2.new(1, 0, 0, 22), TextColor3 = UI.Colors.Gold, Parent = win.Content })
+	local tabBar = Create("Frame", { Position = UDim2.new(0, 0, 0, 26), Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, ZIndex = 5, Parent = win.Content }, { UI.List(6, true) })
+	local list = UI.ScrollList(win.Content, { Position = UDim2.new(0, 0, 0, 66), Size = UDim2.new(0.58, -6, 1, -66), Grid = UDim2.new(0, 84, 0, 96) })
+	local detail = Create("Frame", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 66), Size = UDim2.new(0.42, 0, 1, -66), BackgroundColor3 = UI.Colors.Panel, ZIndex = 5, Parent = win.Content },
+		{ UI.Corner(14), UI.Stroke(2, UI.Colors.PanelLight) })
+	local dName = title({ Position = UDim2.new(0, 10, 0, 8), Size = UDim2.new(1, -20, 0, 28), TextWrapped = true, Text = "Select an item", Parent = detail })
+	local dRarity = smallLabel({ Position = UDim2.new(0, 10, 0, 38), Size = UDim2.new(1, -20, 0, 18), Text = "", Parent = detail })
+	local dStat = smallLabel({ Position = UDim2.new(0, 10, 0, 58), Size = UDim2.new(1, -20, 0, 18), TextColor3 = UI.Colors.Text, Text = "", Parent = detail })
+	local dNext = smallLabel({ Position = UDim2.new(0, 10, 0, 78), Size = UDim2.new(1, -20, 0, 34), TextWrapped = true, TextColor3 = UI.Colors.SubText, Text = "", Parent = detail })
+	local selected = nil
+	local equipButton = UI.Button({ Position = UDim2.new(0, 10, 0, 118), Size = UDim2.new(1, -20, 0, 42), Color = UI.Colors.Green, Text = "Equip", ZIndex = 6, Parent = detail }, function()
+		local s = state()
+		if not selected or not s then
+			return
+		end
+		for _, item in ipairs(s.Items or {}) do
+			if item.Uid == selected then
+				ctx.Request(item.Equipped and "UnequipItem" or "EquipItem", selected)
+				return
+			end
+		end
+	end)
+	local mergeButton = UI.Button({ Position = UDim2.new(0, 10, 0, 166), Size = UDim2.new(1, -20, 0, 42), Color = UI.Colors.Gold, Text = "🔨 Merge 3", ZIndex = 6, Parent = detail }, function()
+		if selected then
+			ctx.Request("MergeItem", selected)
+		end
+	end)
+	local deleteArmed = false
+	local deleteButton
+	deleteButton = UI.Button({ Position = UDim2.new(0, 10, 0, 214), Size = UDim2.new(1, -20, 0, 36), Color = UI.Colors.Red, Text = "🗑️ Delete", ZIndex = 6, Parent = detail }, function()
+		if not selected then
+			return
+		end
+		if deleteArmed then
+			deleteArmed = false
+			ctx.Request("DeleteItem", selected)
+			selected = nil
+		else
+			deleteArmed = true
+			deleteButton.Text = "Tap again to delete"
+			task.delay(2.5, function()
+				deleteArmed = false
+				deleteButton.Text = "🗑️ Delete"
+			end)
+		end
+	end)
+	smallLabel({ AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 10, 1, -6), Size = UDim2.new(1, -20, 0, 40), TextWrapped = true, TextScaled = true,
+		TextColor3 = UI.Colors.SubText, Text = "Find items by defeating targets (chests & piñatas drop the most), from crates and rebirths.", Parent = detail })
+
+	local filter = "All"
+	local tabs = {}
+	local refresh
+	local tabDefs = { { "All", "All" } }
+	for _, cat in ipairs(Config.ItemCategories) do
+		local info = Config.ItemCategoryInfo[cat]
+		table.insert(tabDefs, { cat, info.Icon .. " " .. info.Name })
+	end
+	for order, def in ipairs(tabDefs) do
+		tabs[def[1]] = UI.Button({ LayoutOrder = order, Size = UDim2.new(0, def[1] == "All" and 60 or 140, 1, 0), Color = UI.Colors.Panel, Text = def[2], ZIndex = 6, Parent = tabBar }, function()
+			filter = def[1]
+			refresh()
+		end)
+	end
+
+	local function sameCount(items, base)
+		local n = 0
+		for _, other in ipairs(items) do
+			if other.Id == base.Id and other.Level == base.Level then
+				n = n + 1
+			end
+		end
+		return n
+	end
+
+	refresh = function()
+		local s = state()
+		if not s then
+			return
+		end
+		local items = s.Items or {}
+		local b = Calc.GetItemBonuses(s)
+		bonusLabel.Text = "Bonuses: 💪 +" .. math.floor(b.Damage * 100 + 0.5) .. "%  💰 +" .. math.floor(b.Slaps * 100 + 0.5) .. "%  🦵 +"
+			.. string.format("%.1f", math.min(30, b.Speed * 10)) .. "  🍀 +" .. string.format("%.1f", b.Luck * 10) .. "%  💎 +" .. math.floor(b.Gems * 100 + 0.5) .. "%"
+			.. "   🎒 " .. #items .. "/" .. Config.ItemInventory
+		for id, button in pairs(tabs) do
+			UI.SetButtonColor(button, id == filter and UI.Colors.Pink or UI.Colors.Panel)
+		end
+		for _, child in ipairs(list:GetChildren()) do
+			if child:IsA("GuiButton") or child:IsA("TextLabel") then
+				child:Destroy()
+			end
+		end
+		local sorted = {}
+		for _, item in ipairs(items) do
+			local cfg = Config.Items[item.Id]
+			if cfg and (filter == "All" or cfg.Category == filter) then
+				table.insert(sorted, item)
+			end
+		end
+		table.sort(sorted, function(a, b2)
+			if a.Equipped ~= b2.Equipped then
+				return a.Equipped == true
+			end
+			local va, vb = Calc.GetItemValue(a.Id, a.Level), Calc.GetItemValue(b2.Id, b2.Level)
+			if va ~= vb then
+				return va > vb
+			end
+			return a.Uid < b2.Uid
+		end)
+		local selectedItem = nil
+		for order, item in ipairs(sorted) do
+			local cfg = Config.Items[item.Id]
+			local rarity = Config.Rarities[cfg.Rarity]
+			if item.Uid == selected then
+				selectedItem = item
+			end
+			local card = UI.Button({ LayoutOrder = order, Color = UI.Colors.Darker, Text = "", ZIndex = 6, Parent = list }, function()
+				selected = item.Uid
+				refresh()
+			end)
+			UI.Stroke(item.Uid == selected and 4 or 2.5, item.Uid == selected and UI.Colors.White or UI.rgb(rarity.Color)).Parent = card
+			UI.Label({ Size = UDim2.new(1, 0, 0, 40), Text = Config.ItemCategoryInfo[cfg.Category].Icon, ZIndex = 7, Parent = card })
+			UI.Label({ Position = UDim2.new(0, 0, 0, 40), Size = UDim2.new(1, 0, 0, 26), Font = UI.BodyFont, TextWrapped = true, TextColor3 = UI.rgb(cfg.Color), Text = cfg.DisplayName, ZIndex = 7, Parent = card })
+			UI.Label({ Position = UDim2.new(0, 0, 0, 68), Size = UDim2.new(1, 0, 0, 18), Text = string.rep("★", item.Level), TextColor3 = UI.Colors.Gold, ZIndex = 7, Parent = card })
+			if item.Equipped then
+				UI.Label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -2, 0, 2), Size = UDim2.new(0, 22, 0, 22), Text = "✅", ZIndex = 8, Parent = card })
+			end
+		end
+		if not selectedItem then
+			selected = nil
+		end
+		equipButton.Visible = selectedItem ~= nil
+		mergeButton.Visible = selectedItem ~= nil
+		deleteButton.Visible = selectedItem ~= nil
+		if selectedItem then
+			local cfg = Config.Items[selectedItem.Id]
+			local rarity = Config.Rarities[cfg.Rarity]
+			dName.Text = cfg.DisplayName .. " " .. string.rep("★", selectedItem.Level)
+			dName.TextColor3 = UI.rgb(cfg.Color)
+			dRarity.Text = rarity.DisplayName .. " " .. Config.ItemCategoryInfo[cfg.Category].Name
+			dRarity.TextColor3 = UI.rgb(rarity.Color)
+			dStat.Text = Calc.DescribeItem(selectedItem.Id, selectedItem.Level)
+			local count = sameCount(items, selectedItem)
+			if selectedItem.Level >= Config.ItemMaxLevel then
+				dNext.Text = "⭐ Max stars reached!"
+				mergeButton.Text = "MAX"
+				UI.SetButtonColor(mergeButton, UI.Colors.Gray)
+			else
+				dNext.Text = "Merge 3 (" .. count .. "/3 owned) → " .. Calc.DescribeItem(selectedItem.Id, selectedItem.Level + 1)
+				mergeButton.Text = "🔨 Merge 3  (" .. math.min(count, 3) .. "/3)"
+				UI.SetButtonColor(mergeButton, count >= 3 and UI.Colors.Gold or UI.Colors.Gray)
+			end
+			equipButton.Text = selectedItem.Equipped and "Unequip" or "Equip"
+			UI.SetButtonColor(equipButton, selectedItem.Equipped and UI.Colors.Gray or UI.Colors.Green)
+		else
+			dName.Text = #items == 0 and "No items yet" or "Select an item"
+			dName.TextColor3 = UI.Colors.Text
+			dRarity.Text = ""
+			dStat.Text = ""
+			dNext.Text = ""
+		end
+	end
+	win.Refresh = refresh
+	return win
+end
+
+--------------------------------------------------------------------------
 function Menus.Init(context)
 	ctx = context
 	UI = ctx.UI
@@ -809,6 +1190,10 @@ function Menus.Init(context)
 	buildDaily()
 	buildCodes()
 	buildSettings()
+	buildShopHub()
+	buildEggShop()
+	buildItemShop()
+	buildItems()
 
 	-- offenes Fenster bei jeder Aenderung aktualisieren
 	ctx.OnState(function()
@@ -822,7 +1207,7 @@ function Menus.Init(context)
 		while true do
 			task.wait(1)
 			local open = UI.OpenWindow
-			if (open == "Daily" or open == "Quests" or open == "Gems") and UI.Windows[open].Refresh and ctx.State then
+			if (open == "Daily" or open == "Quests" or open == "Gems" or open == "EggShop") and UI.Windows[open].Refresh and ctx.State then
 				UI.Windows[open].Refresh()
 			end
 		end

@@ -38,7 +38,7 @@ local function buildTop(screen)
 		Name = "TopPanel",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 6),
-		Size = UDim2.new(0, 360, 0, 86),
+		Size = UDim2.new(0, 330, 0, 44),
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		Parent = screen,
 	}, {
@@ -48,10 +48,12 @@ local function buildTop(screen)
 	})
 
 	topPanel = top
+	-- schmale Leiste: Slaps links, Gems rechts (verdeckt kaum etwas)
 	slapsLabel = UI.Label({
 		Name = "Slaps",
 		Position = UDim2.new(0, 10, 0, 4),
-		Size = UDim2.new(1, -20, 0, 40),
+		Size = UDim2.new(0.6, -14, 0, 36),
+		TextXAlignment = Enum.TextXAlignment.Left,
 		Text = "👋 Loading...",
 		Parent = top,
 	})
@@ -59,10 +61,11 @@ local function buildTop(screen)
 
 	gemsLabel = UI.Label({
 		Name = "Gems",
-		Position = UDim2.new(0, 10, 0, 44),
-		Size = UDim2.new(0.45, -10, 0, 22),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 7),
+		Size = UDim2.new(0.4, -6, 0, 30),
 		TextColor3 = Color3.fromRGB(140, 220, 255),
-		TextXAlignment = Enum.TextXAlignment.Left,
+		TextXAlignment = Enum.TextXAlignment.Right,
 		Text = "💎 0",
 		Parent = top,
 	})
@@ -77,6 +80,7 @@ local function buildTop(screen)
 		TextColor3 = UI.Colors.SubText,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Text = "",
+		Visible = false,
 		Parent = top,
 	})
 
@@ -87,6 +91,7 @@ local function buildTop(screen)
 		Font = UI.BodyFont,
 		TextColor3 = Color3.fromRGB(170, 140, 190),
 		Text = "",
+		Visible = false,
 		Parent = top,
 	})
 
@@ -141,41 +146,66 @@ local function buildTop(screen)
 end
 
 local MENU_BUTTONS = {
-	{ "Shop", "🛒", "Shop", { 255, 105, 180 } },
-	{ "Hands", "✋", "Hands", { 255, 160, 60 } },
+	{ "ShopHub", "🛒", "Shop", { 255, 105, 180 } },
 	{ "Pets", "🐾", "Pets", { 90, 200, 120 } },
+	{ "Items", "🎩", "Items", { 170, 110, 255 } },
 	{ "Zones", "🗺️", "Zones", { 70, 170, 255 } },
-	{ "Gems", "💎", "Gems", { 90, 210, 255 } },
 	{ "Rebirth", "♻️", "Rebirth", { 160, 100, 255 } },
 	{ "Quests", "📜", "Quests", { 255, 200, 60 } },
 	{ "Daily", "🎁", "Daily", { 255, 90, 120 } },
 	{ "Trade", "🤝", "Trade", { 60, 190, 170 } },
-	{ "Codes", "🎟️", "Codes", { 120, 120, 255 } },
 	{ "Settings", "⚙️", "Settings", { 130, 130, 150 } },
 }
+local BUTTON_SIZE = 50
+local menuOpen = true
+local menuList, menuToggle
 
+local function setMenuOpen(open)
+	menuOpen = open
+	if menuList then
+		menuList.Visible = open
+	end
+	if menuToggle then
+		menuToggle.Text = open and "◀" or "☰"
+	end
+end
+Hud.SetMenuOpen = setMenuOpen
+
+-- Schmale Leiste links: eine Spalte, kann eingeklappt werden
 local function buildMenuButtons(screen)
+	local count = #MENU_BUTTONS
+	local listHeight = count * (BUTTON_SIZE + 5)
 	local holder = Create("Frame", {
 		Name = "MenuButtons",
 		ZIndex = 1,
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 8, 0.5, 0),
-		Size = UDim2.new(0, 132, 0, 396),
+		Position = UDim2.new(0, 6, 0.5, 0),
+		Size = UDim2.new(0, BUTTON_SIZE, 0, listHeight + 40),
 		BackgroundTransparency = 1,
 		Parent = screen,
-	}, {
-		Create("UIGridLayout", {
-			CellSize = UDim2.new(0, 62, 0, 60),
-			CellPadding = UDim2.new(0, 6, 0, 6),
-			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
 	})
+	menuToggle = UI.Button({
+		Name = "MenuToggle",
+		Size = UDim2.new(0, BUTTON_SIZE, 0, 34),
+		Color = UI.Colors.Darker,
+		Text = "◀",
+		Parent = holder,
+	}, function()
+		setMenuOpen(not menuOpen)
+	end)
+	menuList = Create("Frame", {
+		Name = "List",
+		Position = UDim2.new(0, 0, 0, 40),
+		Size = UDim2.new(1, 0, 0, listHeight),
+		BackgroundTransparency = 1,
+		Parent = holder,
+	}, { UI.List(5, false) })
 	-- auf kleinen Bildschirmen (Handy quer) verkleinern, damit alles passt
 	local holderScale = Create("UIScale", { Scale = 1, Parent = holder })
 	local function fit()
 		local camera = workspace.CurrentCamera
 		if camera then
-			holderScale.Scale = math.clamp((camera.ViewportSize.Y - 110) / 396, 0.55, 1)
+			holderScale.Scale = math.clamp((camera.ViewportSize.Y - 60) / (listHeight + 40), 0.5, 1)
 		end
 	end
 	fit()
@@ -188,23 +218,24 @@ local function buildMenuButtons(screen)
 		local button = UI.Button({
 			Name = name,
 			LayoutOrder = order,
+			Size = UDim2.new(0, BUTTON_SIZE, 0, BUTTON_SIZE),
 			Color = UI.rgb(color),
 			Text = "",
 			Padding = 2,
 			PaddingY = 2,
-			Parent = holder,
+			Parent = menuList,
 		}, function()
 			UI.Toggle(name)
 		end)
-		UI.Label({ Size = UDim2.new(1, 0, 0.62, 0), Text = icon, Parent = button })
-		local text = UI.Label({ Position = UDim2.new(0, 0, 0.62, 0), Size = UDim2.new(1, 0, 0.38, 0), Text = label, Parent = button })
+		UI.Label({ Size = UDim2.new(1, 0, 0.64, 0), Text = icon, Parent = button })
+		local text = UI.Label({ Position = UDim2.new(0, 0, 0.64, 0), Size = UDim2.new(1, 0, 0.36, 0), Text = label, Parent = button })
 		UI.TextStroke(1.5).Parent = text
 
 		local badge = Create("TextLabel", {
 			Name = "Badge",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(1, -4, 0, 4),
-			Size = UDim2.new(0, 22, 0, 22),
+			Size = UDim2.new(0, 18, 0, 18),
 			BackgroundColor3 = UI.Colors.Red,
 			Font = UI.Font,
 			TextScaled = true,
@@ -215,6 +246,11 @@ local function buildMenuButtons(screen)
 			Parent = button,
 		}, { Create("UICorner", { CornerRadius = UDim.new(1, 0) }), UI.Stroke(2, UI.Colors.White) })
 		badges[name] = badge
+	end
+	-- auf dem Handy startet das Menue eingeklappt
+	local camera = workspace.CurrentCamera
+	if camera and camera.ViewportSize.Y > 1 and camera.ViewportSize.Y < 500 then
+		setMenuOpen(false)
 	end
 end
 
@@ -486,7 +522,7 @@ local function applyScale()
 		scale.Scale = hudScale
 	end
 	-- Abstaende an die Groesse anpassen
-	local y = 6 + 86 * hudScale + 6
+	local y = 6 + 44 * hudScale + 6
 	comboFrame.Position = UDim2.new(0.5, 0, 0, y)
 	y = y + 46 * hudScale + 4
 	boostRow.Position = UDim2.new(0.5, 0, 0, y)

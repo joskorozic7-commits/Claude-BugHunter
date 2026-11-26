@@ -1,7 +1,7 @@
-# 👋 Slap the Blob 5.0
+# 👋 Slap the Blob 6.0
 
 A complete, family-friendly Roblox simulator game: slap the Blobs, collect **Slaps** and **Gems**,
-upgrade your hand, hatch pets, unlock 6 worlds and become the strongest!
+upgrade your hand, hatch pets, collect items, unlock 37 worlds in 7 dimensions and become the strongest!
 
 ## 🚀 How to start
 
@@ -17,6 +17,20 @@ the scripts when the game starts. You don't need to build anything yourself.
 Without that everything works, only progress isn't saved.
 
 With Rojo: `rojo serve` (the `default.project.json` is in this folder).
+
+## 🆕 New in 6.0
+
+- **Clean screen:** a slim Slaps/Gems bar at the top and one narrow, collapsible menu column on the left (◀ / ☰). On phones it starts collapsed. During duels only the duel bar and Dash button are shown, and pets of duelling players are hidden.
+- **Shop kiosks in the hub:** walk up to the stalls (Upgrades, Gloves, Egg Shop, Item Crates, Gem Shop, Forge) and press E. Smaller kiosks also stand at every dimension landing. The 🛒 Shop button opens all shops from anywhere.
+- **Better PvP:** flat arenas without posts or orbs (clear view), combo counter, **⚡ Dash Strikes** (slap within 0.6 s after a dash for ×1.5 damage and extra knockback), glove trails on every swing.
+- **Bigger map:** zones are now 160 × 200 studs (were 120 × 130), so targets have space. Every zone gets a 5th target, the **🪅 Piñata**, which drops lots of items.
+- **New dimension "The Beyond" (zones 31–37):** Gravity Garden (low gravity), Glacier Slide (ice), Bounce Castle (bounce pads), Hyper Highway (turbo pads), Eclipse Valley (darkness), Titan's Core (heavy gravity), Tempest Peak (wind gusts).
+- **75 items in 3 categories (25 each):** hats, wings/backs and auras. They show on your character and give Damage, Slaps, Walk Speed, Crit Luck or Gems. Rarities from Common to **Ultra Master**. They drop from targets (each kind has its own drop rate), come from crates (Slaps, Gems or R$100–R$10,000) and from rebirths. **Merge** 3 identical items in the Forge for +1 star (up to 5 ★).
+- **306 pets, 8 rarities** (new: Ultra and Ultra Master), more pet slots (4 base, up to 10), gem eggs (Diamond, Mythic), **Robux eggs R$100–R$1000** and a **weekly event egg** with 6 exclusive pets that changes every week.
+- **New hatch animation:** light rays, glow, flash, card flip, bounce and confetti.
+- **Deeper upgrades:** 🦵 Legs (walk speed) and 🦘 Jump. Rebirth now needs Zone 3, costs more, and gives bigger bonuses plus a bonus item.
+- **Top 3 podium** with the players' avatars next to the leaderboards.
+- **Developer products to create** (see the list in the delivery message): 4 Robux eggs and 7 Robux crates. While their `ProductId` is `0` they are free in Studio only.
 
 ## 🆕 New in 5.0
 

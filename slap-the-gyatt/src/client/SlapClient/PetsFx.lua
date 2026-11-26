@@ -342,6 +342,9 @@ local function syncOwner(owner)
 	if owner ~= Players.LocalPlayer and not ctx.Setting("OtherPets") then
 		signature = ""
 	end
+	if owner:GetAttribute("InDuel") then
+		signature = "" -- im Duell keine Pets: freie Sicht
+	end
 	local entry = owners[owner]
 	if entry and entry.Signature == signature then
 		return

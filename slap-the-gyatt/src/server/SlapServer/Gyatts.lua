@@ -607,7 +607,11 @@ local function rewardContributors(g, killer)
 		if profile then
 			local multiplier = Calc.GetSlapMultiplier(profile.Data, os.time())
 			local bonus = ctx.Data.AddSlaps(profile, g.DefeatBonus * multiplier)
-			local gems = ctx.Data.AddGems(profile, g.Gems)
+			local gemAmount = g.Gems or 0
+			if gemAmount > 0 then
+				gemAmount = gemAmount * (1 + Calc.GetItemBonuses(profile.Data).Gems)
+			end
+			local gems = ctx.Data.AddGems(profile, gemAmount)
 			profile.Data.TotalDefeats = profile.Data.TotalDefeats + 1
 			ctx.Data.AddStat(profile, "Defeats", 1)
 			if g.Kind == "chest" then

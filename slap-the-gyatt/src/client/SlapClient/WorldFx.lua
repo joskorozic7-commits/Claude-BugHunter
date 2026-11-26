@@ -210,11 +210,16 @@ local MOODS = {
 -- Welten ab Zone 11 nehmen die Stimmung ihres Themas
 local DECOR_MOOD = { meadow = 1, desert = 2, ice = 3, lava = 4, cloud = 5, space = 6, candy = 7, cyber = 8, shadow = 9, void = 10 }
 
+local DARK_MOOD = { Clock = 0, Color = { 40, 30, 70 }, Decay = { 5, 0, 15 }, Density = 0.55, Tint = { 170, 160, 210 }, Cloud = 0, CloudColor = { 255, 255, 255 } }
+
 local function applyMood(zoneIndex)
 	local mood = MOODS[zoneIndex]
 	if not mood then
 		local zone = Config.Zones[zoneIndex]
 		mood = (zone and MOODS[DECOR_MOOD[zone.Decor]]) or MOODS[0]
+		if zone and zone.Mechanic == "dark" then
+			mood = DARK_MOOD
+		end
 	end
 	local info = TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 	TweenService:Create(Lighting, info, { ClockTime = mood.Clock }):Play()
@@ -250,6 +255,100 @@ local function checkZone()
 		currentZone = zone
 		ctx.Hud.SetZone(zone)
 		applyMood(zone)
+		WorldFx.ApplyMechanic(zone)
+	end
+end
+
+--------------------------------------------------------------------------
+-- Zonen-Mechaniken (Schwerkraft, Wind, Spring- und Turbo-Felder)
+--------------------------------------------------------------------------
+local GRAVITY = { lowgrav = 70, floaty = 120, heavy = 300 }
+local MECHANIC_HINT = {
+	lowgrav = "Low gravity! Jump really high!",
+	floaty = "Floaty air! You fall slowly.",
+	heavy = "Heavy gravity! Jumping is hard here.",
+	ice = "Slippery ice! Careful, you slide!",
+	bounce = "Step on the pink pads to bounce up high!",
+	boost = "Run over the blue pads for a speed boost!",
+	dark = "It's dark here... the targets glow!",
+	storm = "Strong wind gusts push you around!",
+}
+local currentMechanic = "none"
+
+function WorldFx.ApplyMechanic(zoneIndex)
+	local zone = Config.Zones[zoneIndex]
+	local mechanic = (zone and zone.Mechanic) or "none"
+	currentMechanic = mechanic
+	workspace.Gravity = GRAVITY[mechanic] or 196.2
+	local info = Config.MechanicInfo[mechanic]
+	if info and MECHANIC_HINT[mechanic] then
+		ctx.Hud.Notify(info.Icon .. " " .. info.Name .. ": " .. MECHANIC_HINT[mechanic], { 200, 230, 255 })
+	end
+end
+
+local padCooldown = 0
+local function onPadTouched(pad, hit, kind)
+	local character = player.Character
+	if not character or not hit:IsDescendantOf(character) then
+		return
+	end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local now = os.clock()
+	if not root or now < padCooldown then
+		return
+	end
+	padCooldown = now + 0.6
+	local v = root.AssemblyLinearVelocity
+	if kind == "bounce" then
+		root.AssemblyLinearVelocity = Vector3.new(v.X, 110, v.Z)
+	else
+		local dir = pad.CFrame.LookVector
+		dir = Vector3.new(dir.X, 0, dir.Z)
+		if dir.Magnitude < 0.01 then
+			dir = Vector3.new(0, 0, 1)
+		end
+		root.AssemblyLinearVelocity = dir.Unit * 110 + Vector3.new(0, 18, 0)
+	end
+	ctx.PlaySound("Popup", kind == "bounce" and 1.6 or 1.2)
+end
+
+local function hookPad(pad, kind)
+	if pad:IsA("BasePart") and not pad:GetAttribute("PadHooked") then
+		pad:SetAttribute("PadHooked", true)
+		pad.Touched:Connect(function(hit)
+			onPadTouched(pad, hit, kind)
+		end)
+	end
+end
+
+local function setupPads()
+	for tag, kind in pairs({ SlapBouncePad = "bounce", SlapBoostPad = "boost" }) do
+		for _, pad in ipairs(CollectionService:GetTagged(tag)) do
+			hookPad(pad, kind)
+		end
+		CollectionService:GetInstanceAddedSignal(tag):Connect(function(pad)
+			hookPad(pad, kind)
+		end)
+	end
+end
+
+-- Windboeen in Sturm-Zonen
+local nextGust = 0
+local function updateStorm()
+	if currentMechanic ~= "storm" then
+		return
+	end
+	local now = os.clock()
+	if now < nextGust then
+		return
+	end
+	nextGust = now + 3 + math.random() * 3
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		local angle = math.random() * math.pi * 2
+		root.AssemblyLinearVelocity = root.AssemblyLinearVelocity + Vector3.new(math.cos(angle) * 45, 8, math.sin(angle) * 45)
+		ctx.Hud.Notify("💨 Whoosh! A gust of wind!", { 200, 230, 255 })
 	end
 end
 
@@ -328,9 +427,11 @@ function WorldFx.Init(context)
 		end
 	end)
 
+	setupPads()
 	task.spawn(function()
 		while true do
 			task.wait(0.5)
+			pcall(updateStorm)
 			checkZone()
 			refreshGates()
 			updateTutorial()

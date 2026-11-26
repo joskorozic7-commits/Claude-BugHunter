@@ -136,6 +136,17 @@ UI.OnWindowOpened = function()
 	ctx.PlaySound("Click")
 end
 
+-- Verkaufsstaende im Hub oeffnen ihr Menue
+game:GetService("ProximityPromptService").PromptTriggered:Connect(function(prompt, who)
+	if who ~= player then
+		return
+	end
+	local menu = prompt:GetAttribute("OpenMenu")
+	if type(menu) == "string" and UI.Windows[menu] then
+		UI.Open(menu)
+	end
+end)
+
 --------------------------------------------------------------------------
 -- Spielstand vom Server
 --------------------------------------------------------------------------

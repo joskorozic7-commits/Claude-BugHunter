@@ -162,6 +162,16 @@ function Calc.GetComboMultiplier(combo)
 	return 1 + combo * Config.ComboBonusPerStack
 end
 
+function Calc.GetLegSpeed(legLevel)
+	legLevel = Calc.ClampLevel("Legs", legLevel)
+	return 16 + legLevel * 0.4 + Calc.GetTier(legLevel) * 2
+end
+
+function Calc.GetJumpPower(jumpLevel)
+	jumpLevel = Calc.ClampLevel("Jump", jumpLevel)
+	return 50 + jumpLevel * 1.2 + Calc.GetTier(jumpLevel) * 5
+end
+
 function Calc.GetHandScale(powerLevel)
 	powerLevel = Calc.ClampLevel("Power", powerLevel)
 	return 1 + math.min(powerLevel, 60) * 0.025
@@ -180,6 +190,10 @@ function Calc.DescribeUpgrade(id, level)
 		return Calc.FormatMultiplier(Calc.GetGreedMultiplier(level)) .. " Slaps"
 	elseif id == "Combo" then
 		return "Max Combo " .. Calc.GetMaxCombo(level)
+	elseif id == "Legs" then
+		return string.format("%.1f walk speed", Calc.GetLegSpeed(level))
+	elseif id == "Jump" then
+		return string.format("%d jump power", math.floor(Calc.GetJumpPower(level)))
 	end
 	return ""
 end
@@ -370,6 +384,7 @@ function Calc.GetDamage(data, now)
 	local hand = Calc.GetHand(data.Hand)
 	local damage = Calc.GetBaseDamage(upgrades.Power) * hand.Damage * Calc.GetRebirthDamageMultiplier(data.Rebirths)
 		* Calc.GetZonePower(data.Zones)
+		* (1 + Calc.GetItemBonuses(data).Damage)
 	if Calc.IsBoostActive(data, "DoubleDamage", now) then
 		damage = damage * 2
 	end
@@ -384,16 +399,115 @@ function Calc.GetSlapMultiplier(data, now)
 		* Calc.GetRebirthSlapMultiplier(data.Rebirths)
 		* Calc.GetPetBoost(Calc.GetEquippedPetIds(data))
 		* (hand.SlapMultiplier or 1)
+		* (1 + Calc.GetItemBonuses(data).Slaps)
 	if Calc.IsBoostActive(data, "DoubleSlaps", now) then
 		multiplier = multiplier * 2
 	end
 	return multiplier
 end
 
+--------------------------------------------------------------------------
+-- Items (Accessoires)
+--------------------------------------------------------------------------
+function Calc.GetItemValue(itemId, level)
+	local item = Config.Items[itemId]
+	if not item then
+		return 0
+	end
+	level = math.max(1, math.min(Config.ItemMaxLevel, math.floor(tonumber(level) or 1)))
+	return (Config.ItemRarityValue[item.Rarity] or 0) * Config.ItemLevelMultiplier[level]
+end
+
+function Calc.DescribeItem(itemId, level)
+	local item = Config.Items[itemId]
+	if not item then
+		return ""
+	end
+	local value = Calc.GetItemValue(itemId, level)
+	local stat = Config.StatInfo[item.Stat]
+	if item.Stat == "Speed" then
+		return stat.Icon .. " +" .. string.format("%.1f", math.min(30, value * 10)) .. " " .. stat.Name
+	elseif item.Stat == "Luck" then
+		return stat.Icon .. " +" .. string.format("%.1f", value * 10) .. "% " .. stat.Name
+	end
+	return stat.Icon .. " +" .. Calc.FormatNumber(math.floor(value * 100 + 0.5)) .. "% " .. stat.Name
+end
+
+-- Summe aller ausgeruesteten Items: { Damage, Slaps, Speed, Luck, Gems }
+function Calc.GetItemBonuses(data)
+	local bonus = { Damage = 0, Slaps = 0, Speed = 0, Luck = 0, Gems = 0 }
+	if type(data) ~= "table" or type(data.Items) ~= "table" then
+		return bonus
+	end
+	for _, owned in ipairs(data.Items) do
+		local item = owned.Equipped and Config.Items[owned.Id]
+		if item then
+			bonus[item.Stat] = bonus[item.Stat] + Calc.GetItemValue(owned.Id, owned.Level)
+		end
+	end
+	return bonus
+end
+
+function Calc.GetWalkSpeed(data)
+	local upgrades = (type(data) == "table" and data.Upgrades) or {}
+	local bonus = Calc.GetItemBonuses(data)
+	return Calc.GetLegSpeed(upgrades.Legs) + math.min(30, bonus.Speed * 10)
+end
+
+--------------------------------------------------------------------------
+-- Wochen-Events (Woche beginnt Montag 00:00 UTC)
+--------------------------------------------------------------------------
+function Calc.GetWeekNumber(unixTime)
+	return math.floor(((tonumber(unixTime) or 0) - 345600) / 604800)
+end
+
+function Calc.GetCurrentEvent(unixTime)
+	local week = Calc.GetWeekNumber(unixTime)
+	local event = Config.WeeklyEvents[(week % #Config.WeeklyEvents) + 1]
+	local endsAt = (week + 1) * 604800 + 345600
+	return event, endsAt
+end
+
+-- Seltenheit nach Gewichten wuerfeln. randomFn() liefert [0,1)
+function Calc.RollRarity(weights, randomFn)
+	local total = 0
+	for _, rarity in ipairs(Config.RarityOrder) do
+		total = total + (weights[rarity] or 0)
+	end
+	local roll = randomFn() * total
+	local last = nil
+	for _, rarity in ipairs(Config.RarityOrder) do
+		local w = weights[rarity] or 0
+		if w > 0 then
+			last = rarity
+			if roll < w then
+				return rarity
+			end
+			roll = roll - w
+		end
+	end
+	return last
+end
+
+-- zufaelliges Item einer Seltenheit (optional nur aus einer Kategorie)
+function Calc.PickItem(rarity, randomFn, category)
+	local pool = {}
+	for _, itemId in ipairs(Config.ItemOrder) do
+		local item = Config.Items[itemId]
+		if item.Rarity == rarity and (category == nil or item.Category == category) then
+			table.insert(pool, itemId)
+		end
+	end
+	if #pool == 0 then
+		return nil
+	end
+	return pool[math.min(#pool, math.floor(randomFn() * #pool) + 1)]
+end
+
 -- Krit-Chance inklusive Hand-Bonus
 function Calc.GetTotalCritChance(data)
 	local hand = Calc.GetHand(data.Hand)
-	return math.min(0.95, Calc.GetCritChance((data.Upgrades or {}).Luck) + (hand.CritBonus or 0))
+	return math.min(0.95, Calc.GetCritChance((data.Upgrades or {}).Luck) + (hand.CritBonus or 0) + Calc.GetItemBonuses(data).Luck * 0.1)
 end
 
 -- Reichweite inklusive Hand-Bonus
@@ -545,7 +659,7 @@ return Calc
 local Config = {}
 
 Config.GameName = "Slap the Blob"
-Config.Version = "5.0"
+Config.Version = "6.0"
 
 --------------------------------------------------------------------------
 -- Speichern
@@ -570,18 +684,19 @@ Config.AutoSlapSlowdown = 1.35 -- Auto-Slap ist etwas langsamer als Klicken
 --------------------------------------------------------------------------
 -- Rebirth
 --------------------------------------------------------------------------
-Config.RebirthBaseCost = 250000
-Config.RebirthCostGrowth = 3.5
-Config.RebirthSlapBonus = 0.5 -- +50% Slaps pro Rebirth
-Config.RebirthDamageBonus = 0.25 -- +25% Schaden pro Rebirth
-Config.RebirthGems = 25 -- Gems pro Rebirth (mal Rebirth-Nummer)
+Config.RebirthBaseCost = 2500000
+Config.RebirthCostGrowth = 6
+Config.RebirthMinZone = 3 -- man muss mindestens Zone 3 haben
+Config.RebirthSlapBonus = 1 -- +100% Slaps pro Rebirth
+Config.RebirthDamageBonus = 0.5 -- +50% Schaden pro Rebirth
+Config.RebirthGems = 50 -- Gems pro Rebirth (mal Rebirth-Nummer)
 
 --------------------------------------------------------------------------
 -- Upgrades (mit Slaps kaufen, werden bei Rebirth zurueckgesetzt)
 -- Alle 10 Level kommt ein TIER-UP: teuer (Slaps + Gems), aber jede neue
 -- Stufe gibt einen viel groesseren Multiplikator als die letzte.
 --------------------------------------------------------------------------
-Config.UpgradeOrder = { "Power", "Speed", "Reach", "Luck", "Greed", "Combo" }
+Config.UpgradeOrder = { "Power", "Speed", "Reach", "Luck", "Greed", "Combo", "Legs", "Jump" }
 
 Config.TierSize = 10 -- Level pro Tier
 Config.TierCostGrowth = 4 -- jede Tier macht alle Level 4x teurer
@@ -608,6 +723,8 @@ Config.Upgrades = {
 	Luck = { DisplayName = "Crit Luck", Icon = "🍀", Description = "Higher chance for critical slaps (x3 damage).", MaxLevel = 50, BaseCost = 100, CostGrowth = 1.38 },
 	Greed = { DisplayName = "Slap Greed", Icon = "💰", Description = "More Slaps for every hit.", MaxLevel = 100, BaseCost = 150, CostGrowth = 1.3 },
 	Combo = { DisplayName = "Combo Master", Icon = "🔥", Description = "Higher max combo = more bonus Slaps.", MaxLevel = 40, BaseCost = 500, CostGrowth = 1.5 },
+	Legs = { DisplayName = "Leg Power", Icon = "🦵", Description = "Run faster through the worlds.", MaxLevel = 40, BaseCost = 200, CostGrowth = 1.45 },
+	Jump = { DisplayName = "Jump Power", Icon = "🦘", Description = "Jump higher.", MaxLevel = 30, BaseCost = 250, CostGrowth = 1.5 },
 }
 
 --------------------------------------------------------------------------
@@ -640,9 +757,24 @@ local GLOVE_MATERIALS = {
 	{ "Shadow", { 70, 25, 110 }, "Neon" },
 	{ "Galaxy", { 120, 50, 220 }, "Neon" },
 	{ "Rainbow", { 255, 80, 200 }, "Neon" },
+	{ "Plasma", { 255, 60, 255 }, "Neon" },
+	{ "Nebula", { 150, 60, 255 }, "Neon" },
+	{ "Solar", { 255, 190, 30 }, "Neon" },
+	{ "Lunar", { 210, 220, 255 }, "Neon" },
+	{ "Celestial", { 255, 240, 200 }, "Neon" },
+	{ "Void", { 30, 10, 60 }, "Neon" },
+	{ "Chrono", { 80, 255, 220 }, "Neon" },
+	{ "Quantum", { 0, 180, 255 }, "Neon" },
+	{ "Dragon", { 220, 20, 40 }, "Neon" },
+	{ "Titan", { 255, 150, 40 }, "Neon" },
+	{ "Divine", { 255, 255, 220 }, "Neon" },
+	{ "Eternal", { 255, 80, 120 }, "Neon" },
+	{ "Infinity", { 255, 255, 255 }, "Neon" },
 }
 local GLOVE_GRADES = { "", "Reinforced ", "Mega " }
-local SPECIAL_BASE_EFFECT = { Frost = "smoke", Lava = "fire", Thunder = "electric", Shadow = "shadow", Rainbow = "rainbow" }
+local SPECIAL_BASE_EFFECT = { Frost = "smoke", Lava = "fire", Thunder = "electric", Shadow = "shadow", Rainbow = "rainbow",
+	Plasma = "electric", Nebula = "orbit", Solar = "fire", Void = "shadow", Chrono = "orbit", Quantum = "electric", Dragon = "dragon",
+	Divine = "aura", Eternal = "orbit", Infinity = "rainbow" }
 do
 	local index = 0
 	for _, mat in ipairs(GLOVE_MATERIALS) do
@@ -655,7 +787,9 @@ do
 				effect = (mat[1] == "Rainbow") and "rainbow" or "aura"
 			end
 			local rarity = "Common"
-			if index > 48 then
+			if index > 84 then
+				rarity = "Ultra"
+			elseif index > 48 then
 				rarity = "Mythic"
 			elseif index > 36 then
 				rarity = "Legendary"
@@ -695,6 +829,14 @@ local GEM_GLOVES = {
 		SlapMultiplier = 2, CritBonus = 0.05 },
 	{ Id = "StarForge", DisplayName = "Star Forge Gauntlet", Rarity = "Mythic", Damage = 5000, Price = 40000, Currency = "Gems", Color = { 90, 200, 255 }, Material = "Neon", Effect = "orbit",
 		SlapMultiplier = 3, CritBonus = 0.08, ReachBonus = 4 },
+	{ Id = "FrostPhoenix", DisplayName = "Frost Phoenix Claw", Rarity = "Mythic", Damage = 15000, Price = 80000, Currency = "Gems", Color = { 150, 230, 255 }, Material = "Neon", Effect = "smoke",
+		SlapMultiplier = 4, CritBonus = 0.1, ReachBonus = 5 },
+	{ Id = "CelestialGauntlet", DisplayName = "Celestial Gauntlet", Rarity = "Ultra", Damage = 50000, Price = 150000, Currency = "Gems", Color = { 255, 240, 180 }, Material = "Neon", Effect = "aura",
+		SlapMultiplier = 6, CritBonus = 0.12, ReachBonus = 6 },
+	{ Id = "VoidReaper", DisplayName = "Void Reaper", Rarity = "Ultra", Damage = 150000, Price = 300000, Currency = "Gems", Color = { 60, 20, 100 }, Material = "Neon", Effect = "shadow",
+		SlapMultiplier = 8, CritBonus = 0.15, ReachBonus = 8, Snap = 0.02 },
+	{ Id = "EternalFist", DisplayName = "Eternal Fist", Rarity = "Ultra", Damage = 500000, Price = 600000, Currency = "Gems", Color = { 255, 90, 140 }, Material = "Neon", Effect = "omni",
+		SlapMultiplier = 12, CritBonus = 0.2, ReachBonus = 10, Snap = 0.04 },
 }
 for _, glove in ipairs(GEM_GLOVES) do
 	table.insert(Config.Hands, glove)
@@ -748,7 +890,7 @@ end
 --------------------------------------------------------------------------
 -- Seltenheiten
 --------------------------------------------------------------------------
-Config.RarityOrder = { "Common", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
+Config.RarityOrder = { "Common", "Rare", "Epic", "Legendary", "Mythic", "Ultra", "Secret", "UltraMaster" }
 Config.Rarities = {
 	Common = { DisplayName = "Common", Color = { 200, 200, 200 }, Order = 1 },
 	Rare = { DisplayName = "Rare", Color = { 80, 170, 255 }, Order = 2 },
@@ -757,6 +899,7 @@ Config.Rarities = {
 	Mythic = { DisplayName = "Mythic", Color = { 255, 60, 120 }, Order = 5 },
 	Ultra = { DisplayName = "ULTRA", Color = { 255, 240, 120 }, Order = 6 },
 	Secret = { DisplayName = "SECRET", Color = { 255, 255, 255 }, Order = 7 },
+	UltraMaster = { DisplayName = "ULTRA MASTER", Color = { 255, 90, 255 }, Order = 8 },
 }
 
 --------------------------------------------------------------------------
@@ -853,8 +996,8 @@ for _, def in ipairs(EGG_DEFS) do
 	table.insert(Config.EggOrder, eggId)
 end
 
-Config.BasePetSlots = 3
-Config.BaseInventory = 40
+Config.BasePetSlots = 4
+Config.BaseInventory = 60
 Config.LuckyBoostFactor = 2.5 -- Gewicht seltener Pets mit Glueck-Boost
 
 --------------------------------------------------------------------------
@@ -863,8 +1006,8 @@ Config.LuckyBoostFactor = 2.5 -- Gewicht seltener Pets mit Glueck-Boost
 --   Decor: meadow, desert, ice, lava, cloud, space, candy, cyber, shadow, void
 --   Accessories (nur Blobs): bow, glasses, cowboy, scarf, horns, halo, antenna, crown
 --------------------------------------------------------------------------
-Config.ZoneLength = 130
-Config.ZoneWidth = 120
+Config.ZoneLength = 200
+Config.ZoneWidth = 160
 
 -- Dimensionen: am Ende der Oberwelt fuehrt ein Portal in die Rift-Dimension.
 Config.Dimensions = {
@@ -874,6 +1017,7 @@ Config.Dimensions = {
 	{ Name = "Mythic Realm", FirstZone = 16, LastZone = 20, StartZ = 4050 },
 	{ Name = "Cosmic Realm", FirstZone = 21, LastZone = 25, StartZ = 5400 },
 	{ Name = "The Infinite", FirstZone = 26, LastZone = 30, StartZ = 6750 },
+	{ Name = "The Beyond", FirstZone = 31, LastZone = 37, StartZ = 8100 },
 }
 
 -- Ab Zone 11 gibt jede freigeschaltete Zone x3 Schaden (sonst waeren die
@@ -1042,6 +1186,14 @@ local EXTRA_ZONES = {
 	{ "Rainbow Road", "candy", { 255, 255, 255 }, "SmoothPlastic", { 255, 100, 200 }, { 200, 220, 255 }, "Rainbow", { "cube", "ghost" }, "Rainbow Overlord Blob", { "halo", "crown", "bow" } },
 	{ "Golden Paradise", "desert", { 255, 220, 120 }, "Sand", { 255, 200, 40 }, { 240, 190, 90 }, "Golden", { "golem", "robot" }, "Golden God Blob", { "crown", "glasses" } },
 	{ "INFINITY", "void", { 255, 255, 255 }, "Glass", { 0, 0, 0 }, { 200, 200, 210 }, "Infinity", { "ghost", "golem" }, "THE INFINITE BLOB", { "halo", "crown", "glasses" } },
+	-- The Beyond: 7 Welten mit eigener Spielmechanik
+	{ "Gravity Garden", "meadow", { 120, 220, 160 }, "Grass", { 120, 255, 220 }, { 200, 240, 220 }, "Gravity", { "ghost", "cube" }, "Zero-G Blob", { "halo", "bow" }, "lowgrav" },
+	{ "Glacier Slide", "ice", { 210, 240, 255 }, "Ice", { 60, 180, 255 }, { 170, 210, 240 }, "Slide", { "golem", "cube" }, "Glacier Titan Blob", { "scarf", "crown" }, "ice" },
+	{ "Bounce Castle", "candy", { 255, 210, 250 }, "SmoothPlastic", { 255, 120, 220 }, { 255, 240, 250 }, "Bounce", { "cube", "dummy" }, "Bouncy King Blob", { "crown", "bow" }, "bounce" },
+	{ "Hyper Highway", "cyber", { 15, 20, 40 }, "SmoothPlastic", { 255, 230, 0 }, { 50, 60, 90 }, "Hyper", { "robot", "cube" }, "Turbo Blob", { "antenna", "glasses" }, "boost" },
+	{ "Eclipse Valley", "shadow", { 15, 10, 20 }, "Slate", { 255, 140, 40 }, { 40, 30, 45 }, "Eclipse", { "ghost", "golem" }, "Eclipse Blob", { "horns", "halo" }, "dark" },
+	{ "Titan's Core", "lava", { 70, 20, 10 }, "Basalt", { 255, 70, 0 }, { 110, 40, 20 }, "Core", { "golem", "robot" }, "Core Titan Blob", { "horns", "crown" }, "heavy" },
+	{ "Tempest Peak", "cloud", { 120, 130, 160 }, "SmoothPlastic", { 120, 220, 255 }, { 100, 110, 140 }, "Tempest", { "ghost", "dummy" }, "TEMPEST GOD BLOB", { "halo", "crown", "glasses" }, "storm" },
 }
 
 local KIND_NAMES = { ghost = "Ghost", cube = "Cube", robot = "Bot", golem = "Golem", dummy = "Dummy" }
@@ -1059,7 +1211,7 @@ for k, def in ipairs(EXTRA_ZONES) do
 	local zoneIndex = 10 + k
 	local name, decorName, floor, floorMat, accent, path, word, kinds, bossName, bossAcc =
 		def[1], def[2], def[3], def[4], def[5], def[6], def[7], def[8], def[9], def[10]
-	local hp = 4 ^ k
+	local hp = 5 ^ k
 	local reward = 3.2 ^ k
 	local eggId = "Z" .. zoneIndex
 	local function shade(c, f)
@@ -1067,7 +1219,7 @@ for k, def in ipairs(EXTRA_ZONES) do
 			math.floor(math.min(255, c[2] * f)), math.floor(math.min(255, c[3] * f)) }
 	end
 	table.insert(Config.Zones, {
-		Name = name, Price = math.floor(basePrice * (25 ^ k)), Decor = decorName,
+		Name = name, Price = math.floor(basePrice * (40 ^ k)), Decor = decorName, Mechanic = def[11],
 		Floor = floor, FloorMaterial = floorMat, Accent = accent, Path = path,
 		Egg = eggId,
 		Gyatts = {
@@ -1099,9 +1251,242 @@ for k, def in ipairs(EXTRA_ZONES) do
 		}
 		table.insert(entries, { petId, slot.Weight })
 	end
-	Config.Eggs[eggId] = { DisplayName = word .. " Egg", Price = math.floor(basePrice * (25 ^ k) * 5), Currency = "Slaps", Color = accent, Zone = zoneIndex, Pets = entries }
+	Config.Eggs[eggId] = { DisplayName = word .. " Egg", Price = math.floor(basePrice * (40 ^ k) * 5), Currency = "Slaps", Color = accent, Zone = zoneIndex, Pets = entries }
 	table.insert(Config.EggOrder, eggId)
 end
+
+--------------------------------------------------------------------------
+-- Dimensionen automatisch hintereinander legen (700 Studs Luecke dazwischen)
+--------------------------------------------------------------------------
+do
+	local z = 0
+	for _, dim in ipairs(Config.Dimensions) do
+		dim.StartZ = z
+		z = z + (dim.LastZone - dim.FirstZone + 1) * Config.ZoneLength + 700
+	end
+end
+
+--------------------------------------------------------------------------
+-- Zonen-Mechaniken (Standard je Thema, einzelne Zonen koennen eine eigene haben)
+--   lowgrav  = wenig Schwerkraft      heavy = starke Schwerkraft
+--   floaty   = leicht schwebend       ice   = rutschiger Boden
+--   bounce   = Sprungpolster          boost = Turbo-Felder
+--   dark     = Dunkelheit             storm = Windboeen
+--------------------------------------------------------------------------
+Config.DecorMechanic = { space = "lowgrav", void = "lowgrav", ice = "ice", candy = "bounce", cyber = "boost", shadow = "dark", cloud = "floaty", desert = "storm" }
+Config.MechanicInfo = {
+	lowgrav = { Name = "Low Gravity", Icon = "🪐" },
+	heavy = { Name = "Heavy Gravity", Icon = "🪨" },
+	floaty = { Name = "Floaty Air", Icon = "☁️" },
+	ice = { Name = "Slippery Ice", Icon = "🧊" },
+	bounce = { Name = "Bounce Pads", Icon = "🟣" },
+	boost = { Name = "Turbo Pads", Icon = "⚡" },
+	dark = { Name = "Darkness", Icon = "🌑" },
+	storm = { Name = "Wind Gusts", Icon = "💨" },
+}
+for _, zone in ipairs(Config.Zones) do
+	if zone.Mechanic == nil then
+		zone.Mechanic = Config.DecorMechanic[zone.Decor]
+	end
+end
+
+--------------------------------------------------------------------------
+-- Pinata in jeder Zone: wenig Slaps, aber hohe Chance auf Items
+--------------------------------------------------------------------------
+for _, zone in ipairs(Config.Zones) do
+	local boss = zone.Gyatts[2]
+	table.insert(zone.Gyatts, {
+		Id = "Pinata", Kind = "pinata", DisplayName = "Lucky Pinata", MaxHealth = math.floor(boss.MaxHealth * 0.15) + 30, Size = 7,
+		Color = zone.Accent, RewardMultiplier = math.max(1, math.floor(boss.RewardMultiplier * 0.3)), Gems = 2, Respawn = 30,
+	})
+end
+
+-- Item-Dropchance pro Zieltyp (beim Besiegen, pro Spieler der geholfen hat)
+Config.KindDrops = { blob = 0.012, cube = 0.018, dummy = 0.01, robot = 0.022, ghost = 0.022, golem = 0.03, chest = 0.25, pinata = 0.15 }
+Config.BossDropBonus = 2 -- der Boss jeder Zone (2. Ziel) hat doppelte Chance
+-- Seltenheit von gefundenen Items. Je weiter die Zone, desto besser.
+Config.DropRarityWeights = { Common = 60, Rare = 26, Epic = 10, Legendary = 3.5, Mythic = 0.5 }
+
+--------------------------------------------------------------------------
+-- Weitere Eier: Gem-Eier, Robux-Eier, Wochen-Event-Eier
+--------------------------------------------------------------------------
+local function addEgg(eggId, eggName, price, currency, color, zone, baseBoost, slots, petDefs, extra)
+	local entries = {}
+	for i, slot in ipairs(slots) do
+		local petDef = petDefs[i]
+		local petId = eggId .. "_" .. i
+		local boost = baseBoost * slot.Factor
+		boost = boost >= 10 and math.floor(boost) or math.floor(boost * 100 + 0.5) / 100
+		Config.Pets[petId] = { DisplayName = petDef[1], Rarity = slot.Rarity, Boost = boost, Color = petDef[3], Style = petDef[2], Egg = eggId }
+		table.insert(entries, { petId, slot.Weight })
+	end
+	local egg = { DisplayName = eggName, Price = price, Currency = currency, Color = color, Zone = zone, Pets = entries }
+	for k, v in pairs(extra or {}) do
+		egg[k] = v
+	end
+	Config.Eggs[eggId] = egg
+	table.insert(Config.EggOrder, eggId)
+	return egg
+end
+
+-- Gem-Eier (Diamanten)
+addEgg("Diamond", "Diamond Egg", 1500, "Gems", { 120, 230, 255 }, 1, 60, {
+	{ Rarity = "Epic", Weight = 60, Factor = 7 }, { Rarity = "Epic", Weight = 28, Factor = 9 }, { Rarity = "Legendary", Weight = 9, Factor = 20 },
+	{ Rarity = "Legendary", Weight = 2.5, Factor = 26 }, { Rarity = "Mythic", Weight = 0.48, Factor = 60 }, { Rarity = "Ultra", Weight = 0.02, Factor = 150 },
+}, { { "Diamond Pup", "dog", { 150, 230, 255 } }, { "Diamond Cat", "cat", { 170, 240, 255 } }, { "Gem Fox", "fox", { 90, 210, 255 } },
+	{ "Crystal Owl", "owl", { 200, 250, 255 } }, { "Diamond Dragon", "dragon", { 120, 230, 255 } }, { "Prism Unicorn", "unicorn", { 230, 250, 255 } } }, { Shop = true })
+addEgg("Mythic", "Mythic Egg", 5000, "Gems", { 255, 80, 160 }, 1, 200, {
+	{ Rarity = "Legendary", Weight = 60, Factor = 20 }, { Rarity = "Legendary", Weight = 28, Factor = 26 }, { Rarity = "Mythic", Weight = 9, Factor = 55 },
+	{ Rarity = "Mythic", Weight = 2.5, Factor = 70 }, { Rarity = "Ultra", Weight = 0.49, Factor = 150 }, { Rarity = "Secret", Weight = 0.01, Factor = 1000 },
+}, { { "Mythic Wolf", "dog", { 255, 90, 160 } }, { "Mythic Phoenix", "bird", { 255, 120, 60 } }, { "Mythic Kraken", "octopus", { 200, 60, 255 } },
+	{ "Mythic Dragon", "dragon", { 255, 60, 140 } }, { "Mythic Whale", "whale", { 255, 140, 220 } }, { "The Mythic One", "ghost", { 255, 200, 255 } } }, { Shop = true })
+
+-- ROBUX-EIER (Developer Products, R$100 bis R$1000). ProductId eintragen wie bei den Gems.
+Config.RobuxEggs = {
+	{ Id = "RobuxEgg1", Name = "Robux Egg", Robux = 100, ProductId = 0, Color = { 120, 255, 140 }, Base = 50,
+		Slots = { { Rarity = "Rare", Weight = 50, Factor = 3 }, { Rarity = "Epic", Weight = 25, Factor = 7 }, { Rarity = "Epic", Weight = 10, Factor = 9 },
+			{ Rarity = "Legendary", Weight = 9, Factor = 20 }, { Rarity = "Legendary", Weight = 3, Factor = 26 }, { Rarity = "Mythic", Weight = 3, Factor = 60 } },
+		Pets = { { "Lucky Pup", "dog", { 120, 255, 140 } }, { "Clover Cat", "cat", { 90, 220, 110 } }, { "Emerald Fox", "fox", { 60, 200, 120 } },
+			{ "Jade Dragon", "dragon", { 80, 220, 140 } }, { "Fortune Owl", "owl", { 255, 220, 90 } }, { "Lucky Unicorn", "unicorn", { 180, 255, 190 } } } },
+	{ Id = "RobuxEgg2", Name = "Super Egg", Robux = 250, ProductId = 0, Color = { 90, 180, 255 }, Base = 200,
+		Slots = { { Rarity = "Epic", Weight = 50, Factor = 7 }, { Rarity = "Legendary", Weight = 25, Factor = 20 }, { Rarity = "Legendary", Weight = 10, Factor = 26 },
+			{ Rarity = "Mythic", Weight = 9, Factor = 60 }, { Rarity = "Mythic", Weight = 4, Factor = 75 }, { Rarity = "Ultra", Weight = 2, Factor = 150 } },
+		Pets = { { "Super Shark", "shark", { 90, 180, 255 } }, { "Super Bee", "bee", { 255, 230, 90 } }, { "Storm Bat", "bat", { 120, 140, 255 } },
+			{ "Super Dino", "dino", { 90, 200, 255 } }, { "Sky Whale", "whale", { 150, 210, 255 } }, { "Super Dragon", "dragon", { 60, 140, 255 } } } },
+	{ Id = "RobuxEgg3", Name = "Mega Egg", Robux = 500, ProductId = 0, Color = { 200, 90, 255 }, Base = 800,
+		Slots = { { Rarity = "Legendary", Weight = 50, Factor = 20 }, { Rarity = "Mythic", Weight = 25, Factor = 60 }, { Rarity = "Mythic", Weight = 13, Factor = 75 },
+			{ Rarity = "Ultra", Weight = 8, Factor = 150 }, { Rarity = "Ultra", Weight = 3, Factor = 180 }, { Rarity = "UltraMaster", Weight = 1, Factor = 400 } },
+		Pets = { { "Mega Golem", "golem", { 200, 90, 255 } }, { "Mega Panda", "panda", { 230, 200, 255 } }, { "Mega Kraken", "octopus", { 170, 60, 255 } },
+			{ "Mega Phoenix", "bird", { 255, 90, 220 } }, { "Mega Unicorn", "unicorn", { 220, 160, 255 } }, { "Mega Overlord", "dragon", { 150, 40, 255 } } } },
+	{ Id = "RobuxEgg4", Name = "Ultra Master Egg", Robux = 1000, ProductId = 0, Color = { 255, 90, 255 }, Base = 3000,
+		Slots = { { Rarity = "Mythic", Weight = 45, Factor = 60 }, { Rarity = "Ultra", Weight = 25, Factor = 150 }, { Rarity = "Ultra", Weight = 20, Factor = 180 },
+			{ Rarity = "UltraMaster", Weight = 6, Factor = 400 }, { Rarity = "UltraMaster", Weight = 3, Factor = 500 }, { Rarity = "UltraMaster", Weight = 1, Factor = 800 } },
+		Pets = { { "Master Wolf", "dog", { 255, 120, 255 } }, { "Master Dragon", "dragon", { 255, 60, 220 } }, { "Master Whale", "whale", { 255, 150, 255 } },
+			{ "Ultra Master Phoenix", "bird", { 255, 200, 90 } }, { "Ultra Master Kraken", "octopus", { 255, 80, 200 } }, { "THE ULTRA MASTER", "ghost", { 255, 255, 255 } } } },
+}
+for _, robuxEgg in ipairs(Config.RobuxEggs) do
+	addEgg(robuxEgg.Id, robuxEgg.Name, robuxEgg.Robux, "Robux", robuxEgg.Color, 1, robuxEgg.Base, robuxEgg.Slots, robuxEgg.Pets, { Robux = true })
+end
+
+-- WOCHEN-EVENTS: jede Woche ein anderes Event-Ei mit exklusiven Pets (nur in dieser Woche!)
+local EVENT_SLOTS = {
+	{ Rarity = "Legendary", Weight = 60, Factor = 20 }, { Rarity = "Legendary", Weight = 28, Factor = 26 }, { Rarity = "Mythic", Weight = 9, Factor = 60 },
+	{ Rarity = "Mythic", Weight = 2.5, Factor = 75 }, { Rarity = "Ultra", Weight = 0.48, Factor = 160 }, { Rarity = "Secret", Weight = 0.02, Factor = 1200 },
+}
+Config.WeeklyEvents = {
+	{ Id = "Spooky", Name = "Spooky Week", Color = { 255, 120, 30 }, Pets = { { "Pumpkin Pup", "dog", { 255, 140, 30 } }, { "Witch Cat", "cat", { 90, 40, 120 } },
+		{ "Spooky Bat", "bat", { 60, 30, 70 } }, { "Ghost Owl", "owl", { 230, 230, 255 } }, { "Headless Dragon", "dragon", { 255, 100, 20 } }, { "Phantom King", "ghost", { 200, 255, 200 } } } },
+	{ Id = "Winter", Name = "Winter Wonderland", Color = { 170, 220, 255 }, Pets = { { "Snow Pup", "dog", { 240, 250, 255 } }, { "Reindeer", "unicorn", { 170, 110, 70 } },
+		{ "Ice Penguin", "bird", { 60, 70, 100 } }, { "Frost Panda", "panda", { 200, 230, 255 } }, { "Gift Golem", "golem", { 220, 40, 60 } }, { "Santa Blob", "ghost", { 255, 60, 60 } } } },
+	{ Id = "Spring", Name = "Spring Bloom", Color = { 255, 170, 220 }, Pets = { { "Easter Bunny", "bunny", { 255, 220, 240 } }, { "Flower Bee", "bee", { 255, 230, 120 } },
+		{ "Petal Fox", "fox", { 255, 160, 200 } }, { "Garden Frog", "frog", { 120, 220, 120 } }, { "Blossom Dragon", "dragon", { 255, 180, 230 } }, { "Spring Spirit", "ghost", { 230, 255, 220 } } } },
+	{ Id = "Summer", Name = "Summer Splash", Color = { 80, 200, 255 }, Pets = { { "Beach Crab", "octopus", { 255, 110, 80 } }, { "Surf Shark", "shark", { 90, 160, 220 } },
+		{ "Sunny Turtle", "turtle", { 90, 200, 120 } }, { "Coconut Cat", "cat", { 200, 150, 90 } }, { "Tidal Whale", "whale", { 40, 140, 255 } }, { "Sun God", "ghost", { 255, 220, 80 } } } },
+	{ Id = "Space", Name = "Space Week", Color = { 140, 90, 255 }, Pets = { { "Astro Pup", "dog", { 220, 220, 240 } }, { "UFO Alien", "alien", { 120, 255, 160 } },
+		{ "Comet Jelly", "jelly", { 120, 200, 255 } }, { "Rocket Robot", "robot", { 200, 200, 220 } }, { "Nebula Dragon", "dragon", { 160, 80, 255 } }, { "Black Hole", "ghost", { 40, 0, 80 } } } },
+	{ Id = "Dragon", Name = "Dragon Festival", Color = { 255, 60, 60 }, Pets = { { "Lantern Pup", "dog", { 255, 80, 60 } }, { "Lucky Cat", "cat", { 255, 220, 120 } },
+		{ "Fire Dino", "dino", { 255, 100, 30 } }, { "Jade Turtle", "turtle", { 60, 200, 130 } }, { "Golden Dragon King", "dragon", { 255, 200, 40 } }, { "Dragon Spirit", "ghost", { 255, 90, 90 } } } },
+}
+Config.EventEggPrice = 500 -- Gems
+for _, event in ipairs(Config.WeeklyEvents) do
+	event.EggId = "Event_" .. event.Id
+	addEgg(event.EggId, event.Name .. " Egg", Config.EventEggPrice, "Gems", event.Color, 1, 300, EVENT_SLOTS, event.Pets, { Event = event.Id })
+end
+
+--------------------------------------------------------------------------
+-- ITEMS / ACCESSOIRES: 3 Kategorien x 25. Veraendern das Aussehen und
+-- geben Werte. 3 gleiche Items (gleiche Stufe) = 1 Item mit +1 Stern (max 5).
+--------------------------------------------------------------------------
+Config.ItemCategories = { "Hat", "Back", "Aura" }
+Config.ItemCategoryInfo = {
+	Hat = { Name = "Hats", Icon = "🎩", Stat = "Damage" },
+	Back = { Name = "Wings & Backs", Icon = "🪽", Stat = "Speed" },
+	Aura = { Name = "Auras", Icon = "✨", Stat = "Slaps" },
+}
+Config.StatInfo = {
+	Damage = { Name = "Damage", Icon = "💪" },
+	Slaps = { Name = "Slaps", Icon = "💰" },
+	Speed = { Name = "Walk Speed", Icon = "🦵" },
+	Luck = { Name = "Crit Luck", Icon = "🍀" },
+	Gems = { Name = "Gem Find", Icon = "💎" },
+}
+Config.ItemRarityValue = { Common = 0.05, Rare = 0.12, Epic = 0.25, Legendary = 0.5, Mythic = 1, Ultra = 2.5, UltraMaster = 6 }
+Config.ItemLevelMultiplier = { 1, 1.6, 2.5, 4, 6.5 }
+Config.ItemMaxLevel = 5
+Config.ItemInventory = 120
+Config.Items = {}
+Config.ItemOrder = {}
+
+local ITEM_RARITY_BY_INDEX = { "Common", "Common", "Common", "Common", "Common", "Rare", "Rare", "Rare", "Rare", "Rare",
+	"Epic", "Epic", "Epic", "Epic", "Legendary", "Legendary", "Legendary", "Legendary", "Mythic", "Mythic", "Mythic", "Ultra", "Ultra", "UltraMaster", "UltraMaster" }
+-- { Name, Form, Farbe, Material, Effekt }
+local ITEM_DEFS = {
+	Hat = {
+		{ "Party Hat", "cone", { 255, 90, 160 } }, { "Baseball Cap", "cap", { 60, 120, 255 } }, { "Beanie", "beanie", { 230, 60, 60 } },
+		{ "Top Hat", "tophat", { 30, 30, 35 } }, { "Cowboy Hat", "brim", { 150, 100, 60 } }, { "Chef Hat", "chef", { 255, 255, 255 } },
+		{ "Bunny Ears", "ears_long", { 255, 220, 235 } }, { "Cat Ears", "ears_cat", { 255, 170, 90 } }, { "Viking Helmet", "horns", { 180, 180, 190 } },
+		{ "Ninja Band", "band", { 30, 30, 40 } }, { "Wizard Hat", "wizard", { 90, 60, 200 } }, { "Flower Crown", "ring", { 255, 150, 200 } },
+		{ "Knight Helmet", "helm", { 200, 205, 215 }, "Metal" }, { "Space Helmet", "dome", { 200, 230, 255 }, "Glass" }, { "Golden Crown", "crown", { 255, 200, 40 }, "Foil" },
+		{ "Angel Halo", "halo", { 255, 240, 120 }, "Neon" }, { "Demon Horns", "horns", { 200, 20, 30 }, "Neon" }, { "Antlers", "antlers", { 140, 100, 70 } },
+		{ "Ice Crown", "crown", { 160, 220, 255 }, "Ice" }, { "Flame Crown", "crown", { 255, 110, 20 }, "Neon", "fire" }, { "Samurai Kabuto", "helm", { 180, 30, 40 }, "Metal" },
+		{ "Galaxy Crown", "crown", { 120, 60, 255 }, "Neon", "sparkles" }, { "Cosmic Halo", "halo", { 160, 120, 255 }, "Neon", "sparkles" },
+		{ "Ultra Master Crown", "crown", { 255, 90, 255 }, "Neon", "rainbow" }, { "Infinity Halo", "halo", { 255, 255, 255 }, "Neon", "rainbow" },
+	},
+	Back = {
+		{ "Small Backpack", "backpack", { 230, 90, 60 } }, { "Cape", "cape", { 200, 30, 50 } }, { "Fairy Wings", "wings_round", { 200, 255, 240 }, "Glass" },
+		{ "Bee Wings", "wings_round", { 230, 240, 255 }, "Glass" }, { "Leaf Wings", "wings_feather", { 90, 200, 90 } }, { "Butterfly Wings", "wings_round", { 255, 150, 60 } },
+		{ "Bat Wings", "wings_bat", { 50, 30, 60 } }, { "Jetpack", "jetpack", { 180, 180, 190 }, "Metal" }, { "Royal Cape", "cape", { 120, 40, 200 } },
+		{ "Feather Cape", "cape", { 240, 240, 255 } }, { "Angel Wings", "wings_feather", { 255, 255, 255 } }, { "Rocket Pack", "jetpack", { 255, 80, 60 }, "Metal", "fire" },
+		{ "Dragon Wings", "wings_bat", { 200, 30, 30 } }, { "Ice Wings", "wings_feather", { 170, 225, 255 }, "Ice" }, { "Phoenix Wings", "wings_feather", { 255, 140, 30 }, "Neon", "fire" },
+		{ "Shadow Wings", "wings_bat", { 40, 10, 60 }, "Neon", "smoke" }, { "Crystal Wings", "wings_round", { 150, 230, 255 }, "Glass", "sparkles" }, { "Mecha Wings", "wings_feather", { 120, 130, 150 }, "Metal" },
+		{ "Golden Wings", "wings_feather", { 255, 200, 40 }, "Foil", "sparkles" }, { "Thunder Wings", "wings_feather", { 255, 240, 80 }, "Neon" }, { "Lava Wings", "wings_bat", { 255, 90, 20 }, "Neon", "fire" },
+		{ "Galaxy Wings", "wings_round", { 120, 60, 255 }, "Neon", "sparkles" }, { "Void Wings", "wings_bat", { 20, 0, 40 }, "Neon", "smoke" },
+		{ "Celestial Wings", "wings_feather", { 255, 240, 200 }, "Neon", "rainbow" }, { "Ultra Master Wings", "wings_feather", { 255, 90, 255 }, "Neon", "rainbow" },
+	},
+	Aura = {
+		{ "Sparkle Aura", "aura", { 255, 255, 200 } }, { "Bubble Aura", "aura", { 150, 220, 255 } }, { "Leaf Aura", "aura", { 100, 220, 100 } },
+		{ "Heart Aura", "aura", { 255, 90, 150 } }, { "Snow Aura", "aura", { 240, 250, 255 } }, { "Smoke Aura", "aura", { 150, 150, 160 }, nil, "smoke" },
+		{ "Star Aura", "aura", { 255, 230, 90 } }, { "Music Aura", "aura", { 200, 120, 255 } }, { "Toxic Aura", "aura", { 140, 255, 60 } },
+		{ "Ice Aura", "aura", { 160, 230, 255 } }, { "Fire Aura", "aura", { 255, 110, 20 }, nil, "fire" }, { "Lightning Aura", "aura", { 255, 250, 120 } },
+		{ "Pixel Aura", "aura", { 60, 255, 200 } }, { "Ghost Aura", "aura", { 220, 230, 255 }, nil, "smoke" }, { "Gold Aura", "aura", { 255, 200, 40 }, nil, "sparkles" },
+		{ "Crystal Aura", "aura", { 150, 240, 255 }, nil, "sparkles" }, { "Lava Aura", "aura", { 255, 70, 0 }, nil, "fire" }, { "Shadow Aura", "aura", { 60, 0, 90 }, nil, "smoke" },
+		{ "Rainbow Aura", "aura", { 255, 120, 220 }, nil, "rainbow" }, { "Angel Aura", "aura", { 255, 250, 220 }, nil, "sparkles" }, { "Demon Aura", "aura", { 255, 30, 60 }, nil, "fire" },
+		{ "Cosmic Aura", "aura", { 140, 90, 255 }, nil, "sparkles" }, { "Galaxy Aura", "aura", { 100, 60, 255 }, nil, "rainbow" },
+		{ "Ultra Master Aura", "aura", { 255, 90, 255 }, nil, "rainbow" }, { "Infinity Aura", "aura", { 255, 255, 255 }, nil, "rainbow" },
+	},
+}
+for _, category in ipairs(Config.ItemCategories) do
+	for i, def in ipairs(ITEM_DEFS[category]) do
+		local itemId = category .. "_" .. i
+		local stat = Config.ItemCategoryInfo[category].Stat
+		if category == "Aura" then
+			stat = ({ "Slaps", "Luck", "Gems" })[(i % 3) + 1]
+		elseif category == "Back" and i % 4 == 0 then
+			stat = "Slaps"
+		end
+		Config.Items[itemId] = {
+			Id = itemId, Category = category, DisplayName = def[1], Form = def[2], Color = def[3], Material = def[4] or "SmoothPlastic",
+			Effect = def[5], Rarity = ITEM_RARITY_BY_INDEX[i], Stat = stat,
+		}
+		table.insert(Config.ItemOrder, itemId)
+	end
+end
+
+-- Kisten mit zufaelligen Items. Gewichte nach Seltenheit.
+Config.ItemCrates = {
+	{ Id = "StarterCrate", Name = "Starter Crate", Price = 5000, Currency = "Slaps", Count = 1, Weights = { Common = 80, Rare = 18, Epic = 2 } },
+	{ Id = "BasicCrate", Name = "Basic Crate", Price = 60, Currency = "Gems", Count = 1, Weights = { Common = 55, Rare = 32, Epic = 12, Legendary = 1 } },
+	{ Id = "RoyalCrate", Name = "Royal Crate", Price = 400, Currency = "Gems", Count = 1, Weights = { Rare = 40, Epic = 40, Legendary = 17, Mythic = 3 } },
+	{ Id = "MythicCrate", Name = "Mythic Crate", Price = 2500, Currency = "Gems", Count = 1, Weights = { Epic = 40, Legendary = 45, Mythic = 15 } },
+	-- ROBUX-KISTEN (Developer Products, R$100 bis R$10000). ProductId eintragen.
+	{ Id = "RobuxCrate1", Name = "Bronze Robux Crate", Robux = 100, ProductId = 0, Currency = "Robux", Count = 1, Weights = { Epic = 70, Legendary = 28, Mythic = 2 } },
+	{ Id = "RobuxCrate2", Name = "Silver Robux Crate", Robux = 250, ProductId = 0, Currency = "Robux", Count = 1, Weights = { Legendary = 70, Mythic = 28, Ultra = 2 } },
+	{ Id = "RobuxCrate3", Name = "Gold Robux Crate", Robux = 500, ProductId = 0, Currency = "Robux", Count = 1, Weights = { Legendary = 40, Mythic = 50, Ultra = 10 } },
+	{ Id = "RobuxCrate4", Name = "Diamond Robux Crate", Robux = 1000, ProductId = 0, Currency = "Robux", Count = 2, Weights = { Mythic = 60, Ultra = 38, UltraMaster = 2 } },
+	{ Id = "RobuxCrate5", Name = "Ultra Crate", Robux = 2500, ProductId = 0, Currency = "Robux", Count = 2, Weights = { Mythic = 30, Ultra = 60, UltraMaster = 10 } },
+	{ Id = "RobuxCrate6", Name = "Master Crate", Robux = 5000, ProductId = 0, Currency = "Robux", Count = 3, Weights = { Ultra = 70, UltraMaster = 30 } },
+	{ Id = "RobuxCrate7", Name = "Ultra Master Crate", Robux = 10000, ProductId = 0, Currency = "Robux", Count = 3, Weights = { UltraMaster = 100 } },
+}
 
 -- Goldener Gyatt (Server-Event)
 Config.GoldenGyatt = {
@@ -1121,8 +1506,8 @@ Config.GoldenGyatt = {
 --------------------------------------------------------------------------
 Config.GemShop = {
 	{ Id = "AutoSlap", DisplayName = "Auto-Slap", Icon = "🤖", Description = "Slaps automatically when you are close to a Blob.", Prices = { 200 } },
-	{ Id = "PetSlot", DisplayName = "+1 Pet Slot", Icon = "🐾", Description = "Equip one more pet at the same time.", Prices = { 150, 400, 900 } },
-	{ Id = "Inventory", DisplayName = "+20 Pet Storage", Icon = "🎒", Description = "More room for your pets.", Prices = { 80, 200, 450 } },
+	{ Id = "PetSlot", DisplayName = "+1 Pet Slot", Icon = "🐾", Description = "Equip one more pet at the same time (up to 10).", Prices = { 150, 400, 900, 2000, 4500, 9000 } },
+	{ Id = "Inventory", DisplayName = "+20 Pet Storage", Icon = "🎒", Description = "More room for your pets.", Prices = { 80, 200, 450, 1000, 2200 } },
 	{ Id = "DoubleSlaps", DisplayName = "2x Slaps (15 min)", Icon = "⏫", Description = "Double Slaps for 15 minutes.", Prices = { 60 }, Boost = "DoubleSlaps", Duration = 900, Repeatable = true },
 	{ Id = "LuckyEggs", DisplayName = "Egg Luck (15 min)", Icon = "🌈", Description = "Rare pets show up much more often.", Prices = { 40 }, Boost = "LuckyEggs", Duration = 900, Repeatable = true },
 	{ Id = "DoubleDamage", DisplayName = "2x Damage (15 min)", Icon = "🥊", Description = "Double damage for 15 minutes.", Prices = { 60 }, Boost = "DoubleDamage", Duration = 900, Repeatable = true },
@@ -1183,9 +1568,9 @@ Config.Codes = {
 -- Duell: beide werden in eine eigene Arena teleportiert.
 --------------------------------------------------------------------------
 Config.Arena = { -- die Duell-Zone im Hub
-	CenterX = -34,
-	CenterZ = -38,
-	Radius = 20,
+	CenterX = -45,
+	CenterZ = -90,
+	Radius = 22,
 }
 Config.Duel = {
 	Health = 150,
@@ -1207,6 +1592,8 @@ Config.Duel = {
 	DashCooldown = 2.5,
 	DashInvulnerable = 0.35,
 	DashSpeed = 75,
+	DashStrikeWindow = 0.6, -- Schlag kurz nach dem Dash = Dash-Schlag
+	DashStrikeMultiplier = 1.5,
 	RingOutDepth = 25,
 	WinGems = 10,
 	LoseGems = 2,
@@ -1240,11 +1627,11 @@ Config.Trade = {
 }
 
 -- Hub (Startbereich) liegt bei Z < 0
-Config.HubLength = 80
-Config.SpawnPosition = { 10, -52 }
+Config.HubLength = 120
+Config.SpawnPosition = { 0, -55 }
 
 return Config
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000018"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000017"><Properties><string name="Name">SlapServer</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000019"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000018"><Properties><string name="Name">SlapServer</string><ProtectedString name="Source"><![CDATA[--[[
 	SlapServer (Script in ServerScriptService)
 
 	Startet alle Server-Module von "Slap the Blob" und verbindet sie.
@@ -1270,6 +1657,7 @@ local Rewards = require(script:WaitForChild("Rewards"))
 local Leaderboards = require(script:WaitForChild("Leaderboards"))
 local Duel = require(script:WaitForChild("Duel"))
 local Trade = require(script:WaitForChild("Trade"))
+local Items = require(script:WaitForChild("Items"))
 
 --------------------------------------------------------------------------
 -- Gemeinsamer Kontext fuer alle Module
@@ -1290,6 +1678,7 @@ local ctx = {
 	Leaderboards = Leaderboards,
 	Duel = Duel,
 	Trade = Trade,
+	Items = Items,
 }
 
 function ctx.RegisterAction(name, handler)
@@ -1299,7 +1688,7 @@ end
 -- Karte zuerst bauen (andere Module brauchen die Positionen)
 World.Build()
 
-for _, module in ipairs({ Data, Gyatts, Hands, Combat, Shop, Pets, Rewards, Leaderboards, Duel, Trade }) do
+for _, module in ipairs({ Data, Gyatts, Hands, Combat, Shop, Pets, Rewards, Leaderboards, Duel, Trade, Items }) do
 	module.Init(ctx)
 end
 
@@ -1359,6 +1748,7 @@ local function onCharacterAdded(player, character)
 		return
 	end
 	Hands.Give(player, true)
+	Items.ApplyCharacter(player)
 end
 
 local function onPlayerAdded(player)
@@ -1727,6 +2117,8 @@ function Data.Default()
 		DuelWins = 0,
 		TotalTrades = 0,
 		Receipts = {}, -- bereits gutgeschriebene Robux-Kaeufe (PurchaseId -> Zeit)
+		Items = {}, -- Accessoires: { Uid, Id, Level, Equipped }
+		NextItemUid = 1,
 	}
 end
 
@@ -1757,6 +2149,29 @@ function Data.Sanitize(raw)
 	data.BestCombo = num(raw.BestCombo)
 	data.PlayTime = num(raw.PlayTime)
 	data.DuelWins = num(raw.DuelWins)
+	-- Items
+	local seenItemUids, highestItemUid, equippedCategory = {}, 0, {}
+	if type(raw.Items) == "table" then
+		for _, item in ipairs(raw.Items) do
+			if #data.Items >= Config.ItemInventory + 50 then
+				break
+			end
+			if type(item) == "table" and type(item.Id) == "string" and Config.Items[item.Id] then
+				local uid = num(item.Uid)
+				if uid > 0 and not seenItemUids[uid] then
+					seenItemUids[uid] = true
+					highestItemUid = math.max(highestItemUid, uid)
+					local category = Config.Items[item.Id].Category
+					local equipped = item.Equipped == true and not equippedCategory[category]
+					if equipped then
+						equippedCategory[category] = true
+					end
+					table.insert(data.Items, { Uid = uid, Id = item.Id, Level = math.max(1, math.min(Config.ItemMaxLevel, num(item.Level))), Equipped = equipped })
+				end
+			end
+		end
+	end
+	data.NextItemUid = math.max(num(raw.NextItemUid), highestItemUid + 1, 1)
 	data.TotalTrades = num(raw.TotalTrades)
 	if type(raw.Receipts) == "table" then
 		local list = {}
@@ -2206,6 +2621,7 @@ local function sendUpdate(duel)
 	end
 	for _, player in ipairs({ duel.A, duel.B }) do
 		local opponent = other(duel, player)
+		local profile = ctx.Data.Get(player)
 		ctx.Remotes.Fire("Duel", player, {
 			Kind = "Update",
 			MyHealth = duel.Health[player],
@@ -2213,6 +2629,7 @@ local function sendUpdate(duel)
 			MaxHealth = D.Health,
 			TimeLeft = timeLeft,
 			Opponent = opponent.DisplayName,
+			MyCombo = profile and profile.DuelCombo or 0,
 		})
 	end
 end
@@ -2246,6 +2663,7 @@ local function finish(duel, winner, reason)
 	arenaInUse[duel.ArenaIndex] = nil
 
 	for _, player in ipairs({ duel.A, duel.B }) do
+		player:SetAttribute("InDuel", nil)
 		local profile = ctx.Data.Get(player)
 		if profile then
 			profile.Duel = nil
@@ -2315,7 +2733,9 @@ function Duel.Start(a, b)
 	profileA.LastDuelHit, profileB.LastDuelHit = 0, 0
 	profileA.DashUntil, profileB.DashUntil = 0, 0
 
+	profileA.LastDash, profileB.LastDash = 0, 0
 	for i, player in ipairs({ a, b }) do
+		player:SetAttribute("InDuel", true)
 		if player.Character then
 			player.Character:PivotTo(arena.Spawns[i])
 		end
@@ -2376,6 +2796,12 @@ function Duel.Slap(player, profile, root)
 	if crit then
 		damage = damage * D.CritMultiplier
 	end
+	-- Dash-Schlag: kurz nach einem Dash trifft man haerter
+	local dashStrike = now - (profile.LastDash or 0) <= D.DashStrikeWindow
+	if dashStrike then
+		damage = damage * D.DashStrikeMultiplier
+		profile.LastDash = profile.LastDash - D.DashStrikeWindow -- nur einmal pro Dash
+	end
 	damage = math.floor(damage * 10 + 0.5) / 10
 	duel.Health[opponent] = math.max(0, duel.Health[opponent] - damage)
 
@@ -2386,7 +2812,7 @@ function Duel.Slap(player, profile, root)
 	if flat.Magnitude < 0.01 then
 		flat = Vector3.new(0, 0, 1)
 	end
-	local strength = D.Knockback * (1 + missing * D.KnockbackGrowth) * (crit and 1.3 or 1)
+	local strength = D.Knockback * (1 + missing * D.KnockbackGrowth) * (crit and 1.3 or 1) * (dashStrike and 1.4 or 1)
 	ctx.Remotes.Fire("Knockback", opponent, flat.Unit * strength + Vector3.new(0, D.UpForce, 0), player.DisplayName)
 	ctx.Remotes.FireAll("SlapFx", {
 		Kind = "Duel",
@@ -2396,6 +2822,8 @@ function Duel.Slap(player, profile, root)
 		Crit = crit and 1 or 0,
 		UserId = player.UserId,
 		TargetId = opponent.UserId,
+		Combo = profile.DuelCombo,
+		Special = dashStrike and "DashStrike" or nil,
 	})
 	ctx.Data.AddStat(profile, "PvpSlaps", 1)
 
@@ -2854,6 +3282,32 @@ function KIND_BUILDERS.chest(model, spec, S, r, base)
 	return body
 end
 
+-- Pinata: bunter Esel aus Papierstreifen, laesst Items fallen
+function KIND_BUILDERS.pinata(model, spec, S, r, base)
+	local main = rgb(spec.Color)
+	local stripes = { main, Color3.fromRGB(255, 220, 70), Color3.fromRGB(80, 200, 255), Color3.fromRGB(255, 110, 180), Color3.fromRGB(120, 230, 120) }
+	local body = makeBody(model, Vector3.new(S * 0.95, S * 0.5, S * 0.5), base * CFrame.Angles(0, math.rad(90), 0), main, Enum.Material.Fabric)
+	for i = 0, 4 do
+		detail(model, "Stripe", Vector3.new(S * 0.52, S * 0.52, S * 0.1), base * CFrame.new(0, 0, (i - 2) * S * 0.18), stripes[i + 1], Enum.Material.Fabric)
+	end
+	local headCf = base * CFrame.new(0, S * 0.35, -S * 0.5)
+	detail(model, "Head", Vector3.new(S * 0.36, S * 0.4, S * 0.36), headCf, stripes[2], Enum.Material.Fabric)
+	detail(model, "Snout", Vector3.new(S * 0.28, S * 0.2, S * 0.24), headCf * CFrame.new(0, -S * 0.08, -S * 0.22), stripes[4], Enum.Material.Fabric)
+	addFace(model, headCf * CFrame.new(0, S * 0.04, -S * 0.19), S * 0.34)
+	for _, side in ipairs({ -1, 1 }) do
+		detail(model, "Ear", Vector3.new(S * 0.08, S * 0.3, S * 0.1), headCf * CFrame.new(side * S * 0.12, S * 0.3, 0) * CFrame.Angles(0, 0, math.rad(side * -15)), stripes[3], Enum.Material.Fabric)
+		for _, front in ipairs({ -1, 1 }) do
+			detail(model, "Leg", Vector3.new(S * 0.14, S * 0.4, S * 0.14), base * CFrame.new(side * S * 0.16, -S * 0.42, front * S * 0.3), stripes[(side + front + 4) % 5 + 1], Enum.Material.Fabric)
+		end
+	end
+	detail(model, "Tail", Vector3.new(S * 0.08, S * 0.08, S * 0.35), base * CFrame.new(0, S * 0.1, S * 0.6) * CFrame.Angles(math.rad(-30), 0, 0), stripes[5], Enum.Material.Fabric)
+	detail(model, "Rope", Vector3.new(S * 0.04, S * 0.8, S * 0.04), base * CFrame.new(0, S * 0.65, 0), Color3.fromRGB(150, 110, 60), Enum.Material.Fabric)
+	local confetti = Instance.new("Sparkles")
+	confetti.SparkleColor = Color3.fromRGB(255, 220, 90)
+	confetti.Parent = body
+	return body
+end
+
 local function buildModel(spec)
 	local S = spec.Size
 	local r = S / 2
@@ -2995,6 +3449,7 @@ local function createGyatt(spec)
 		Alive = true,
 		Contributors = {},
 		IsGolden = spec.IsGolden == true,
+		IsBoss = spec.IsBoss == true,
 		Kind = spec.Kind or "blob",
 		Respawn = spec.Respawn or Config.GyattRespawnTime,
 	}
@@ -3029,6 +3484,8 @@ function Gyatts.BuildAll()
 				heightFactor = 0.45
 			elseif cfg.Kind == "dummy" then
 				heightFactor = 0.9
+			elseif cfg.Kind == "pinata" then
+				heightFactor = 0.62
 			end
 			createGyatt({
 				Key = Calc.GetGyattKey(zoneIndex, gyattIndex),
@@ -3043,6 +3500,7 @@ function Gyatts.BuildAll()
 				Gems = cfg.Gems,
 				Kind = cfg.Kind,
 				Respawn = cfg.Respawn,
+				IsBoss = gyattIndex == 2,
 				BaseCFrame = CFrame.new(spot.Position + Vector3.new(0, 0.4 + cfg.Size * heightFactor, 0)),
 			})
 		end
@@ -3071,11 +3529,21 @@ local function rewardContributors(g, killer)
 		if profile then
 			local multiplier = Calc.GetSlapMultiplier(profile.Data, os.time())
 			local bonus = ctx.Data.AddSlaps(profile, g.DefeatBonus * multiplier)
-			local gems = ctx.Data.AddGems(profile, g.Gems)
+			local gemAmount = g.Gems or 0
+			if gemAmount > 0 then
+				gemAmount = gemAmount * (1 + Calc.GetItemBonuses(profile.Data).Gems)
+			end
+			local gems = ctx.Data.AddGems(profile, gemAmount)
 			profile.Data.TotalDefeats = profile.Data.TotalDefeats + 1
 			ctx.Data.AddStat(profile, "Defeats", 1)
 			if g.Kind == "chest" then
 				ctx.Data.AddStat(profile, "Chests", 1)
+			end
+			if ctx.Items then
+				local ok, err = pcall(ctx.Items.RollDrop, player, profile, g)
+				if not ok then
+					warn("[SlapTheBlob] Item drop failed: " .. tostring(err))
+				end
 			end
 			local text = "🎉 " .. g.DisplayName .. " defeated!  +" .. Calc.FormatNumber(bonus) .. " Slaps"
 			if gems > 0 then
@@ -3506,6 +3974,27 @@ function Hands.Build(data)
 			end
 		end
 	end
+	-- Schweif beim Schlagen (in der Farbe der Hand)
+	local trailTop = Instance.new("Attachment")
+	trailTop.Name = "TrailTop"
+	trailTop.Position = Vector3.new(0, 0.9 * scale, 0)
+	trailTop.Parent = palm
+	local trailBottom = Instance.new("Attachment")
+	trailBottom.Name = "TrailBottom"
+	trailBottom.Position = Vector3.new(0, -0.6 * scale, 0)
+	trailBottom.Parent = palm
+	local trail = Instance.new("Trail")
+	trail.Name = "SlapTrail"
+	trail.Attachment0 = trailTop
+	trail.Attachment1 = trailBottom
+	trail.Lifetime = 0.18
+	trail.MinLength = 0.1
+	trail.FaceCamera = true
+	trail.LightEmission = 0.6
+	trail.Color = ColorSequence.new(color, Color3.fromRGB(255, 255, 255))
+	trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 1) })
+	trail.Parent = palm
+
 	if hand.Material == "Neon" then
 		local light = Instance.new("PointLight")
 		light.Color = color
@@ -3610,7 +4099,530 @@ function Hands.Init(context)
 end
 
 return Hands
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Leaderboards</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Items</string><ProtectedString name="Source"><![CDATA[--[[
+	Items: Accessoires (Huete, Fluegel/Ruecken, Auren).
+	  * Inventar, Ausruesten (eins pro Kategorie), Loeschen
+	  * Verschmelzen: 3 gleiche Items mit gleicher Stufe -> 1 Item mit +1 Stern
+	  * Drops beim Besiegen von Zielen (jede Art hat ihre eigene Chance)
+	  * Kisten fuer Slaps, Gems oder Robux
+	  * Aussehen am Charakter + Werte (Laufgeschwindigkeit, Sprungkraft)
+]]
+
+local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("SlapShared")
+local Config = require(Shared:WaitForChild("Config"))
+local Calc = require(Shared:WaitForChild("Calc"))
+
+local Items = {}
+local ctx
+local rng = Random.new()
+
+local RED = { 255, 120, 120 }
+local GREEN = { 120, 255, 140 }
+
+local function random01()
+	return rng:NextNumber()
+end
+
+local function findItem(data, uid)
+	for i, item in ipairs(data.Items) do
+		if item.Uid == uid then
+			return item, i
+		end
+	end
+	return nil
+end
+
+-- Item geben (auch ueber dem Limit, damit gekaufte Items nie verloren gehen)
+function Items.Give(profile, itemId, level)
+	if not Config.Items[itemId] then
+		return nil
+	end
+	local item = { Uid = profile.Data.NextItemUid, Id = itemId, Level = level or 1, Equipped = false }
+	profile.Data.NextItemUid = profile.Data.NextItemUid + 1
+	table.insert(profile.Data.Items, item)
+	return item
+end
+
+--------------------------------------------------------------------------
+-- Aussehen am Charakter
+--------------------------------------------------------------------------
+local function newPart(model, name, size, color, mat, shape)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.Color = color
+	p.Material = mat
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.Anchored = false
+	p.CastShadow = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if shape == "Oval" then
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = p
+	elseif shape then
+		p.Shape = shape
+	end
+	p.Parent = model
+	return p
+end
+
+local function rgb(t)
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+local function material(name)
+	local ok, result = pcall(function()
+		return Enum.Material[name]
+	end)
+	return (ok and result) or Enum.Material.SmoothPlastic
+end
+
+local BALL, CYL = Enum.PartType.Ball, Enum.PartType.Cylinder
+local UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- Zylinder aufrecht stellen
+
+-- Baut ein Accessoire. anchor = CFrame am Charakter, add(name, size, offset, shape, colorOverride)
+local function buildForm(item, add)
+	local form = item.Form
+	if form == "cone" or form == "wizard" then
+		for i = 0, 3 do
+			add("Cone" .. i, Vector3.new(0.5, 1.5 - i * 0.35, 1.5 - i * 0.35), CFrame.new(0, 0.25 + i * 0.45, 0) * UPRIGHT, CYL)
+		end
+		add("Tip", Vector3.new(0.4, 0.4, 0.4), CFrame.new(0, 2.1, 0), BALL, form == "cone" and Color3.fromRGB(255, 255, 255) or nil)
+		if form == "wizard" then
+			add("Brim", Vector3.new(0.12, 2.6, 2.6), CFrame.new(0, 0.05, 0) * UPRIGHT, CYL)
+		end
+	elseif form == "cap" then
+		add("Dome", Vector3.new(1.35, 0.7, 1.35), CFrame.new(0, 0.15, 0), "Oval")
+		add("Visor", Vector3.new(1.2, 0.1, 0.8), CFrame.new(0, 0.05, -0.75), nil)
+	elseif form == "beanie" then
+		add("Dome", Vector3.new(1.4, 0.9, 1.4), CFrame.new(0, 0.2, 0), "Oval")
+		add("Pom", Vector3.new(0.45, 0.45, 0.45), CFrame.new(0, 0.7, 0), BALL, Color3.fromRGB(255, 255, 255))
+	elseif form == "tophat" then
+		add("Brim", Vector3.new(0.12, 2, 2), CFrame.new(0, 0.05, 0) * UPRIGHT, CYL)
+		add("Tube", Vector3.new(1.4, 1.2, 1.2), CFrame.new(0, 0.75, 0) * UPRIGHT, CYL)
+		add("Band", Vector3.new(0.25, 1.24, 1.24), CFrame.new(0, 0.3, 0) * UPRIGHT, CYL, Color3.fromRGB(200, 30, 50))
+	elseif form == "brim" then
+		add("Brim", Vector3.new(0.12, 2.6, 2.6), CFrame.new(0, 0.05, 0) * UPRIGHT, CYL)
+		add("Crown", Vector3.new(0.8, 1.3, 1.3), CFrame.new(0, 0.45, 0) * UPRIGHT, CYL)
+	elseif form == "chef" then
+		add("Base", Vector3.new(0.8, 1.3, 1.3), CFrame.new(0, 0.4, 0) * UPRIGHT, CYL)
+		add("Puff", Vector3.new(1.7, 1.1, 1.7), CFrame.new(0, 1.05, 0), "Oval")
+	elseif form == "ears_long" then
+		for _, side in ipairs({ -1, 1 }) do
+			add("Ear", Vector3.new(0.35, 1.5, 0.2), CFrame.new(side * 0.35, 0.8, 0) * CFrame.Angles(0, 0, side * -0.15), "Oval")
+		end
+	elseif form == "ears_cat" then
+		for _, side in ipairs({ -1, 1 }) do
+			add("Ear", Vector3.new(0.45, 0.55, 0.2), CFrame.new(side * 0.42, 0.3, 0) * CFrame.Angles(0, 0, side * -0.4), nil)
+		end
+	elseif form == "horns" then
+		for _, side in ipairs({ -1, 1 }) do
+			add("Horn", Vector3.new(0.9, 0.3, 0.3), CFrame.new(side * 0.7, 0.2, 0) * CFrame.Angles(0, 0, side * 0.9) * UPRIGHT, CYL)
+		end
+		add("Helmet", Vector3.new(1.3, 0.6, 1.3), CFrame.new(0, 0, 0), "Oval")
+	elseif form == "antlers" then
+		for _, side in ipairs({ -1, 1 }) do
+			add("Antler", Vector3.new(1, 0.15, 0.15), CFrame.new(side * 0.45, 0.45, 0) * CFrame.Angles(0, 0, side * -1) * UPRIGHT, CYL)
+			add("Branch", Vector3.new(0.5, 0.12, 0.12), CFrame.new(side * 0.75, 0.75, 0) * CFrame.Angles(0, 0, side * 0.3) * UPRIGHT, CYL)
+		end
+	elseif form == "band" then
+		add("Band", Vector3.new(0.25, 1.32, 1.32), CFrame.new(0, -0.35, 0) * UPRIGHT, CYL)
+		add("Knot", Vector3.new(0.3, 0.3, 0.6), CFrame.new(0, -0.35, 0.75), nil)
+	elseif form == "ring" then
+		for i = 0, 9 do
+			local a = (i / 10) * math.pi * 2
+			add("Flower", Vector3.new(0.35, 0.35, 0.35), CFrame.new(math.cos(a) * 0.62, -0.05, math.sin(a) * 0.62), BALL,
+				(i % 2 == 0) and nil or Color3.fromRGB(255, 255, 140))
+		end
+	elseif form == "helm" then
+		add("Helm", Vector3.new(1.45, 1.35, 1.45), CFrame.new(0, -0.35, 0), "Oval")
+		add("Visor", Vector3.new(1, 0.15, 0.1), CFrame.new(0, -0.4, -0.72), nil, Color3.fromRGB(30, 30, 35))
+	elseif form == "dome" then
+		local dome = add("Dome", Vector3.new(1.9, 1.9, 1.9), CFrame.new(0, -0.55, 0), BALL)
+		dome.Transparency = 0.55
+	elseif form == "crown" then
+		add("Ring", Vector3.new(0.35, 1.25, 1.25), CFrame.new(0, 0.1, 0) * UPRIGHT, CYL)
+		for i = 0, 4 do
+			local a = (i / 5) * math.pi * 2
+			add("Spike", Vector3.new(0.18, 0.45, 0.18), CFrame.new(math.cos(a) * 0.5, 0.45, math.sin(a) * 0.5), nil)
+			add("Gem", Vector3.new(0.16, 0.16, 0.16), CFrame.new(math.cos(a) * 0.5, 0.72, math.sin(a) * 0.5), BALL, Color3.fromRGB(255, 60, 120))
+		end
+	elseif form == "halo" then
+		for i = 0, 13 do
+			local a = (i / 14) * math.pi * 2
+			add("Halo", Vector3.new(0.22, 0.22, 0.22), CFrame.new(math.cos(a) * 0.7, 0.7, math.sin(a) * 0.7), BALL)
+		end
+	-- Ruecken
+	elseif form == "backpack" then
+		add("Pack", Vector3.new(1.3, 1.4, 0.7), CFrame.new(0, 0, 0.35), nil)
+		add("Flap", Vector3.new(1.32, 0.45, 0.72), CFrame.new(0, 0.55, 0.36), nil, Color3.fromRGB(255, 220, 80))
+	elseif form == "cape" then
+		add("Cape", Vector3.new(1.8, 2.6, 0.12), CFrame.new(0, -0.6, 0.25) * CFrame.Angles(math.rad(10), 0, 0), nil)
+	elseif form == "jetpack" then
+		for _, side in ipairs({ -1, 1 }) do
+			add("Tank", Vector3.new(1.4, 0.55, 0.55), CFrame.new(side * 0.35, 0, 0.45) * UPRIGHT, CYL)
+			add("Nozzle", Vector3.new(0.3, 0.4, 0.4), CFrame.new(side * 0.35, -0.8, 0.45) * UPRIGHT, CYL, Color3.fromRGB(60, 60, 70))
+		end
+	elseif form == "wings_round" or form == "wings_feather" or form == "wings_bat" then
+		for _, side in ipairs({ -1, 1 }) do
+			if form == "wings_round" then
+				add("WingTop", Vector3.new(1.8, 1.4, 0.1), CFrame.new(side * 1.1, 0.5, 0.35) * CFrame.Angles(0, side * -0.3, side * -0.3), "Oval")
+				add("WingLow", Vector3.new(1.2, 1, 0.1), CFrame.new(side * 0.9, -0.5, 0.35) * CFrame.Angles(0, side * -0.3, side * 0.3), "Oval")
+			elseif form == "wings_feather" then
+				for f = 0, 2 do
+					add("Feather" .. f, Vector3.new(2.2 - f * 0.4, 0.45, 0.12), CFrame.new(side * (1.1 + f * 0.05), 0.6 - f * 0.45, 0.35) * CFrame.Angles(0, side * -0.25, side * (0.35 - f * 0.25)), "Oval")
+				end
+			else
+				add("Wing", Vector3.new(2.2, 1.3, 0.1), CFrame.new(side * 1.2, 0.3, 0.35) * CFrame.Angles(0, side * -0.3, side * -0.35), nil)
+				add("Tip", Vector3.new(0.6, 0.6, 0.12), CFrame.new(side * 2.2, 0.75, 0.35) * CFrame.Angles(0, 0, side * 0.8), nil)
+			end
+		end
+	end
+end
+
+local AURA_TAG = "SlapItemVisual"
+
+local function clearVisuals(character)
+	for _, child in ipairs(character:GetDescendants()) do
+		if CollectionService:HasTag(child, AURA_TAG) then
+			child:Destroy()
+		end
+	end
+end
+
+local function addEffect(target, item, color)
+	if item.Effect == "fire" then
+		local f = Instance.new("Fire")
+		f.Size = 2
+		f.Heat = 3
+		f.Color = color
+		f.Parent = target
+		CollectionService:AddTag(f, AURA_TAG)
+	elseif item.Effect == "smoke" then
+		local s = Instance.new("Smoke")
+		s.Size = 1
+		s.Opacity = 0.15
+		s.Color = color
+		s.Parent = target
+		CollectionService:AddTag(s, AURA_TAG)
+	elseif item.Effect == "sparkles" or item.Effect == "rainbow" then
+		local s = Instance.new("Sparkles")
+		s.SparkleColor = color
+		s.Parent = target
+		CollectionService:AddTag(s, AURA_TAG)
+	end
+end
+
+local function attachItem(character, item)
+	local color = rgb(item.Color)
+	local mat = material(item.Material)
+	if item.Category == "Aura" then
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if not root then
+			return
+		end
+		local attachment = Instance.new("Attachment")
+		attachment.Name = "AuraAttachment"
+		attachment.Parent = root
+		CollectionService:AddTag(attachment, AURA_TAG)
+		local emitter = Instance.new("ParticleEmitter")
+		emitter.Rate = 12
+		emitter.Lifetime = NumberRange.new(1, 1.8)
+		emitter.Speed = NumberRange.new(1, 3)
+		emitter.SpreadAngle = Vector2.new(180, 180)
+		emitter.LightEmission = 0.7
+		emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
+		if item.Effect == "rainbow" then
+			emitter.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 80, 80)),
+				ColorSequenceKeypoint.new(0.5, Color3.fromRGB(80, 255, 120)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 120, 255)),
+			})
+		else
+			emitter.Color = ColorSequence.new(color)
+		end
+		emitter.Parent = attachment
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = 8
+		light.Brightness = 1
+		light.Parent = attachment
+		addEffect(root, item, color)
+		return
+	end
+
+	local anchorPart, anchorOffset
+	if item.Category == "Hat" then
+		anchorPart = character:FindFirstChild("Head")
+		if anchorPart then
+			anchorOffset = CFrame.new(0, anchorPart.Size.Y / 2, 0)
+		end
+	else
+		anchorPart = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+		if anchorPart then
+			anchorOffset = CFrame.new(0, 0.2, anchorPart.Size.Z / 2)
+		end
+	end
+	if not anchorPart then
+		return
+	end
+	local model = Instance.new("Model")
+	model.Name = "SlapAccessory_" .. item.Category
+	CollectionService:AddTag(model, AURA_TAG)
+	local base = anchorPart.CFrame * anchorOffset
+	local first = nil
+	local function add(name, size, offset, shape, colorOverride)
+		local p = newPart(model, name, size, colorOverride or color, mat, shape)
+		p.CFrame = base * offset
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = anchorPart
+		weld.Part1 = p
+		weld.Parent = p
+		if item.Effect == "rainbow" and not colorOverride then
+			CollectionService:AddTag(p, "RainbowHand")
+		end
+		first = first or p
+		return p
+	end
+	buildForm(item, add)
+	model.Parent = character
+	if first then
+		addEffect(first, item, color)
+	end
+end
+
+-- Aussehen + Werte am Charakter anwenden
+function Items.ApplyCharacter(player)
+	local profile = ctx.Data.Get(player)
+	local character = player.Character
+	if not profile or not character then
+		return
+	end
+	clearVisuals(character)
+	for _, owned in ipairs(profile.Data.Items) do
+		if owned.Equipped and Config.Items[owned.Id] then
+			attachItem(character, Config.Items[owned.Id])
+		end
+	end
+	Items.ApplyStats(player)
+end
+
+function Items.ApplyStats(player)
+	local profile = ctx.Data.Get(player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not profile or not humanoid then
+		return
+	end
+	humanoid.WalkSpeed = Calc.GetWalkSpeed(profile.Data)
+	humanoid.UseJumpPower = true
+	humanoid.JumpPower = Calc.GetJumpPower(profile.Data.Upgrades.Jump)
+end
+
+--------------------------------------------------------------------------
+-- Aktionen
+--------------------------------------------------------------------------
+local function changed(player)
+	Items.ApplyCharacter(player)
+	ctx.Data.Push(player, true)
+end
+
+function Items.Equip(player, uid)
+	local profile = ctx.Data.Get(player)
+	if not profile or type(uid) ~= "number" then
+		return
+	end
+	local item = findItem(profile.Data, uid)
+	if not item then
+		return
+	end
+	local category = Config.Items[item.Id].Category
+	for _, other in ipairs(profile.Data.Items) do
+		if other.Equipped and Config.Items[other.Id].Category == category then
+			other.Equipped = false
+		end
+	end
+	item.Equipped = true
+	changed(player)
+end
+
+function Items.Unequip(player, uid)
+	local profile = ctx.Data.Get(player)
+	if not profile or type(uid) ~= "number" then
+		return
+	end
+	local item = findItem(profile.Data, uid)
+	if item then
+		item.Equipped = false
+		changed(player)
+	end
+end
+
+function Items.Delete(player, uid)
+	local profile = ctx.Data.Get(player)
+	if not profile or type(uid) ~= "number" then
+		return
+	end
+	local item, index = findItem(profile.Data, uid)
+	if item then
+		table.remove(profile.Data.Items, index)
+		changed(player)
+	end
+end
+
+-- 3 gleiche Items (gleiche Stufe) -> 1 Item mit +1 Stern
+function Items.Merge(player, uid)
+	local profile = ctx.Data.Get(player)
+	if not profile or type(uid) ~= "number" then
+		return
+	end
+	local data = profile.Data
+	local base = findItem(data, uid)
+	if not base then
+		return
+	end
+	if base.Level >= Config.ItemMaxLevel then
+		ctx.Remotes.Notify(player, "⭐ This item is already at max stars!", { 255, 220, 120 })
+		return
+	end
+	local group = { base }
+	for _, other in ipairs(data.Items) do
+		if #group >= 3 then
+			break
+		end
+		if other ~= base and other.Id == base.Id and other.Level == base.Level then
+			table.insert(group, other)
+		end
+	end
+	if #group < 3 then
+		ctx.Remotes.Notify(player, "🔨 You need 3 of the same item with the same stars to merge.", RED)
+		return
+	end
+	local wasEquipped = false
+	for _, item in ipairs(group) do
+		wasEquipped = wasEquipped or item.Equipped
+		local _, index = findItem(data, item.Uid)
+		table.remove(data.Items, index)
+	end
+	local result = Items.Give(profile, base.Id, base.Level + 1)
+	result.Equipped = wasEquipped
+	local cfg = Config.Items[base.Id]
+	ctx.Remotes.Popup(player, "MERGED!", cfg.DisplayName .. " " .. string.rep("★", result.Level) .. "  " .. Calc.DescribeItem(base.Id, result.Level),
+		Config.Rarities[cfg.Rarity].Color)
+	ctx.Remotes.Fire("Event", player, "Purchased")
+	changed(player)
+end
+
+local function crateById(crateId)
+	for _, crate in ipairs(Config.ItemCrates) do
+		if crate.Id == crateId then
+			return crate
+		end
+	end
+	return nil
+end
+Items.CrateById = crateById
+
+-- Kiste oeffnen und Items geben (fuer Robux-Kaeufe ohne Preispruefung)
+function Items.GrantCrate(player, profile, crate)
+	local results = {}
+	for _ = 1, crate.Count or 1 do
+		local rarity = Calc.RollRarity(crate.Weights, random01)
+		local itemId = Calc.PickItem(rarity, random01)
+		if itemId then
+			Items.Give(profile, itemId, 1)
+			table.insert(results, { Id = itemId, Level = 1 })
+			local cfg = Config.Items[itemId]
+			if Config.Rarities[cfg.Rarity].Order >= 5 then
+				ctx.Remotes.NotifyAll("🌟 " .. player.DisplayName .. " got " .. cfg.DisplayName .. " (" .. Config.Rarities[cfg.Rarity].DisplayName .. ")!", Config.Rarities[cfg.Rarity].Color)
+			end
+		end
+	end
+	ctx.Remotes.Fire("Hatch", player, { Crate = crate.Id, Items = results })
+	changed(player)
+	return results
+end
+
+function Items.OpenCrate(player, crateId)
+	local profile = ctx.Data.Get(player)
+	local crate = type(crateId) == "string" and crateById(crateId)
+	if not profile or not crate or crate.Currency == "Robux" then
+		return
+	end
+	local now = os.clock()
+	if profile.LastCrate and now - profile.LastCrate < 1 then
+		return
+	end
+	if #profile.Data.Items >= Config.ItemInventory then
+		ctx.Remotes.Notify(player, "🎒 Your item storage is full! Merge or delete items.", RED)
+		return
+	end
+	local key = crate.Currency == "Gems" and "Gems" or "Slaps"
+	if profile.Data[key] < crate.Price then
+		ctx.Remotes.Notify(player, "Not enough " .. key .. "! You need " .. Calc.FormatNumber(crate.Price), RED)
+		ctx.Remotes.Fire("Event", player, "Denied")
+		return
+	end
+	profile.LastCrate = now
+	profile.Data[key] = profile.Data[key] - crate.Price
+	Items.GrantCrate(player, profile, crate)
+end
+
+-- Drop beim Besiegen eines Ziels
+function Items.RollDrop(player, profile, target)
+	local chance = Config.KindDrops[target.Kind or "blob"] or 0.01
+	if target.IsBoss then
+		chance = chance * Config.BossDropBonus
+	end
+	chance = chance * (1 + Calc.GetItemBonuses(profile.Data).Luck * 0.2)
+	if rng:NextNumber() >= chance or #profile.Data.Items >= Config.ItemInventory then
+		return nil
+	end
+	-- hoehere Zonen: bessere Seltenheiten
+	local weights = {}
+	local zoneFactor = (target.ZoneIndex or 1) / #Config.Zones
+	for rarity, weight in pairs(Config.DropRarityWeights) do
+		local order = Config.Rarities[rarity].Order
+		weights[rarity] = weight * (1 + zoneFactor * (order - 1) * 1.5)
+	end
+	local rarity = Calc.RollRarity(weights, random01)
+	local itemId = Calc.PickItem(rarity, random01)
+	if not itemId then
+		return nil
+	end
+	Items.Give(profile, itemId, 1)
+	local cfg = Config.Items[itemId]
+	local rarityInfo = Config.Rarities[cfg.Rarity]
+	if rarityInfo.Order >= 3 then
+		ctx.Remotes.Popup(player, "ITEM DROP!", cfg.DisplayName .. " (" .. rarityInfo.DisplayName .. ")  " .. Calc.DescribeItem(itemId, 1), rarityInfo.Color)
+	else
+		ctx.Remotes.Notify(player, "🎁 You found " .. cfg.DisplayName .. " (" .. rarityInfo.DisplayName .. ")!", rarityInfo.Color)
+	end
+	ctx.Data.Push(player, true)
+	return itemId
+end
+
+function Items.Init(context)
+	ctx = context
+	ctx.RegisterAction("EquipItem", Items.Equip)
+	ctx.RegisterAction("UnequipItem", Items.Unequip)
+	ctx.RegisterAction("DeleteItem", Items.Delete)
+	ctx.RegisterAction("MergeItem", Items.Merge)
+	ctx.RegisterAction("OpenCrate", Items.OpenCrate)
+end
+
+Items.Players = Players
+return Items
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">Leaderboards</string><ProtectedString name="Source"><![CDATA[--[[
 	Leaderboards: globale Bestenlisten auf den Tafeln im Hub.
 	Wenn keine DataStores verfuegbar sind (z.B. in Studio ohne API-Zugriff),
 	zeigen die Tafeln die Spieler auf diesem Server.
@@ -3680,7 +4692,7 @@ local function fromServer(field)
 	local entries = {}
 	for _, profile in pairs(ctx.Data.Profiles) do
 		if profile.Loaded then
-			table.insert(entries, { Name = profile.Player.DisplayName, Value = profile.Data[field] })
+			table.insert(entries, { Name = profile.Player.DisplayName, Value = profile.Data[field], UserId = profile.UserId })
 		end
 	end
 	table.sort(entries, function(a, b)
@@ -3707,10 +4719,60 @@ local function readGlobal(store, isEncoded)
 		local userId = tonumber(string.match(tostring(item.key), "%d+"))
 		local value = tonumber(item.value) or 0
 		if userId then
-			table.insert(entries, { Name = getName(userId), Value = isEncoded and decode(value) or value })
+			table.insert(entries, { Name = getName(userId), Value = isEncoded and decode(value) or value, UserId = userId })
 		end
 	end
 	return entries
+end
+
+-- Top 3 als Avatar-Statuen auf das Siegertreppchen stellen
+local podiumUsers = {}
+local function updatePodium(entries)
+	local podium = ctx.World.Podium
+	if not podium then
+		return
+	end
+	for rank = 1, 3 do
+		local spot = podium[rank]
+		local entry = entries[rank]
+		local userId = entry and entry.UserId or nil
+		if spot then
+			spot.Label.Text = (rank == 1 and "👑 " or "") .. "#" .. rank .. "  " .. (entry and (entry.Name .. "\n" .. Calc.FormatNumber(entry.Value) .. " Slaps") or "...")
+			if podiumUsers[rank] ~= userId then
+				podiumUsers[rank] = userId
+				if spot.Model then
+					spot.Model:Destroy()
+					spot.Model = nil
+				end
+				if userId and userId > 0 then
+					local ok, model = pcall(function()
+						return Players:CreateHumanoidModelFromUserId(userId)
+					end)
+					if ok and model then
+						model.Name = "PodiumAvatar" .. rank
+						for _, d in ipairs(model:GetDescendants()) do
+							if d:IsA("BasePart") then
+								d.Anchored = true
+								d.CanCollide = false
+							elseif d:IsA("Script") or d:IsA("LocalScript") then
+								d:Destroy()
+							end
+						end
+						local humanoid = model:FindFirstChildOfClass("Humanoid")
+						if humanoid then
+							humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+						end
+						local hipHeight = (humanoid and humanoid.HipHeight or 2) + 1
+						pcall(function()
+							model:PivotTo(spot.Top * CFrame.new(0, hipHeight + 0.6, 0))
+						end)
+						model.Parent = ctx.World.Root
+						spot.Model = model
+					end
+				end
+			end
+		end
+	end
 end
 
 function Leaderboards.Refresh()
@@ -3732,10 +4794,15 @@ function Leaderboards.Refresh()
 	end
 
 	local earned = stores.Earned and readGlobal(stores.Earned, true)
-	if earned then
-		fill("Earned", earned, Calc.FormatNumber, nil)
+	if not earned then
+		earned = fromServer("TotalEarned")
+		fill("Earned", earned, Calc.FormatNumber, "(this server only)")
 	else
-		fill("Earned", fromServer("TotalEarned"), Calc.FormatNumber, "(this server only)")
+		fill("Earned", earned, Calc.FormatNumber, nil)
+	end
+	local okPodium, errPodium = pcall(updatePodium, earned)
+	if not okPodium then
+		warn("[SlapTheBlob] Podium: " .. tostring(errPodium))
 	end
 	local rebirths = stores.Rebirths and readGlobal(stores.Rebirths, false)
 	if rebirths then
@@ -3773,7 +4840,7 @@ function Leaderboards.Start()
 end
 
 return Leaderboards
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">Pets</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Pets</string><ProtectedString name="Source"><![CDATA[--[[
 	Pets: Eier oeffnen, Pets ausruesten / ablegen / loeschen.
 	Ausgeruestete Pets stehen als Attribut "EquippedPets" am Spieler,
 	damit alle Clients sie anzeigen koennen.
@@ -3829,8 +4896,15 @@ function Pets.Hatch(player, eggId, amount)
 		return
 	end
 	local egg = Config.Eggs[eggId]
-	if not egg then
-		return
+	if not egg or egg.Robux then
+		return -- Robux-Eier gehen nur ueber den Shop-Kauf
+	end
+	if egg.Event then
+		local current = Calc.GetCurrentEvent(os.time())
+		if not current or current.Id ~= egg.Event then
+			ctx.Remotes.Notify(player, "⭐ This event egg is not available this week!", RED)
+			return
+		end
 	end
 	amount = (amount == 3) and 3 or 1
 	local data = profile.Data
@@ -3859,7 +4933,12 @@ function Pets.Hatch(player, eggId, amount)
 	end
 	profile.LastHatch = now
 	data[balanceKey] = data[balanceKey] - price
+	Pets.GrantEgg(player, profile, eggId, amount)
+end
 
+-- Pets aus einem Ei geben (ohne Preis; Robux-Kaeufe duerfen das Inventar ueberfuellen)
+function Pets.GrantEgg(player, profile, eggId, amount)
+	local data = profile.Data
 	local lucky = Calc.IsBoostActive(data, "LuckyEggs", os.time())
 	local slots = Calc.GetPetSlots(data)
 	local results = {}
@@ -3876,7 +4955,7 @@ function Pets.Hatch(player, eggId, amount)
 		table.insert(results, { Id = petId, Uid = pet.Uid })
 
 		local petCfg = Config.Pets[petId]
-		if petCfg.Rarity == "Legendary" or petCfg.Rarity == "Mythic" or petCfg.Rarity == "Secret" then
+		if Config.Rarities[petCfg.Rarity].Order >= 4 then
 			local rarity = Config.Rarities[petCfg.Rarity]
 			ctx.Remotes.NotifyAll("🌟 " .. player.DisplayName .. " hatched " .. petCfg.DisplayName .. " (" .. rarity.DisplayName .. ")!", rarity.Color)
 		end
@@ -3884,6 +4963,7 @@ function Pets.Hatch(player, eggId, amount)
 	ctx.Data.AddStat(profile, "Eggs", amount)
 	ctx.Remotes.Fire("Hatch", player, { EggId = eggId, Pets = results })
 	changed(player)
+	return results
 end
 
 function Pets.Equip(player, uid)
@@ -3993,7 +5073,34 @@ function Pets.Init(context)
 	ctx.RegisterAction("DeleteRarity", Pets.DeleteRarity)
 end
 
+-- Anzeige am Event-Stand im Hub aktualisieren
+local function updateEventStand()
+	local stand = ctx.World.EventStand
+	if not stand then
+		return
+	end
+	local event, endsAt = Calc.GetCurrentEvent(os.time())
+	if not event then
+		return
+	end
+	local left = math.max(0, endsAt - os.time())
+	local days = math.floor(left / 86400)
+	local hours = math.floor((left % 86400) / 3600)
+	local minutes = math.floor((left % 3600) / 60)
+	stand.Title.Text = "⭐ " .. string.upper(event.Name) .. " ⭐"
+	stand.Title.TextColor3 = Color3.fromRGB(event.Color[1], event.Color[2], event.Color[3])
+	stand.Timer.Text = "Exclusive pets!  Ends in " .. days .. "d " .. hours .. "h " .. minutes .. "m"
+	stand.Egg.Color = Color3.fromRGB(event.Color[1], event.Color[2], event.Color[3])
+	stand.Prompt.ObjectText = event.Name .. " Egg (💎 " .. Calc.FormatNumber(Config.EventEggPrice) .. ")"
+end
+
 function Pets.Start()
+	task.spawn(function()
+		while true do
+			pcall(updateEventStand)
+			task.wait(30)
+		end
+	end)
 	for _, zoneInfo in ipairs(ctx.World.Zones) do
 		for _, stand in ipairs(zoneInfo.EggStands) do
 			for _, prompt in ipairs(stand.Prompts) do
@@ -4008,7 +5115,7 @@ function Pets.Start()
 end
 
 return Pets
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Remotes</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">Remotes</string><ProtectedString name="Source"><![CDATA[--[[
 	Remotes: legt alle RemoteEvents an und bietet kleine Helfer.
 
 	Client -> Server:  Request(action, ...)
@@ -4069,7 +5176,7 @@ function Remotes.FireAll(name, ...)
 end
 
 return Remotes
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">Rewards</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">Rewards</string><ProtectedString name="Source"><![CDATA[--[[
 	Rewards: taegliche Belohnung, taegliche Quests und Codes.
 ]]
 
@@ -4185,7 +5292,7 @@ function Rewards.Init(context)
 end
 
 return Rewards
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">Shop</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">Shop</string><ProtectedString name="Source"><![CDATA[--[[
 	Shop: alle Kaeufe mit Slaps und Gems.
 	  Upgrades, Haende, Zonen, Teleport, Rebirth, Gem-Shop, Auto-Slap, Einstellungen
 ]]
@@ -4201,6 +5308,7 @@ local Calc = require(Shared:WaitForChild("Calc"))
 
 local Shop = {}
 local ctx
+local rebirthRng = Random.new()
 
 local RED = { 255, 120, 120 }
 local GREEN = { 120, 255, 140 }
@@ -4252,6 +5360,9 @@ local function afterUpgrade(player, profile, id, bought, tierUp)
 	ctx.Remotes.Fire("Event", player, "Purchased")
 	if id == "Power" then
 		ctx.Hands.Give(player, false) -- Hand waechst
+	end
+	if id == "Legs" or id == "Jump" then
+		ctx.Items.ApplyStats(player) -- schneller laufen / hoeher springen
 	end
 	ctx.Data.Push(player, true)
 end
@@ -4470,6 +5581,11 @@ function Shop.Rebirth(player)
 	end
 	local data = profile.Data
 	local cost = Calc.GetRebirthCost(data.Rebirths)
+	if data.Zones < Config.RebirthMinZone then
+		ctx.Remotes.Notify(player, "♻️ Unlock Zone " .. Config.RebirthMinZone .. " before you can rebirth!", RED)
+		ctx.Remotes.Fire("Event", player, "Denied")
+		return
+	end
 	if data.Slaps < cost then
 		notEnough(player, cost, "Slaps")
 		return
@@ -4482,6 +5598,19 @@ function Shop.Rebirth(player)
 	data.Zones = 1
 	local gems = ctx.Data.AddGems(profile, Calc.GetRebirthGems(data.Rebirths))
 	profile.Combo = 0
+	-- Bonus-Item: je mehr Rebirths, desto seltener
+	local r = data.Rebirths
+	local weights = { Rare = 60, Epic = 25 + r * 2, Legendary = 6 + r, Mythic = 0.5 + r * 0.4, Ultra = r >= 10 and (r * 0.1) or 0 }
+	local bonusId = Calc.PickItem(Calc.RollRarity(weights, function()
+		return rebirthRng:NextNumber()
+	end), function()
+		return rebirthRng:NextNumber()
+	end)
+	if bonusId then
+		ctx.Items.Give(profile, bonusId, 1)
+		local bonusCfg = Config.Items[bonusId]
+		ctx.Remotes.Notify(player, "🎁 Rebirth bonus: " .. bonusCfg.DisplayName .. " (" .. Config.Rarities[bonusCfg.Rarity].DisplayName .. ")!", Config.Rarities[bonusCfg.Rarity].Color)
+	end
 
 	ctx.Remotes.Popup(player, "REBIRTH " .. data.Rebirths .. "!", "Forever " .. Calc.FormatMultiplier(Calc.GetRebirthSlapMultiplier(data.Rebirths))
 		.. " Slaps & " .. Calc.FormatMultiplier(Calc.GetRebirthDamageMultiplier(data.Rebirths)) .. " Damage  (+" .. gems .. " 💎)", { 200, 150, 255 })
@@ -4493,6 +5622,7 @@ function Shop.Rebirth(player)
 		character:PivotTo(ctx.World.Spawn.CFrame * CFrame.new(0, 4, 0))
 	end
 	ctx.Hands.Give(player, false)
+	ctx.Items.ApplyCharacter(player)
 	ctx.Data.Push(player, true)
 	task.spawn(ctx.Data.Save, profile)
 end
@@ -4639,45 +5769,137 @@ function Shop.BuyGemPack(player, packId)
 	end
 end
 
+-- Alle Developer Products: Gem-Pakete, Robux-Eier und Robux-Kisten
+local function findProduct(productId)
+	if not productId or productId == 0 then
+		return nil
+	end
+	for _, pack in ipairs(Config.GemPacks) do
+		if tonumber(pack.ProductId) == productId then
+			return "Gems", pack
+		end
+	end
+	for _, egg in ipairs(Config.RobuxEggs) do
+		if tonumber(egg.ProductId) == productId then
+			return "Egg", egg
+		end
+	end
+	for _, crate in ipairs(Config.ItemCrates) do
+		if crate.Currency == "Robux" and tonumber(crate.ProductId) == productId then
+			return "Crate", crate
+		end
+	end
+	return nil
+end
+
+local function grantProduct(player, profile, kind, def, isTest)
+	if kind == "Gems" then
+		grantGemPack(player, profile, def, isTest)
+	elseif kind == "Egg" then
+		ctx.Pets.GrantEgg(player, profile, def.Id, 1)
+		if isTest then
+			ctx.Remotes.Notify(player, "🥚 " .. def.Name .. " (Studio test)", { 255, 220, 120 })
+		end
+	elseif kind == "Crate" then
+		ctx.Items.GrantCrate(player, profile, def)
+		if isTest then
+			ctx.Remotes.Notify(player, "🎁 " .. def.Name .. " (Studio test)", { 255, 220, 120 })
+		end
+	end
+end
+
+-- Kauf starten (ID 0 = in Studio gratis testen)
+local function promptProduct(player, kind, def)
+	local profile = ctx.Data.Get(player)
+	if not profile then
+		return
+	end
+	if (tonumber(def.ProductId) or 0) <= 0 then
+		if RunService:IsStudio() then
+			grantProduct(player, profile, kind, def, true)
+		else
+			ctx.Remotes.Notify(player, "🛒 This item is coming soon!", { 255, 220, 120 })
+		end
+		return
+	end
+	local ok, err = pcall(function()
+		MarketplaceService:PromptProductPurchase(player, def.ProductId)
+	end)
+	if not ok then
+		warn("[SlapTheBlob] Product prompt failed: " .. tostring(err))
+	end
+end
+
+function Shop.BuyRobuxEgg(player, eggId)
+	for _, egg in ipairs(Config.RobuxEggs) do
+		if egg.Id == eggId then
+			promptProduct(player, "Egg", egg)
+			return
+		end
+	end
+end
+
+function Shop.BuyCrate(player, crateId)
+	local crate = type(crateId) == "string" and ctx.Items.CrateById(crateId)
+	if not crate then
+		return
+	end
+	if crate.Currency == "Robux" then
+		promptProduct(player, "Crate", crate)
+	else
+		ctx.Items.OpenCrate(player, crateId)
+	end
+end
+
 -- Roblox ruft das fuer jeden Robux-Kauf auf (auch nach einem Absturz erneut,
 -- bis wir PurchaseGranted zurueckgeben). Jeder Kauf wird genau einmal gutgeschrieben.
 local function processReceipt(info)
-	local pack = nil
-	for _, candidate in ipairs(Config.GemPacks) do
-		if tonumber(candidate.ProductId) == info.ProductId and info.ProductId ~= 0 then
-			pack = candidate
-		end
-	end
-	if not pack then
+	local kind, def = findProduct(info.ProductId)
+	if not kind then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	local player = Players:GetPlayerByUserId(info.PlayerId)
 	local profile = player and ctx.Data.Get(player)
-	if not profile then
+	if not profile or not profile.Loaded then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	if ctx.Data.HasStore() and not profile.CanSave then
 		-- Spielstand nicht sicher geladen: spaeter nochmal versuchen
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
+	local data = profile.Data
 	local purchaseId = tostring(info.PurchaseId)
-	if profile.Data.Receipts[purchaseId] then
+	if data.Receipts[purchaseId] then
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
-	profile.Data.Receipts[purchaseId] = os.time()
-	grantGemPack(player, profile, pack, false)
-	if ctx.Data.HasStore() then
-		local saved = ctx.Data.Save(profile)
-		if not saved then
-			-- nicht gespeichert: zuruecknehmen und spaeter erneut versuchen
-			profile.Data.Receipts[purchaseId] = nil
-			profile.Data.Gems = math.max(0, profile.Data.Gems - pack.Gems)
-			ctx.Data.Push(player, true)
-			return Enum.ProductPurchaseDecision.NotProcessedYet
+	-- Zustand merken, um bei einem Speicherfehler alles zurueckzunehmen
+	local before = { Gems = data.Gems, Pets = #data.Pets, Items = #data.Items, NextPetUid = data.NextPetUid, NextItemUid = data.NextItemUid }
+	data.Receipts[purchaseId] = os.time()
+	local ok, err = pcall(grantProduct, player, profile, kind, def, false)
+	if ok and ctx.Data.HasStore() then
+		ok = ctx.Data.Save(profile)
+		err = "save failed"
+	end
+	if not ok then
+		warn("[SlapTheBlob] Purchase " .. purchaseId .. " not granted: " .. tostring(err))
+		data.Receipts[purchaseId] = nil
+		data.Gems = before.Gems
+		for i = #data.Pets, before.Pets + 1, -1 do
+			table.remove(data.Pets, i)
 		end
+		for i = #data.Items, before.Items + 1, -1 do
+			table.remove(data.Items, i)
+		end
+		data.NextPetUid = before.NextPetUid
+		data.NextItemUid = before.NextItemUid
+		ctx.Pets.UpdateAttribute(player)
+		ctx.Items.ApplyCharacter(player)
+		ctx.Data.Push(player, true)
+		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
+Shop.ProcessReceipt = processReceipt
 
 function Shop.Init(context)
 	ctx = context
@@ -4692,6 +5914,8 @@ function Shop.Init(context)
 	ctx.RegisterAction("ToggleAutoSlap", Shop.ToggleAutoSlap)
 	ctx.RegisterAction("SetSetting", Shop.SetSetting)
 	ctx.RegisterAction("BuyGemPack", Shop.BuyGemPack)
+	ctx.RegisterAction("BuyRobuxEgg", Shop.BuyRobuxEgg)
+	ctx.RegisterAction("BuyCrate", Shop.BuyCrate)
 end
 
 function Shop.Start()
@@ -4739,7 +5963,7 @@ function Shop.Start()
 end
 
 return Shop
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">Trade</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Trade</string><ProtectedString name="Source"><![CDATA[--[[
 	Trade: Pets zwischen Spielern tauschen.
 
 	Ablauf:
@@ -5051,7 +6275,7 @@ function Trade.Init(context)
 end
 
 return Trade
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">World</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">World</string><ProtectedString name="Source"><![CDATA[--[[
 	World: baut die komplette Karte per Skript.
 	  * Hub mit Spawn, Brunnen, Schildern, Bestenlisten und PvP-Arena
 	  * 6 Themen-Zonen mit Deko, Eingangsbogen, Tor, Ei-Stand und Gyatt-Plaetzen
@@ -5662,6 +6886,68 @@ local function buildLighting()
 	rays.Spread = 0.8
 end
 
+-- Verkaufsstand (Kiosk). Oeffnet beim Benutzen ein Menue (Attribut OpenMenu).
+World.Kiosks = {}
+local function kiosk(parent, position, facing, title, icon, menu, color, sub)
+	local k = folder("Kiosk_" .. menu, parent)
+	local look = CFrame.lookAt(position, position + facing)
+	local function at(x, y, z)
+		return look * CFrame.new(x, y, z)
+	end
+	local wood = Color3.fromRGB(120, 80, 50)
+	-- Theke
+	part({ Name = "Counter", Size = Vector3.new(14, 3.4, 4), CFrame = at(0, FLOOR + 1.7, 0), Color = wood, Material = Enum.Material.Wood, Parent = k })
+	part({ Name = "CounterTop", Size = Vector3.new(14.6, 0.4, 4.6), CFrame = at(0, FLOOR + 3.6, 0), Color = color, Material = Enum.Material.SmoothPlastic, Parent = k })
+	-- Rueckwand + Pfosten
+	part({ Name = "Back", Size = Vector3.new(14, 10, 0.6), CFrame = at(0, FLOOR + 5, 5), Color = Color3.fromRGB(70, 45, 90), Parent = k })
+	for _, x in ipairs({ -6.8, 6.8 }) do
+		part({ Name = "Post", Size = Vector3.new(0.8, 11, 0.8), CFrame = at(x, FLOOR + 5.5, -1.6), Color = wood, Material = Enum.Material.Wood, Parent = k })
+	end
+	-- gestreiftes Dach
+	for i = 0, 6 do
+		part({ Name = "Awning", Size = Vector3.new(2, 0.3, 8), CFrame = at(-6 + i * 2, FLOOR + 11.3, 1.6) * CFrame.Angles(math.rad(-14), 0, 0),
+			Color = (i % 2 == 0) and color or Color3.fromRGB(255, 255, 255), Parent = k })
+	end
+	-- Schild
+	local board = sign(k, at(0, FLOOR + 13.6, 1), Vector3.new(14, 3.2, 0.5), icon .. " " .. title, Color3.fromRGB(255, 255, 255), color, Enum.NormalId.Front)
+	board.Name = "KioskSign"
+	-- Ware auf der Theke
+	local display = ball(k, at(0, FLOOR + 5.2, 0.5).Position, 2.6, color, Enum.Material.Neon)
+	display.Name = "Display"
+	display.CanCollide = false
+	addLight(display, color, 16, 1.4)
+	-- Verkaeufer-Blob
+	local seller = ball(k, at(0, FLOOR + 5, 3).Position, 3.4, Color3.fromRGB(255, 190, 215), Enum.Material.SmoothPlastic)
+	seller.Name = "Seller"
+	for _, side in ipairs({ -1, 1 }) do
+		ball(k, (at(side * 0.6, FLOOR + 5.6, 1.5)).Position, 0.8, Color3.fromRGB(255, 255, 255)).Name = "Eye"
+		ball(k, (at(side * 0.6, FLOOR + 5.6, 1.2)).Position, 0.4, Color3.fromRGB(25, 20, 30)).Name = "Pupil"
+	end
+	local promptPart = part({ Name = "KioskPrompt", Size = Vector3.new(1, 1, 1), CFrame = at(0, FLOOR + 3, -3), Transparency = 1, CanCollide = false, Parent = k })
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "OpenPrompt"
+	prompt.ActionText = "Open"
+	prompt.ObjectText = title .. (sub and (" (" .. sub .. ")") or "")
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt:SetAttribute("OpenMenu", menu)
+	prompt.Parent = promptPart
+	table.insert(World.Kiosks, { Menu = menu, Prompt = prompt, Position = position })
+	return k
+end
+World.BuildKiosk = kiosk
+
+local KIOSKS = {
+	{ -1, -15, "UPGRADES", "🛒", "Shop", { 255, 110, 180 }, "Slaps" },
+	{ -1, -38, "GLOVES", "✋", "Hands", { 255, 170, 60 }, "Slaps / Gems / Robux" },
+	{ -1, -61, "EGG SHOP", "🥚", "EggShop", { 120, 200, 255 }, "Gems / Robux" },
+	{ 1, -15, "ITEM CRATES", "🎁", "ItemShop", { 170, 110, 255 }, "Slaps / Gems / Robux" },
+	{ 1, -38, "GEM SHOP", "💎", "Gems", { 80, 230, 255 }, "Gems / Robux" },
+	{ 1, -61, "FORGE", "🔨", "Items", { 255, 90, 90 }, "Merge items" },
+}
+
 local function buildHub()
 	local hub = folder("Hub", root)
 	local length = Config.HubLength
@@ -5674,21 +6960,12 @@ local function buildHub()
 		Material = Enum.Material.Pebble,
 		Parent = hub,
 	})
-	-- Muster-Fliesen
-	for x = -2, 2 do
-		for z = 1, 3 do
-			if (x + z) % 2 == 0 then
-				part({
-					Name = "Tile",
-					Size = Vector3.new(10, 0.1, 10),
-					CFrame = CFrame.new(x * 10, FLOOR + 0.05, -z * 10 - 20),
-					Color = Color3.fromRGB(255, 160, 200),
-					Material = Enum.Material.Marble,
-					CanCollide = false,
-					Parent = hub,
-				})
-			end
-		end
+	-- Weg zur ersten Zone + Marktplatz-Fliesen
+	part({ Name = "HubPath", Size = Vector3.new(14, 0.1, length), CFrame = CFrame.new(0, FLOOR + 0.05, -length / 2),
+		Color = Color3.fromRGB(255, 225, 240), Material = Enum.Material.Marble, CanCollide = false, Parent = hub })
+	for _, side in ipairs({ -1, 1 }) do
+		part({ Name = "MarketStrip", Size = Vector3.new(22, 0.1, 72), CFrame = CFrame.new(side * 66, FLOOR + 0.06, -38),
+			Color = Color3.fromRGB(255, 170, 205), Material = Enum.Material.Marble, CanCollide = false, Parent = hub })
 	end
 
 	local spawnPos = Config.SpawnPosition
@@ -5705,14 +6982,13 @@ local function buildHub()
 	spawn.Parent = hub
 	World.Spawn = spawn
 
-	-- Brunnen
-	local fx, fz = 10, -22
+	-- Brunnen hinter dem Spawn
+	local fx, fz = 0, -80
 	pillar(hub, Vector3.new(fx, FLOOR, fz), 1.5, 16, Color3.fromRGB(230, 230, 240), Enum.Material.Marble)
 	local water = disc(hub, Vector3.new(fx, FLOOR + 1.45, fz), 0.2, 14, Color3.fromRGB(110, 200, 255), Enum.Material.Glass)
 	water.Transparency = 0.25
 	water.CanCollide = false
 	pillar(hub, Vector3.new(fx, FLOOR, fz), 5, 2, Color3.fromRGB(230, 230, 240), Enum.Material.Marble)
-	-- Mini-Blob-Statue mit Gesicht
 	local statue = ball(hub, Vector3.new(fx, FLOOR + 7.5, fz), 5, Color3.fromRGB(255, 170, 205), Enum.Material.Marble)
 	local face = Instance.new("Decal")
 	face.Texture = "rbxasset://textures/face.png"
@@ -5722,23 +6998,28 @@ local function buildHub()
 	sparkle.SparkleColor = Color3.fromRGB(255, 200, 230)
 	sparkle.Parent = statue
 
-	-- Laternen
-	for _, pos in ipairs({ { -20, -8 }, { 20, -8 }, { -20, -60 }, { 30, -60 }, { 50, -8 }, { -50, -8 } }) do
-		local base = Vector3.new(pos[1], FLOOR, pos[2])
-		pillar(hub, base, 9, 0.6, Color3.fromRGB(50, 40, 60), Enum.Material.Metal)
-		local lamp = ball(hub, base + Vector3.new(0, 9.5, 0), 1.6, Color3.fromRGB(255, 230, 180), Enum.Material.Neon)
-		addLight(lamp, Color3.fromRGB(255, 220, 170), 22, 1.6)
+	-- Laternen am Weg
+	for _, z in ipairs({ -10, -35, -60 }) do
+		for _, side in ipairs({ -1, 1 }) do
+			local base = Vector3.new(side * 12, FLOOR, z)
+			pillar(hub, base, 9, 0.6, Color3.fromRGB(50, 40, 60), Enum.Material.Metal)
+			local lamp = ball(hub, base + Vector3.new(0, 9.5, 0), 1.6, Color3.fromRGB(255, 230, 180), Enum.Material.Neon)
+			addLight(lamp, Color3.fromRGB(255, 220, 170), 22, 1.6)
+		end
 	end
 
-	-- Schilder
-	sign(hub, CFrame.new(-8, FLOOR + 8, -12) * CFrame.Angles(0, math.rad(-20), 0), Vector3.new(16, 7, 0.8),
-		"👋 SLAP THE BLOB 👋\nClick the Blobs with your hand!", Color3.fromRGB(255, 170, 220), nil, Enum.NormalId.Front)
-	pillar(hub, Vector3.new(-8, FLOOR, -12), 4.5, 0.8, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
+	-- Willkommens-Bogen ueber dem Weg (vom Spawn aus lesbar)
+	for _, side in ipairs({ -1, 1 }) do
+		pillar(hub, Vector3.new(side * 10, FLOOR, -4), 15, 1.6, Color3.fromRGB(255, 110, 180), Enum.Material.Neon)
+	end
+	sign(hub, CFrame.new(0, FLOOR + 16, -4), Vector3.new(24, 4, 0.8), "👋 SLAP THE BLOB → ZONE 1", Color3.fromRGB(255, 255, 255),
+		Color3.fromRGB(120, 40, 100), Enum.NormalId.Front)
 
-	sign(hub, CFrame.new(28, FLOOR + 7, -12) * CFrame.Angles(0, math.rad(20), 0), Vector3.new(16, 9, 0.8),
-		"📖 HOW TO PLAY\n1. Slap Blobs = Slaps\n2. Upgrade your hand in the Shop\n3. New zones & eggs\n4. Rebirth for a mega bonus!",
-		Color3.fromRGB(255, 255, 255), Color3.fromRGB(70, 40, 90), Enum.NormalId.Front)
-	pillar(hub, Vector3.new(28, FLOOR, -12), 2.6, 0.8, Color3.fromRGB(90, 60, 40), Enum.Material.Wood)
+	-- Verkaufsstaende links und rechts
+	for _, k in ipairs(KIOSKS) do
+		local side = k[1]
+		kiosk(hub, Vector3.new(side * 72, 0, k[2]), Vector3.new(-side, 0, 0), k[3], k[4], k[5], rgb(k[6]), k[7])
+	end
 
 	-- Bestenlisten
 	World.Leaderboards = {}
@@ -5793,25 +7074,134 @@ local function buildHub()
 		World.Leaderboards[id] = rows
 	end
 	-- stehen rechts und schauen zur Mitte (-X)
-	leaderboard("Earned", "🏆 MOST SLAPS", CFrame.new(50, FLOOR + 14, -32) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 110, 180))
-	leaderboard("Rebirths", "♻️ MOST REBIRTHS", CFrame.new(50, FLOOR + 14, -56) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(150, 90, 255))
+	leaderboard("Earned", "🏆 MOST SLAPS", CFrame.new(72, FLOOR + 14, -85) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(255, 110, 180))
+	leaderboard("Rebirths", "♻️ MOST REBIRTHS", CFrame.new(72, FLOOR + 14, -108) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(150, 90, 255))
 
-	-- PvP-Arena
+	-- Siegertreppchen fuer die Top 3 (Spieler-Avatare werden vom Server draufgestellt)
+	World.Podium = {}
+	local podiumCenter = Vector3.new(38, FLOOR, -96)
+	local steps = {
+		{ Rank = 1, X = 0, H = 6, Color = Color3.fromRGB(255, 205, 40) },
+		{ Rank = 2, X = -8, H = 4, Color = Color3.fromRGB(205, 210, 225) },
+		{ Rank = 3, X = 8, H = 2.5, Color = Color3.fromRGB(215, 135, 70) },
+	}
+	part({ Name = "PodiumBase", Size = Vector3.new(28, 0.6, 12), CFrame = CFrame.new(podiumCenter + Vector3.new(0, 0.3, 0)), Color = Color3.fromRGB(70, 40, 90), Material = Enum.Material.Marble, Parent = hub })
+	for _, st in ipairs(steps) do
+		local pos = podiumCenter + Vector3.new(st.X, 0, 0)
+		local block = part({ Name = "PodiumStep" .. st.Rank, Size = Vector3.new(7.6, st.H, 7.6), CFrame = CFrame.new(pos + Vector3.new(0, st.H / 2 + 0.6, 0)), Color = st.Color, Material = Enum.Material.Foil, Parent = hub })
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front
+		gui.LightInfluence = 0
+		gui.Parent = block
+		local num = Instance.new("TextLabel")
+		num.Size = UDim2.fromScale(1, 1)
+		num.BackgroundTransparency = 1
+		num.Font = Enum.Font.FredokaOne
+		num.TextScaled = true
+		num.TextColor3 = Color3.fromRGB(255, 255, 255)
+		num.TextStrokeTransparency = 0
+		num.Text = tostring(st.Rank)
+		num.Parent = gui
+		-- Namensschild
+		local billboard = Instance.new("BillboardGui")
+		billboard.Name = "PodiumName"
+		billboard.Size = UDim2.new(10, 0, 2.4, 0)
+		billboard.StudsOffsetWorldSpace = Vector3.new(0, st.H / 2 + 8.5, 0)
+		billboard.MaxDistance = 90
+		billboard.LightInfluence = 0
+		billboard.Parent = block
+		local label = Instance.new("TextLabel")
+		label.Name = "Text"
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.TextColor3 = st.Color
+		label.TextStrokeTransparency = 0
+		label.Text = (st.Rank == 1 and "👑 " or "") .. "#" .. st.Rank .. "  ..."
+		label.Parent = billboard
+		World.Podium[st.Rank] = { Top = CFrame.new(pos + Vector3.new(0, st.H + 0.6, 0)) * CFrame.Angles(0, math.rad(180), 0), Label = label, Block = block }
+	end
+	sign(hub, CFrame.new(podiumCenter + Vector3.new(0, 17, 4)), Vector3.new(22, 3.5, 0.6), "🏆 TOP 3 SLAPPERS 🏆", Color3.fromRGB(255, 230, 120),
+		Color3.fromRGB(70, 30, 90), Enum.NormalId.Back)
+
+	-- Wochen-Event-Stand (Ei wechselt jede Woche)
+	local eventPos = Vector3.new(0, FLOOR, -104)
+	local standFolder = folder("EventStand", hub)
+	local base = pillar(standFolder, eventPos, 2.5, 11, Color3.fromRGB(60, 40, 75), Enum.Material.Marble)
+	base.Name = "EventBase"
+	disc(standFolder, eventPos + Vector3.new(0, 2.55, 0), 0.3, 11.6, Color3.fromRGB(255, 220, 90), Enum.Material.Neon)
+	local eventEgg = part({ Name = "Egg", Size = Vector3.new(6, 7.8, 6), CFrame = CFrame.new(eventPos + Vector3.new(0, 7, 0)), Color = Color3.fromRGB(255, 200, 90), Material = Enum.Material.Foil, Parent = standFolder })
+	local eggMesh = Instance.new("SpecialMesh")
+	eggMesh.MeshType = Enum.MeshType.Sphere
+	eggMesh.Parent = eventEgg
+	eventEgg:SetAttribute("BaseY", eventPos.Y + 7)
+	CollectionService:AddTag(eventEgg, "SlapEgg")
+	addLight(eventEgg, Color3.fromRGB(255, 220, 120), 18, 2)
+	local eventSparkle = Instance.new("Sparkles")
+	eventSparkle.SparkleColor = Color3.fromRGB(255, 230, 120)
+	eventSparkle.Parent = eventEgg
+	local eventBoard = Instance.new("BillboardGui")
+	eventBoard.Name = "EventInfo"
+	eventBoard.Size = UDim2.new(14, 0, 5, 0)
+	eventBoard.StudsOffsetWorldSpace = Vector3.new(0, 13, 0)
+	eventBoard.MaxDistance = 90
+	eventBoard.LightInfluence = 0
+	eventBoard.Adornee = base
+	eventBoard.Parent = base
+	local eventTitle = Instance.new("TextLabel")
+	eventTitle.Name = "Title"
+	eventTitle.Size = UDim2.fromScale(1, 0.55)
+	eventTitle.BackgroundTransparency = 1
+	eventTitle.Font = Enum.Font.FredokaOne
+	eventTitle.TextScaled = true
+	eventTitle.TextColor3 = Color3.fromRGB(255, 220, 90)
+	eventTitle.TextStrokeTransparency = 0
+	eventTitle.Text = "⭐ WEEKLY EVENT"
+	eventTitle.Parent = eventBoard
+	local eventTimer = Instance.new("TextLabel")
+	eventTimer.Name = "Timer"
+	eventTimer.Position = UDim2.fromScale(0, 0.55)
+	eventTimer.Size = UDim2.fromScale(1, 0.4)
+	eventTimer.BackgroundTransparency = 1
+	eventTimer.Font = Enum.Font.GothamBold
+	eventTimer.TextScaled = true
+	eventTimer.TextColor3 = Color3.fromRGB(255, 255, 255)
+	eventTimer.TextStrokeTransparency = 0.2
+	eventTimer.Text = "Exclusive pets!"
+	eventTimer.Parent = eventBoard
+	local eventPrompt = Instance.new("ProximityPrompt")
+	eventPrompt.Name = "OpenPrompt"
+	eventPrompt.ActionText = "Open Event Shop"
+	eventPrompt.ObjectText = "Weekly Event Egg"
+	eventPrompt.HoldDuration = 0
+	eventPrompt.MaxActivationDistance = 13
+	eventPrompt.RequiresLineOfSight = false
+	eventPrompt:SetAttribute("OpenMenu", "EggShop")
+	eventPrompt.Parent = base
+	World.EventStand = { Egg = eventEgg, Title = eventTitle, Timer = eventTimer, Prompt = eventPrompt }
+
+	-- PvP-Duell-Zone (flach, ohne Pfosten = freie Sicht)
 	local arena = Config.Arena
 	local center = Vector3.new(arena.CenterX, FLOOR, arena.CenterZ)
 	disc(hub, center + Vector3.new(0, 0.4, 0), 0.8, arena.Radius * 2 + 2, Color3.fromRGB(255, 60, 140), Enum.Material.Neon)
 	local platform = disc(hub, center + Vector3.new(0, 0.6, 0), 1, arena.Radius * 2, Color3.fromRGB(60, 40, 80), Enum.Material.DiamondPlate)
 	platform.Name = "ArenaFloor"
-	for i = 1, 8 do
-		local angle = (i / 8) * math.pi * 2
-		local postPos = center + Vector3.new(math.cos(angle) * (arena.Radius + 0.5), 0, math.sin(angle) * (arena.Radius + 0.5))
-		pillar(hub, postPos, 5, 1, Color3.fromRGB(255, 255, 255), Enum.Material.Metal)
-		local top = ball(hub, postPos + Vector3.new(0, 5.4, 0), 1.3, Color3.fromRGB(255, 60, 140), Enum.Material.Neon)
-		addLight(top, Color3.fromRGB(255, 80, 160), 10, 1)
-	end
-	-- Schild auf der Seite zum Spawn (+X), Text zeigt nach +X
-	sign(hub, CFrame.new(center + Vector3.new(arena.Radius + 3, 9, 0)) * CFrame.Angles(0, math.rad(-90), 0), Vector3.new(20, 5, 0.8),
-		"⚔️ DUEL ZONE ⚔️\nSlap a player here to start a duel!", Color3.fromRGB(255, 220, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Front)
+	local markGui = Instance.new("SurfaceGui")
+	markGui.Face = Enum.NormalId.Right
+	markGui.LightInfluence = 0
+	markGui.Parent = platform
+	local markText = Instance.new("TextLabel")
+	markText.Size = UDim2.fromScale(1, 1)
+	markText.BackgroundTransparency = 1
+	markText.Font = Enum.Font.FredokaOne
+	markText.TextScaled = true
+	markText.TextTransparency = 0.5
+	markText.TextColor3 = Color3.fromRGB(255, 120, 180)
+	markText.Text = "⚔️"
+	markText.Parent = markGui
+	sign(hub, CFrame.new(center + Vector3.new(0, 7, -arena.Radius - 3)), Vector3.new(22, 5, 0.8),
+		"⚔️ DUEL ZONE ⚔️\nSlap a player here to start a duel!", Color3.fromRGB(255, 220, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Back)
 	World.Arena = { Center = center, Radius = arena.Radius }
 end
 
@@ -5823,8 +7213,15 @@ local function buildZone(index, zone)
 	local centerZ = startZ + length / 2
 	local accent = rgb(zone.Accent)
 	local info = { Index = index, StartZ = startZ, Folder = zFolder }
+	-- Positionen wurden fuer 120x130 entworfen und auf die grosse Zone skaliert
+	local SX, SZ = Config.ZoneWidth / 120, length / 130
+	local function at(x, z)
+		return x * SX, startZ + z * SZ
+	end
+	local mechanic = zone.Mechanic or "none"
+	info.Mechanic = mechanic
 
-	part({
+	local floorPart = part({
 		Name = "Floor",
 		Size = Vector3.new(Config.ZoneWidth, 2, length),
 		CFrame = CFrame.new(0, FLOOR - 1, centerZ),
@@ -5832,6 +7229,11 @@ local function buildZone(index, zone)
 		Material = material(zone.FloorMaterial),
 		Parent = zFolder,
 	})
+	if mechanic == "ice" then
+		-- rutschiger Boden
+		floorPart.Material = Enum.Material.Ice
+		floorPart.CustomPhysicalProperties = PhysicalProperties.new(0.9, 0.02, 0.1, 100, 1)
+	end
 	part({
 		Name = "Path",
 		Size = Vector3.new(12, 0.2, length),
@@ -5843,24 +7245,32 @@ local function buildZone(index, zone)
 	})
 
 	-- Gyatt-Plaetze (Podeste)
-	info.GyattSpots = {
-		CFrame.new(-22, FLOOR + 0.6, startZ + 48),
-		CFrame.new(20, FLOOR + 0.6, startZ + 92),
-		CFrame.new(24, FLOOR + 0.6, startZ + 42),
-		CFrame.new(-40, FLOOR + 0.6, startZ + 82),
-	}
+	local SPOTS = { { -22, 48 }, { 20, 92 }, { 24, 42 }, { -40, 82 }, { 34, 112 } }
+	info.GyattSpots = {}
+	for i, s in ipairs(SPOTS) do
+		local x, z = at(s[1], s[2])
+		info.GyattSpots[i] = CFrame.new(x, FLOOR + 0.6, z)
+	end
 	for i, spot in ipairs(info.GyattSpots) do
 		local size = (zone.Gyatts[i] or zone.Gyatts[1]).Size
 		disc(zFolder, spot.Position, 0.6, size + 6, accent, Enum.Material.Neon).Name = "GyattPad"
 		disc(zFolder, spot.Position + Vector3.new(0, 0.1, 0), 0.6, size + 4, Color3.fromRGB(255, 255, 255), Enum.Material.Marble).Name = "GyattPadTop"
 	end
-	info.GoldenSpot = CFrame.new(-28, FLOOR + 0.6, startZ + 108)
+	do
+		local gx, gz = at(-28, 108)
+		info.GoldenSpot = CFrame.new(gx, FLOOR + 0.6, gz)
+	end
 
 	-- Eingangsbogen
 	local archZ = startZ + 6
 	pillar(zFolder, Vector3.new(-14, FLOOR, archZ), 16, 2.5, accent, Enum.Material.Neon)
 	pillar(zFolder, Vector3.new(14, FLOOR, archZ), 16, 2.5, accent, Enum.Material.Neon)
-	sign(zFolder, CFrame.new(0, FLOOR + 17.5, archZ), Vector3.new(32, 4, 1), "Zone " .. index .. ": " .. zone.Name,
+	local mechInfo = Config.MechanicInfo and Config.MechanicInfo[mechanic]
+	local archText = "Zone " .. index .. ": " .. zone.Name
+	if mechInfo and mechanic ~= "none" then
+		archText = archText .. "  " .. mechInfo.Icon
+	end
+	sign(zFolder, CFrame.new(0, FLOOR + 17.5, archZ), Vector3.new(32, 4, 1), archText,
 		Color3.fromRGB(255, 255, 255), Color3.fromRGB(40, 25, 55), Enum.NormalId.Front)
 
 	-- Tor (ab Zone 2)
@@ -6007,12 +7417,16 @@ local function buildZone(index, zone)
 		end
 		table.insert(info.EggStands, { EggId = eggId, Prompts = prompts })
 	end
-	eggStand(zone.Egg, Vector3.new(42, FLOOR, startZ + 24))
+	local function eggAt(x, z)
+		local ex, ez = at(x, z)
+		return Vector3.new(ex, FLOOR, ez)
+	end
+	eggStand(zone.Egg, eggAt(42, 24))
 	if zone.ExtraEgg then
-		eggStand(zone.ExtraEgg, Vector3.new(42, FLOOR, startZ + 62))
+		eggStand(zone.ExtraEgg, eggAt(42, 62))
 	end
 	if zone.ExtraEgg2 then
-		eggStand(zone.ExtraEgg2, Vector3.new(-44, FLOOR, startZ + 20))
+		eggStand(zone.ExtraEgg2, eggAt(-44, 20))
 	end
 	if egg == nil then
 		warn("[SlapTheBlob] Zone " .. index .. " has no valid egg")
@@ -6021,17 +7435,53 @@ local function buildZone(index, zone)
 	-- Deko
 	local rng = Random.new(1000 + index * 77)
 	local blocked = {
-		{ X = -22, Z = startZ + 48, R = zone.Gyatts[1].Size + 8 },
-		{ X = 20, Z = startZ + 92, R = zone.Gyatts[2].Size + 8 },
-		{ X = 42, Z = startZ + 24, R = 9 },
-		{ X = 42, Z = startZ + 62, R = 9 },
-		{ X = -44, Z = startZ + 20, R = 9 },
-		{ X = 24, Z = startZ + 42, R = 14 },
-		{ X = -40, Z = startZ + 82, R = 9 },
-		{ X = -28, Z = startZ + 108, R = 14 },
-		{ X = 0, Z = startZ + 6, R = 16 },
-		{ X = 0, Z = startZ + length - 14, R = 22 },
+		{ X = 42, Z = 24, R = 9 },
+		{ X = 42, Z = 62, R = 9 },
+		{ X = -44, Z = 20, R = 9 },
+		{ X = -28, Z = 108, R = 14 },
 	}
+	for i, s in ipairs(SPOTS) do
+		local cfg = zone.Gyatts[i] or zone.Gyatts[1]
+		table.insert(blocked, { X = s[1], Z = s[2], R = cfg.Size + 8 })
+	end
+	for _, b in ipairs(blocked) do
+		b.X, b.Z = at(b.X, b.Z)
+	end
+	table.insert(blocked, { X = 0, Z = startZ + 6, R = 16 })
+	table.insert(blocked, { X = 0, Z = startZ + length - 14, R = 22 })
+	info.Pads = {}
+	if mechanic == "bounce" or mechanic == "boost" then
+		-- Sprung- bzw. Turbo-Felder in der Zone verteilen
+		local padRng = Random.new(5000 + index)
+		for n = 1, 10 do
+			local px, pz
+			local tries = 0
+			repeat
+				px = padRng:NextNumber(-HALF_WIDTH + 12, HALF_WIDTH - 12)
+				pz = padRng:NextNumber(startZ + 24, startZ + length - 30)
+				tries = tries + 1
+				local ok = true
+				for _, b in ipairs(blocked) do
+					local dx, dz = px - b.X, pz - b.Z
+					if math.sqrt(dx * dx + dz * dz) < b.R + 6 then
+						ok = false
+					end
+				end
+			until ok or tries > 30
+			if mechanic == "bounce" then
+				local pad = disc(zFolder, Vector3.new(px, FLOOR + 0.3, pz), 0.6, 9, Color3.fromRGB(255, 120, 220), Enum.Material.Neon)
+				pad.Name = "BouncePad"
+				CollectionService:AddTag(pad, "SlapBouncePad")
+				table.insert(info.Pads, pad)
+			else
+				local pad = part({ Name = "BoostPad", Size = Vector3.new(8, 0.4, 12), CFrame = CFrame.new(px, FLOOR + 0.2, pz) * CFrame.Angles(0, (n % 2 == 0) and 0 or math.pi, 0),
+					Color = Color3.fromRGB(80, 230, 255), Material = Enum.Material.Neon, CanCollide = false, Parent = zFolder })
+				CollectionService:AddTag(pad, "SlapBoostPad")
+				table.insert(info.Pads, pad)
+			end
+			table.insert(blocked, { X = px, Z = pz, R = 6 })
+		end
+	end
 	local function isFree(x, z, radius)
 		if math.abs(x) < 9 + radius then
 			return false -- Weg frei lassen
@@ -6132,7 +7582,7 @@ local function buildZone(index, zone)
 	end
 
 	-- Blick in die Zone hinein (+Z)
-	info.TeleportCFrame = CFrame.new(0, FLOOR + 4, startZ + 14) * CFrame.Angles(0, math.pi, 0)
+	info.TeleportCFrame = CFrame.new(0, FLOOR + 4, startZ + 16) * CFrame.Angles(0, math.pi, 0)
 	World.Zones[index] = info
 	return info
 end
@@ -6201,6 +7651,12 @@ local function buildLandings()
 			prompt.MaxActivationDistance = 14
 			prompt.RequiresLineOfSight = false
 			prompt.Parent = returnPart
+			-- kleine Verkaufsstaende auch hier, damit man nicht zurueck muss
+			local kz = frontZ + length / 2
+			kiosk(landing, Vector3.new(-60, 0, kz - 10), Vector3.new(1, 0, 0), "UPGRADES", "🛒", "Shop", Color3.fromRGB(255, 110, 180), "Slaps")
+			kiosk(landing, Vector3.new(-60, 0, kz + 12), Vector3.new(1, 0, 0), "GLOVES", "✋", "Hands", Color3.fromRGB(255, 170, 60), "Slaps / Gems")
+			kiosk(landing, Vector3.new(60, 0, kz - 10), Vector3.new(-1, 0, 0), "ITEM CRATES", "🎁", "ItemShop", Color3.fromRGB(170, 110, 255), "Slaps / Gems")
+			kiosk(landing, Vector3.new(60, 0, kz + 12), Vector3.new(-1, 0, 0), "FORGE", "🔨", "Items", Color3.fromRGB(255, 90, 90), "Merge items")
 			World.Dimensions[dimIndex] = {
 				LandingCFrame = CFrame.new(0, FLOOR + 4, frontZ + 20) * CFrame.Angles(0, math.pi, 0),
 				ReturnPrompt = prompt,
@@ -6222,14 +7678,12 @@ local function buildDuelArenas()
 		disc(arenaFolder, center + Vector3.new(0, -1.5, 0), 3, r * 2 + 3, Color3.fromRGB(255, 50, 120), Enum.Material.Neon)
 		local floorPart = disc(arenaFolder, center + Vector3.new(0, -0.5, 0), 1.2, r * 2, Color3.fromRGB(45, 30, 70), Enum.Material.DiamondPlate)
 		floorPart.Name = "DuelFloor"
-		for k = 1, 10 do
-			local angle = (k / 10) * math.pi * 2
-			local p = center + Vector3.new(math.cos(angle) * (r - 1), 0, math.sin(angle) * (r - 1))
-			local orb = ball(arenaFolder, p + Vector3.new(0, 0.6, 0), 1.5, Color3.fromRGB(255, 200, 80), Enum.Material.Neon)
-			orb.CanCollide = false
-		end
-		sign(arenaFolder, CFrame.new(center + Vector3.new(0, 18, -r - 4)), Vector3.new(26, 5, 1), "⚔️ DUEL ARENA " .. i .. " ⚔️",
-			Color3.fromRGB(255, 230, 240), Color3.fromRGB(120, 20, 60), Enum.NormalId.Back)
+		-- nur ein flacher Leuchtring am Rand: freie Sicht im Kampf
+		local edge = disc(arenaFolder, center + Vector3.new(0, 0.12, 0), 0.1, r * 2 - 1, Color3.fromRGB(255, 120, 180), Enum.Material.Neon)
+		edge.CanCollide = false
+		edge.Transparency = 0.6
+		local inner = disc(arenaFolder, center + Vector3.new(0, 0.15, 0), 0.1, r * 2 - 4, Color3.fromRGB(45, 30, 70), Enum.Material.DiamondPlate)
+		inner.CanCollide = false
 		World.DuelArenas[i] = {
 			Center = center,
 			Spawns = {
@@ -6496,7 +7950,7 @@ function World.IsInArena(position)
 end
 
 return World
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000030"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX00000029"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000028"><Properties><string name="Name">SlapClient</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000031"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX00000030"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000029"><Properties><string name="Name">SlapClient</string><ProtectedString name="Source"><![CDATA[--[[
 	SlapClient (LocalScript in StarterPlayer > StarterPlayerScripts)
 
 	Startet die komplette Client-Seite von "Slap the Blob":
@@ -6634,6 +8088,17 @@ UI.OnWindowOpened = function()
 	ctx.PlaySound("Click")
 end
 
+-- Verkaufsstaende im Hub oeffnen ihr Menue
+game:GetService("ProximityPromptService").PromptTriggered:Connect(function(prompt, who)
+	if who ~= player then
+		return
+	end
+	local menu = prompt:GetAttribute("OpenMenu")
+	if type(menu) == "string" and UI.Windows[menu] then
+		UI.Open(menu)
+	end
+end)
+
 --------------------------------------------------------------------------
 -- Spielstand vom Server
 --------------------------------------------------------------------------
@@ -6712,7 +8177,7 @@ remotes.Trade.OnClientEvent:Connect(function(info)
 end)
 
 remotes.Request:FireServer("RequestState")
-]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">DuelUI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">DuelUI</string><ProtectedString name="Source"><![CDATA[--[[
 	DuelUI: Anzeige waehrend eines Duells.
 	  Lebensbalken beider Spieler, Timer, grosser Countdown,
 	  Dash-Knopf (Taste Q) und Ergebnis.
@@ -6726,7 +8191,7 @@ local DuelUI = {}
 local ctx, UI, Config, Create
 
 local player = Players.LocalPlayer
-local frame, myBar, theirBar, myLabel, theirLabel, timerLabel, bigLabel, bigScale, dashButton
+local frame, myBar, theirBar, myLabel, theirLabel, timerLabel, bigLabel, bigScale, dashButton, comboLabel, comboScale
 local active = false
 local duelScale
 local dashReadyAt = 0
@@ -6756,6 +8221,10 @@ local function build()
 	local _, a = UI.ProgressBar({ Position = UDim2.new(0, 10, 0, 34), Size = UDim2.new(0.5, -20, 0, 22), Color = Color3.fromRGB(80, 220, 120), Parent = frame })
 	local _, b = UI.ProgressBar({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 34), Size = UDim2.new(0.5, -20, 0, 22), Color = Color3.fromRGB(255, 70, 90), Parent = frame })
 	myBar, theirBar = a, b
+	comboLabel = UI.Label({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.new(0.5, 0, 0, 26), Text = "",
+		TextColor3 = Color3.fromRGB(255, 170, 60), ZIndex = 11, Parent = frame })
+	UI.TextStroke(2).Parent = comboLabel
+	comboScale = Create("UIScale", { Scale = 1, Parent = comboLabel })
 
 	bigLabel = UI.Label({
 		Name = "DuelBig",
@@ -6834,6 +8303,7 @@ function DuelUI.OnEvent(info)
 		dashButton.Visible = true
 		theirLabel.Text = tostring(info.Opponent)
 		myLabel.Text = player.DisplayName
+		comboLabel.Text = "💨 Dash + slap = DASH STRIKE!"
 		UI.SetProgress(myBar, 1)
 		UI.SetProgress(theirBar, 1)
 		timerLabel.Text = tostring(info.Duration or 60)
@@ -6856,6 +8326,14 @@ function DuelUI.OnEvent(info)
 		myLabel.Text = player.DisplayName .. "  " .. math.ceil(myHealth)
 		theirLabel.Text = math.ceil(theirHealth) .. "  " .. tostring(info.Opponent or "")
 		timerLabel.Text = tostring(math.ceil(tonumber(info.TimeLeft) or 0))
+		local combo = tonumber(info.MyCombo) or 0
+		if combo >= 1 then
+			comboLabel.Text = "🔥 " .. (combo + 1) .. " HIT COMBO!"
+			comboScale.Scale = 1.3
+			TweenService:Create(comboScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		else
+			comboLabel.Text = ""
+		end
 	elseif info.Kind == "DashOk" then
 		dashReadyAt = math.max(dashReadyAt, os.clock() + (tonumber(info.Cooldown) or 2.5) - 0.2)
 	elseif info.Kind == "End" then
@@ -6876,6 +8354,13 @@ function DuelUI.OnEvent(info)
 				ctx.Hud.SetDuelMode(false)
 			end
 		end)
+	end
+end
+
+-- Dash-Schlag anzeigen (vom Effekt-System aufgerufen)
+function DuelUI.OnDashStrike(mine)
+	if active then
+		showBig(mine and "⚡ DASH STRIKE!" or "⚡ OUCH!", mine and Color3.fromRGB(120, 220, 255) or Color3.fromRGB(255, 120, 120), 0.7)
 	end
 end
 
@@ -6915,7 +8400,7 @@ function DuelUI.Init(context)
 end
 
 return DuelUI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
 	Effects: Schadenszahlen, Partikel, Kamera-Wackeln, Konfetti, Rueckstoss.
 ]]
 
@@ -7060,6 +8545,22 @@ function Effects.OnSlap(info)
 	end
 	if info.Kind == "Duel" then
 		local crit = tonumber(info.Crit) or 0
+		if info.Special == "DashStrike" then
+			burst(position, { Color3.fromRGB(120, 220, 255), Color3.fromRGB(255, 255, 255), Color3.fromRGB(80, 120, 255) }, 40, 40, 1.2)
+			floatingText(position + Vector3.new(0, 5, 0), "⚡ DASH STRIKE!", Color3.fromRGB(130, 220, 255), 5, 0)
+			if isMine or info.TargetId == player.UserId then
+				shake(0.6, 0.25)
+				fovPunch(7)
+				screenFlash(Color3.fromRGB(150, 220, 255), 0.25)
+			end
+			if ctx.DuelUI and ctx.DuelUI.OnDashStrike and (isMine or info.TargetId == player.UserId) then
+				ctx.DuelUI.OnDashStrike(isMine)
+			end
+		end
+		local combo = tonumber(info.Combo) or 0
+		if combo >= 2 then
+			floatingText(position + Vector3.new(0, 6.5, 0), "x" .. (combo + 1) .. " COMBO", Color3.fromRGB(255, 170, 60), 3.5, 0)
+		end
 		burst(position, { Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 80, 120) }, crit > 0 and 30 or 16, 28, 0.9)
 		floatingText(position + Vector3.new((math.random() - 0.5) * 2, 3, 0), (crit > 0 and "💥 " or "") .. "-" .. tostring(info.Damage), crit > 0 and Color3.fromRGB(255, 220, 60) or Color3.fromRGB(255, 120, 120), crit > 0 and 5 or 3.5, 0)
 		if isMine then
@@ -7214,47 +8715,97 @@ function Effects.Init(context)
 end
 
 return Effects
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">Hatch</string><ProtectedString name="Source"><![CDATA[--[[
-	Hatch: Ei-Oeffnen-Animation (Ei wackelt, knackt, Pets erscheinen).
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">Hatch</string><ProtectedString name="Source"><![CDATA[--[[
+	Hatch: Ei- und Kisten-Animation.
+	  Ei wackelt immer schneller, leuchtet auf und platzt.
+	  Dahinter drehen sich Lichtstrahlen in der Farbe der besten Seltenheit,
+	  die Karten drehen sich um (Flip), springen und es regnet Konfetti.
 ]]
 
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local Hatch = {}
 local ctx, UI, Config, Calc, Create
 
-local overlay, eggLabel, eggScale, resultHolder, hintLabel
+local overlay, stage, eggLabel, eggScale, eggGlow, rays, raysScale, resultHolder, hintLabel, flash, confettiHolder, bestLabel
 local playing = false
 local queue = {}
+
+local CATEGORY_ICON = { Hat = "🎩", Back = "🪽", Aura = "✨" }
 
 local function build()
 	overlay = Create("TextButton", {
 		Name = "HatchOverlay",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(10, 0, 20),
-		BackgroundTransparency = 0.35,
+		BackgroundTransparency = 0.3,
 		AutoButtonColor = false,
 		Text = "",
 		Visible = false,
 		ZIndex = 50,
 		Parent = ctx.Screen,
 	})
+	stage = Create("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 50, Parent = overlay })
+	-- Lichtstrahlen (12 schmale Balken, die sich drehen)
+	rays = Create("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Size = UDim2.new(0, 520, 0, 520),
+		Rotation = 0,
+		BackgroundTransparency = 1,
+		ZIndex = 50,
+		Parent = stage,
+	})
+	raysScale = Create("UIScale", { Scale = 1, Parent = rays })
+	for i = 0, 11 do
+		Create("Frame", {
+			Name = "Ray",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.new(0, 34, 1, 0),
+			Rotation = i * 15,
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0.82,
+			BorderSizePixel = 0,
+			ZIndex = 50,
+			Parent = rays,
+		}, {
+			Create("UIGradient", {
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 1),
+					NumberSequenceKeypoint.new(0.5, 0),
+					NumberSequenceKeypoint.new(1, 1),
+				}),
+				Rotation = 90,
+			}),
+		})
+	end
+	eggGlow = Create("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Size = UDim2.new(0, 200, 0, 200),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 0.6,
+		ZIndex = 51,
+		Parent = stage,
+	}, { Create("UICorner", { CornerRadius = UDim.new(1, 0) }) })
 	eggLabel = UI.Label({
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.45),
-		Size = UDim2.new(0, 220, 0, 220),
+		Size = UDim2.new(0, 200, 0, 200),
 		Text = "🥚",
-		ZIndex = 51,
-		Parent = overlay,
+		ZIndex = 52,
+		Parent = stage,
 	})
 	eggScale = Create("UIScale", { Scale = 1, Parent = eggLabel })
 	resultHolder = Create("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.45),
-		Size = UDim2.new(0.9, 0, 0, 230),
+		Size = UDim2.new(0.94, 0, 0, 230),
 		BackgroundTransparency = 1,
-		ZIndex = 51,
-		Parent = overlay,
+		ZIndex = 52,
+		Parent = stage,
 	}, {
 		Create("UIListLayout", {
 			FillDirection = Enum.FillDirection.Horizontal,
@@ -7264,50 +8815,158 @@ local function build()
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 	})
+	bestLabel = UI.Label({
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 0.45, -125),
+		Size = UDim2.new(0.8, 0, 0, 48),
+		Text = "",
+		ZIndex = 55,
+		Parent = stage,
+	})
+	UI.TextStroke(3).Parent = bestLabel
 	hintLabel = UI.Label({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0.72, 0),
-		Size = UDim2.new(0.6, 0, 0, 28),
+		Position = UDim2.new(0.5, 0, 0.45, 130),
+		Size = UDim2.new(0.6, 0, 0, 26),
 		Font = UI.BodyFont,
 		TextColor3 = UI.Colors.SubText,
-		Text = "Click to close",
-		ZIndex = 51,
-		Parent = overlay,
+		Text = "Tap to close",
+		ZIndex = 55,
+		Parent = stage,
 	})
+	confettiHolder = Create("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ClipsDescendants = true, ZIndex = 56, Parent = overlay })
+	flash = Create("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 1, ZIndex = 57, Parent = overlay })
+	-- auf kleinen Bildschirmen alles kleiner
+	local stageScale = Create("UIScale", { Scale = 1, Parent = resultHolder })
+	local function fit()
+		local camera = workspace.CurrentCamera
+		local h = camera and camera.ViewportSize.Y or 720
+		local s = math.clamp(h / 700, 0.55, 1)
+		stageScale.Scale = s
+		raysScale.Scale = s
+	end
+	fit()
+	if workspace.CurrentCamera then
+		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)
+	end
 end
 
-local function card(petId, order)
-	local cfg = Config.Pets[petId]
-	local rarity = Config.Rarities[cfg.Rarity]
-	local color = UI.rgb(rarity.Color)
+local function confetti(color, amount)
+	local colors = { color, Color3.fromRGB(255, 220, 80), Color3.fromRGB(255, 110, 180), Color3.fromRGB(90, 200, 255), Color3.fromRGB(120, 255, 140) }
+	for i = 1, amount do
+		local startX = math.random()
+		local startRotation = math.random(0, 360)
+		local piece = Create("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(startX, 0, -0.05, 0),
+			Size = UDim2.new(0, math.random(6, 12), 0, math.random(10, 18)),
+			Rotation = startRotation,
+			BackgroundColor3 = colors[(i % #colors) + 1],
+			BorderSizePixel = 0,
+			ZIndex = 56,
+			Parent = confettiHolder,
+		})
+		local duration = 1.6 + math.random() * 1.4
+		TweenService:Create(piece, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = UDim2.new(startX + (math.random() - 0.5) * 0.3, 0, 1.08, 0),
+			Rotation = startRotation + math.random(-540, 540),
+		}):Play()
+		task.delay(duration + 0.05, function()
+			piece:Destroy()
+		end)
+	end
+end
+
+-- Karte fuer ein Pet oder Item. Startet "umgedreht" (schmal) und dreht sich auf.
+local function makeCard(order, info)
+	local color = info.RarityColor
 	local frame = Create("Frame", {
 		LayoutOrder = order,
-		Size = UDim2.new(0, 160, 0, 210),
+		Size = UDim2.new(0, 160, 0, 214),
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		ZIndex = 52,
+		ZIndex = 53,
 		Parent = resultHolder,
 	}, {
 		UI.Corner(18),
 		UI.Stroke(4, color),
 		UI.Gradient(UI.Colors.Panel, UI.Colors.Darker),
 	})
+	local inner = Create("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 53, Parent = frame })
 	local scale = Create("UIScale", { Scale = 0.2, Parent = frame })
+	-- Rueckseite (Fragezeichen) waehrend des Flips
+	local back = Create("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = color, ZIndex = 58, Parent = frame }, { UI.Corner(18) })
+	UI.Label({ Size = UDim2.fromScale(1, 1), Text = "?", ZIndex = 59, Parent = back })
+
 	local face = Create("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 14),
 		Size = UDim2.new(0, 86, 0, 86),
-		BackgroundColor3 = UI.rgb(cfg.Color),
-		ZIndex = 53,
-		Parent = frame,
+		BackgroundColor3 = info.Color,
+		ZIndex = 54,
+		Parent = inner,
 	}, { Create("UICorner", { CornerRadius = UDim.new(1, 0) }), UI.Stroke(3) })
-	UI.Label({ Size = UDim2.fromScale(1, 1), Text = "😊", ZIndex = 54, Parent = face })
-	local name = UI.Label({ Position = UDim2.new(0, 6, 0, 108), Size = UDim2.new(1, -12, 0, 30), Text = cfg.DisplayName, ZIndex = 53, Parent = frame })
+	UI.Label({ Size = UDim2.fromScale(1, 1), Text = info.Icon, ZIndex = 55, Parent = face })
+	local name = UI.Label({ Position = UDim2.new(0, 6, 0, 106), Size = UDim2.new(1, -12, 0, 30), TextWrapped = true, Text = info.Name, ZIndex = 54, Parent = inner })
 	UI.TextStroke(1.5).Parent = name
-	local rarityLabel = UI.Label({ Position = UDim2.new(0, 6, 0, 140), Size = UDim2.new(1, -12, 0, 24), Text = rarity.DisplayName, TextColor3 = color, ZIndex = 53, Parent = frame })
+	local rarityLabel = UI.Label({ Position = UDim2.new(0, 6, 0, 138), Size = UDim2.new(1, -12, 0, 24), Text = info.RarityName, TextColor3 = color, ZIndex = 54, Parent = inner })
 	UI.TextStroke(1.5).Parent = rarityLabel
-	UI.Label({ Position = UDim2.new(0, 6, 0, 168), Size = UDim2.new(1, -12, 0, 22), Font = UI.BodyFont, Text = "+" .. Calc.FormatNumber(math.floor(cfg.Boost * 100)) .. "% Slaps", TextColor3 = UI.Colors.Gold, ZIndex = 53, Parent = frame })
-	TweenService:Create(scale, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	UI.Label({ Position = UDim2.new(0, 6, 0, 166), Size = UDim2.new(1, -12, 0, 22), Font = UI.BodyFont, TextScaled = true, Text = info.Stat, TextColor3 = UI.Colors.Gold, ZIndex = 54, Parent = inner })
+	if info.Order >= 5 then
+		-- Glanz fuer sehr seltene Karten
+		local shine = Create("UIGradient", {
+			Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(0.5, color), ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)) }),
+			Rotation = 45,
+			Parent = back,
+		})
+		shine.Offset = Vector2.new(-1, 0)
+		TweenService:Create(shine, TweenInfo.new(0.5), { Offset = Vector2.new(1, 0) }):Play()
+	end
+
+	-- Auftauchen, dann Flip (Breite 0 -> voll), dann kleiner Huepfer
+	local delayTime = 0.12 * (order - 1)
+	task.delay(delayTime, function()
+		TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		task.wait(0.35 + (info.Order >= 4 and 0.35 or 0))
+		local half = TweenService:Create(frame, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.new(0, 0, 0, 214) })
+		half:Play()
+		task.wait(0.12)
+		back.Visible = false
+		TweenService:Create(frame, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.new(0, 160, 0, 214) }):Play()
+		task.wait(0.18)
+		scale.Scale = 1.15
+		TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	end)
 	return frame
+end
+
+local function petInfo(petId)
+	local cfg = Config.Pets[petId]
+	local rarity = Config.Rarities[cfg.Rarity]
+	return {
+		Name = cfg.DisplayName,
+		Icon = "😊",
+		Color = UI.rgb(cfg.Color),
+		RarityName = rarity.DisplayName,
+		RarityColor = UI.rgb(rarity.Color),
+		Order = rarity.Order,
+		Rarity = cfg.Rarity,
+		Stat = "+" .. Calc.FormatNumber(math.floor(cfg.Boost * 100)) .. "% Slaps",
+	}
+end
+
+local function itemInfo(itemId, level)
+	local cfg = Config.Items[itemId]
+	local rarity = Config.Rarities[cfg.Rarity]
+	return {
+		Name = cfg.DisplayName,
+		Icon = CATEGORY_ICON[cfg.Category] or "🎁",
+		Color = UI.rgb(cfg.Color),
+		RarityName = rarity.DisplayName,
+		RarityColor = UI.rgb(rarity.Color),
+		Order = rarity.Order,
+		Rarity = cfg.Rarity,
+		Stat = Calc.DescribeItem(itemId, level or 1),
+	}
 end
 
 local function playOne(result)
@@ -7317,46 +8976,114 @@ local function playOne(result)
 			child:Destroy()
 		end
 	end
-	overlay.Visible = true
-	hintLabel.Visible = false
-	eggLabel.Visible = true
-	eggLabel.Rotation = 0
-	eggScale.Scale = 0.5
-	TweenService:Create(eggScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
-
-	-- Wackeln, immer schneller
-	local shakes = { 0.16, 0.14, 0.12, 0.1, 0.08, 0.07, 0.06, 0.05 }
-	for i, duration in ipairs(shakes) do
-		local angle = (i % 2 == 0) and 18 or -18
-		TweenService:Create(eggLabel, TweenInfo.new(duration), { Rotation = angle }):Play()
-		task.wait(duration)
-	end
-	ctx.PlaySound("Hatch")
-	TweenService:Create(eggScale, TweenInfo.new(0.15), { Scale = 1.6 }):Play()
-	task.wait(0.15)
-	eggLabel.Visible = false
-
-	local best = "Common"
-	for i, pet in ipairs(result.Pets or {}) do
+	local infos = {}
+	for _, pet in ipairs(result.Pets or {}) do
 		if Config.Pets[pet.Id] then
-			card(pet.Id, i)
-			local rarity = Config.Pets[pet.Id].Rarity
-			if Config.Rarities[rarity].Order > Config.Rarities[best].Order then
-				best = rarity
-			end
+			table.insert(infos, petInfo(pet.Id))
 		end
 	end
-	ctx.PlaySound("Popup", (best == "Legendary" or best == "Mythic" or best == "Secret") and 1.4 or 1)
-	if best == "Legendary" or best == "Mythic" or best == "Secret" then
-		ctx.Hud.Popup(string.upper(Config.Rarities[best].DisplayName) .. "!!!", "What luck!", Config.Rarities[best].Color)
+	for _, item in ipairs(result.Items or {}) do
+		if Config.Items[item.Id] then
+			table.insert(infos, itemInfo(item.Id, item.Level))
+		end
 	end
+	local best = infos[1]
+	for _, info in ipairs(infos) do
+		if info.Order > best.Order then
+			best = info
+		end
+	end
+	if not best then
+		playing = false
+		return
+	end
+
+	local isCrate = result.Crate ~= nil
+	local eggCfg = result.EggId and Config.Eggs[result.EggId]
+	local eggColor = eggCfg and UI.rgb(eggCfg.Color) or Color3.fromRGB(200, 150, 255)
+
+	overlay.Visible = true
+	hintLabel.Visible = false
+	bestLabel.Text = ""
+	eggLabel.Visible = true
+	eggGlow.Visible = true
+	eggLabel.Text = isCrate and "🎁" or "🥚"
+	eggLabel.Rotation = 0
+	eggGlow.BackgroundColor3 = eggColor
+	eggGlow.BackgroundTransparency = 0.7
+	eggScale.Scale = 0.4
+	rays.Visible = true
+	rays.Rotation = 0
+	for _, ray in ipairs(rays:GetChildren()) do
+		if ray:IsA("Frame") then
+			ray.BackgroundColor3 = eggColor
+			ray.BackgroundTransparency = 0.88
+		end
+	end
+	TweenService:Create(eggScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+
+	-- Strahlen drehen sich die ganze Zeit
+	local spin = RunService.RenderStepped:Connect(function(dt)
+		rays.Rotation = (rays.Rotation + dt * 25) % 360
+	end)
+
+	-- Wackeln, immer schneller; das Leuchten wird staerker (seltener = laenger)
+	local shakes = { 0.16, 0.14, 0.12, 0.1, 0.08, 0.07, 0.06, 0.05 }
+	if best.Order >= 5 then
+		table.insert(shakes, 0.05)
+		table.insert(shakes, 0.04)
+		table.insert(shakes, 0.04)
+	end
+	for i, duration in ipairs(shakes) do
+		local angle = (i % 2 == 0) and 16 or -16
+		TweenService:Create(eggLabel, TweenInfo.new(duration), { Rotation = angle }):Play()
+		eggGlow.BackgroundTransparency = 0.7 - (i / #shakes) * 0.45
+		task.wait(duration)
+	end
+	-- Aufblitzen in der Farbe der besten Seltenheit
+	ctx.PlaySound("Hatch")
+	flash.BackgroundColor3 = best.RarityColor
+	flash.BackgroundTransparency = best.Order >= 4 and 0.1 or 0.5
+	TweenService:Create(flash, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
+	TweenService:Create(eggScale, TweenInfo.new(0.15), { Scale = 1.7 }):Play()
+	task.wait(0.15)
+	eggLabel.Visible = false
+	eggGlow.Visible = false
+	for _, ray in ipairs(rays:GetChildren()) do
+		if ray:IsA("Frame") then
+			ray.BackgroundColor3 = best.RarityColor
+			ray.BackgroundTransparency = best.Order >= 4 and 0.55 or 0.78
+		end
+	end
+	raysScale.Scale = raysScale.Scale * 0.6
+	TweenService:Create(raysScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = raysScale.Scale / 0.6 }):Play()
+
+	for i, info in ipairs(infos) do
+		makeCard(i, info)
+	end
+	if best.Order >= 3 then
+		bestLabel.Text = string.upper(best.RarityName) .. "!" .. (best.Order >= 5 and "!!" or "")
+		bestLabel.TextColor3 = best.RarityColor
+		local s = Create("UIScale", { Scale = 0.3, Parent = bestLabel })
+		TweenService:Create(s, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		task.delay(3, function()
+			s:Destroy()
+		end)
+	end
+	confetti(best.RarityColor, best.Order >= 5 and 70 or (best.Order >= 3 and 40 or 18))
+	ctx.PlaySound("Popup", best.Order >= 4 and 1.4 or 1)
+	if best.Order >= 5 then
+		ctx.Hud.Popup(string.upper(best.RarityName) .. "!!!", "Incredible luck!", Config.Rarities[best.Rarity].Color)
+	end
+	task.wait(0.6)
 	hintLabel.Visible = true
 
 	-- automatisch schliessen
-	local closeAt = os.clock() + 3
+	local closeAt = os.clock() + (best.Order >= 4 and 4 or 3)
 	while overlay.Visible and os.clock() < closeAt do
 		task.wait(0.1)
 	end
+	spin:Disconnect()
 	overlay.Visible = false
 	playing = false
 	if #queue > 0 then
@@ -7366,7 +9093,7 @@ local function playOne(result)
 end
 
 function Hatch.Play(result)
-	if type(result) ~= "table" or type(result.Pets) ~= "table" then
+	if type(result) ~= "table" or (type(result.Pets) ~= "table" and type(result.Items) ~= "table") then
 		return
 	end
 	if playing then
@@ -7393,7 +9120,7 @@ function Hatch.Init(context)
 end
 
 return Hatch
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
 	Hud: alles, was immer auf dem Bildschirm ist.
 	  Geld-Anzeige, Combo, Boosts, Event-Banner, Menue-Knoepfe,
 	  Auto-Slap-Schalter, Zonen-Anzeige, Nachrichten, Popups.
@@ -7433,7 +9160,7 @@ local function buildTop(screen)
 		Name = "TopPanel",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 6),
-		Size = UDim2.new(0, 360, 0, 86),
+		Size = UDim2.new(0, 330, 0, 44),
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		Parent = screen,
 	}, {
@@ -7443,10 +9170,12 @@ local function buildTop(screen)
 	})
 
 	topPanel = top
+	-- schmale Leiste: Slaps links, Gems rechts (verdeckt kaum etwas)
 	slapsLabel = UI.Label({
 		Name = "Slaps",
 		Position = UDim2.new(0, 10, 0, 4),
-		Size = UDim2.new(1, -20, 0, 40),
+		Size = UDim2.new(0.6, -14, 0, 36),
+		TextXAlignment = Enum.TextXAlignment.Left,
 		Text = "👋 Loading...",
 		Parent = top,
 	})
@@ -7454,10 +9183,11 @@ local function buildTop(screen)
 
 	gemsLabel = UI.Label({
 		Name = "Gems",
-		Position = UDim2.new(0, 10, 0, 44),
-		Size = UDim2.new(0.45, -10, 0, 22),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 7),
+		Size = UDim2.new(0.4, -6, 0, 30),
 		TextColor3 = Color3.fromRGB(140, 220, 255),
-		TextXAlignment = Enum.TextXAlignment.Left,
+		TextXAlignment = Enum.TextXAlignment.Right,
 		Text = "💎 0",
 		Parent = top,
 	})
@@ -7472,6 +9202,7 @@ local function buildTop(screen)
 		TextColor3 = UI.Colors.SubText,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Text = "",
+		Visible = false,
 		Parent = top,
 	})
 
@@ -7482,6 +9213,7 @@ local function buildTop(screen)
 		Font = UI.BodyFont,
 		TextColor3 = Color3.fromRGB(170, 140, 190),
 		Text = "",
+		Visible = false,
 		Parent = top,
 	})
 
@@ -7536,41 +9268,66 @@ local function buildTop(screen)
 end
 
 local MENU_BUTTONS = {
-	{ "Shop", "🛒", "Shop", { 255, 105, 180 } },
-	{ "Hands", "✋", "Hands", { 255, 160, 60 } },
+	{ "ShopHub", "🛒", "Shop", { 255, 105, 180 } },
 	{ "Pets", "🐾", "Pets", { 90, 200, 120 } },
+	{ "Items", "🎩", "Items", { 170, 110, 255 } },
 	{ "Zones", "🗺️", "Zones", { 70, 170, 255 } },
-	{ "Gems", "💎", "Gems", { 90, 210, 255 } },
 	{ "Rebirth", "♻️", "Rebirth", { 160, 100, 255 } },
 	{ "Quests", "📜", "Quests", { 255, 200, 60 } },
 	{ "Daily", "🎁", "Daily", { 255, 90, 120 } },
 	{ "Trade", "🤝", "Trade", { 60, 190, 170 } },
-	{ "Codes", "🎟️", "Codes", { 120, 120, 255 } },
 	{ "Settings", "⚙️", "Settings", { 130, 130, 150 } },
 }
+local BUTTON_SIZE = 50
+local menuOpen = true
+local menuList, menuToggle
 
+local function setMenuOpen(open)
+	menuOpen = open
+	if menuList then
+		menuList.Visible = open
+	end
+	if menuToggle then
+		menuToggle.Text = open and "◀" or "☰"
+	end
+end
+Hud.SetMenuOpen = setMenuOpen
+
+-- Schmale Leiste links: eine Spalte, kann eingeklappt werden
 local function buildMenuButtons(screen)
+	local count = #MENU_BUTTONS
+	local listHeight = count * (BUTTON_SIZE + 5)
 	local holder = Create("Frame", {
 		Name = "MenuButtons",
 		ZIndex = 1,
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 8, 0.5, 0),
-		Size = UDim2.new(0, 132, 0, 396),
+		Position = UDim2.new(0, 6, 0.5, 0),
+		Size = UDim2.new(0, BUTTON_SIZE, 0, listHeight + 40),
 		BackgroundTransparency = 1,
 		Parent = screen,
-	}, {
-		Create("UIGridLayout", {
-			CellSize = UDim2.new(0, 62, 0, 60),
-			CellPadding = UDim2.new(0, 6, 0, 6),
-			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
 	})
+	menuToggle = UI.Button({
+		Name = "MenuToggle",
+		Size = UDim2.new(0, BUTTON_SIZE, 0, 34),
+		Color = UI.Colors.Darker,
+		Text = "◀",
+		Parent = holder,
+	}, function()
+		setMenuOpen(not menuOpen)
+	end)
+	menuList = Create("Frame", {
+		Name = "List",
+		Position = UDim2.new(0, 0, 0, 40),
+		Size = UDim2.new(1, 0, 0, listHeight),
+		BackgroundTransparency = 1,
+		Parent = holder,
+	}, { UI.List(5, false) })
 	-- auf kleinen Bildschirmen (Handy quer) verkleinern, damit alles passt
 	local holderScale = Create("UIScale", { Scale = 1, Parent = holder })
 	local function fit()
 		local camera = workspace.CurrentCamera
 		if camera then
-			holderScale.Scale = math.clamp((camera.ViewportSize.Y - 110) / 396, 0.55, 1)
+			holderScale.Scale = math.clamp((camera.ViewportSize.Y - 60) / (listHeight + 40), 0.5, 1)
 		end
 	end
 	fit()
@@ -7583,23 +9340,24 @@ local function buildMenuButtons(screen)
 		local button = UI.Button({
 			Name = name,
 			LayoutOrder = order,
+			Size = UDim2.new(0, BUTTON_SIZE, 0, BUTTON_SIZE),
 			Color = UI.rgb(color),
 			Text = "",
 			Padding = 2,
 			PaddingY = 2,
-			Parent = holder,
+			Parent = menuList,
 		}, function()
 			UI.Toggle(name)
 		end)
-		UI.Label({ Size = UDim2.new(1, 0, 0.62, 0), Text = icon, Parent = button })
-		local text = UI.Label({ Position = UDim2.new(0, 0, 0.62, 0), Size = UDim2.new(1, 0, 0.38, 0), Text = label, Parent = button })
+		UI.Label({ Size = UDim2.new(1, 0, 0.64, 0), Text = icon, Parent = button })
+		local text = UI.Label({ Position = UDim2.new(0, 0, 0.64, 0), Size = UDim2.new(1, 0, 0.36, 0), Text = label, Parent = button })
 		UI.TextStroke(1.5).Parent = text
 
 		local badge = Create("TextLabel", {
 			Name = "Badge",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.new(1, -4, 0, 4),
-			Size = UDim2.new(0, 22, 0, 22),
+			Size = UDim2.new(0, 18, 0, 18),
 			BackgroundColor3 = UI.Colors.Red,
 			Font = UI.Font,
 			TextScaled = true,
@@ -7610,6 +9368,11 @@ local function buildMenuButtons(screen)
 			Parent = button,
 		}, { Create("UICorner", { CornerRadius = UDim.new(1, 0) }), UI.Stroke(2, UI.Colors.White) })
 		badges[name] = badge
+	end
+	-- auf dem Handy startet das Menue eingeklappt
+	local camera = workspace.CurrentCamera
+	if camera and camera.ViewportSize.Y > 1 and camera.ViewportSize.Y < 500 then
+		setMenuOpen(false)
 	end
 end
 
@@ -7881,7 +9644,7 @@ local function applyScale()
 		scale.Scale = hudScale
 	end
 	-- Abstaende an die Groesse anpassen
-	local y = 6 + 86 * hudScale + 6
+	local y = 6 + 44 * hudScale + 6
 	comboFrame.Position = UDim2.new(0.5, 0, 0, y)
 	y = y + 46 * hudScale + 4
 	boostRow.Position = UDim2.new(0.5, 0, 0, y)
@@ -7975,7 +9738,7 @@ function Hud.Init(context)
 end
 
 return Hud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
 	Menus: alle Fenster.
 	  Shop (Upgrades), Haende, Pets, Zonen, Gem-Shop, Rebirth,
 	  Quests, Taegliche Belohnung, Codes, Optionen
@@ -8406,7 +10169,9 @@ local function buildZones()
 			table.insert(names, g.DisplayName)
 		end
 		local egg = Config.Eggs[zone.Egg]
-		smallLabel({ Position = UDim2.new(0, 18, 0, 36), Size = UDim2.new(0.6, -18, 0, 16), TextColor3 = UI.Colors.SubText, Text = table.concat(names, " & ") .. "  •  " .. (egg and egg.DisplayName or ""), Parent = row })
+		local mech = Config.MechanicInfo[zone.Mechanic or "none"]
+		local mechText = (mech and zone.Mechanic ~= "none") and (mech.Icon .. " " .. mech.Name .. "  •  ") or ""
+		smallLabel({ Position = UDim2.new(0, 18, 0, 36), Size = UDim2.new(0.6, -18, 0, 16), TextScaled = true, TextColor3 = UI.Colors.SubText, Text = mechText .. table.concat(names, ", ") .. "  •  " .. (egg and egg.DisplayName or ""), Parent = row })
 		local status = smallLabel({ Position = UDim2.new(0, 18, 0, 54), Size = UDim2.new(0.6, -18, 0, 16), Parent = row })
 		local button = UI.Button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.new(0.35, 0, 0, 46), ZIndex = 6, Parent = row }, function()
 			local s = state()
@@ -8768,6 +10533,385 @@ local function buildSettings()
 end
 
 --------------------------------------------------------------------------
+-- Shop-Uebersicht (ein Knopf fuer alle Laeden)
+--------------------------------------------------------------------------
+local function buildShopHub()
+	local win = UI.CreateWindow(ctx.Screen, "ShopHub", "Shops", "🛒", Vector2.new(560, 430))
+	local grid = Create("ScrollingFrame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 6,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ZIndex = 5,
+		Parent = win.Content,
+	}, {
+		Create("UIGridLayout", { CellSize = UDim2.new(0.31, 0, 0, 108), CellPadding = UDim2.new(0.025, 0, 0, 10), SortOrder = Enum.SortOrder.LayoutOrder }),
+		UI.Padding(4, 4),
+	})
+	local shops = {
+		{ "Shop", "🛒", "Upgrades", "Slaps", { 255, 105, 180 } },
+		{ "Hands", "✋", "Gloves", "Slaps · Gems · R$", { 255, 160, 60 } },
+		{ "EggShop", "🥚", "Egg Shop", "Gems · R$ · Event", { 90, 190, 255 } },
+		{ "ItemShop", "🎁", "Item Crates", "Slaps · Gems · R$", { 170, 110, 255 } },
+		{ "Items", "🔨", "Items & Forge", "Equip · Merge", { 255, 90, 90 } },
+		{ "Gems", "💎", "Gem Shop", "Gems · R$", { 80, 220, 255 } },
+		{ "Codes", "🎟️", "Codes", "Free rewards", { 120, 120, 255 } },
+	}
+	for order, info in ipairs(shops) do
+		local button = UI.Button({ LayoutOrder = order, Color = UI.rgb(info[5]), Text = "", ZIndex = 6, Parent = grid }, function()
+			UI.Open(info[1])
+		end)
+		UI.Label({ Size = UDim2.new(1, 0, 0.45, 0), Text = info[2], ZIndex = 7, Parent = button })
+		local name = UI.Label({ Position = UDim2.new(0, 0, 0.45, 0), Size = UDim2.new(1, 0, 0.3, 0), Text = info[3], ZIndex = 7, Parent = button })
+		UI.TextStroke(1.5).Parent = name
+		UI.Label({ Position = UDim2.new(0, 0, 0.75, 0), Size = UDim2.new(1, 0, 0.22, 0), Font = UI.BodyFont, Text = info[4], TextColor3 = Color3.fromRGB(255, 245, 255), ZIndex = 7, Parent = button })
+	end
+	return win
+end
+
+local function chanceText(eggId)
+	local parts = {}
+	for _, entry in ipairs(Calc.GetEggChances(eggId, false)) do
+		local pet = Config.Pets[entry.PetId]
+		table.insert(parts, pet.DisplayName .. " " .. Calc.FormatChance(entry.Chance))
+	end
+	return table.concat(parts, " · ")
+end
+
+local function rarityRange(eggId)
+	local egg = Config.Eggs[eggId]
+	local best = nil
+	for _, entry in ipairs(egg.Pets) do
+		local r = Config.Rarities[Config.Pets[entry[1]].Rarity]
+		if not best or r.Order > best.Order then
+			best = r
+		end
+	end
+	return best
+end
+
+--------------------------------------------------------------------------
+-- Eier-Shop: Event-Ei, Gem-Eier, Robux-Eier
+--------------------------------------------------------------------------
+local function buildEggShop()
+	local win = UI.CreateWindow(ctx.Screen, "EggShop", "Egg Shop", "🥚", Vector2.new(620, 520))
+	local balance = smallLabel({ Size = UDim2.new(1, 0, 0, 22), TextColor3 = Color3.fromRGB(140, 220, 255), Parent = win.Content })
+	local list = UI.ScrollList(win.Content, { Position = UDim2.new(0, 0, 0, 26), Size = UDim2.new(1, 0, 1, -26) })
+	local eventRows = {}
+
+	local function eggRow(order, eggId, buttonText, onBuy, onBuy3)
+		local egg = Config.Eggs[eggId]
+		local best = rarityRange(eggId)
+		local row = UI.Row(list, 112, order)
+		Create("Frame", { Size = UDim2.new(0, 10, 1, 0), BackgroundColor3 = UI.rgb(egg.Color), ZIndex = 6, Parent = row }, { UI.Corner(8) })
+		local name = title({ Position = UDim2.new(0, 18, 0, 6), Size = UDim2.new(0.6, -18, 0, 26), Text = "🥚 " .. egg.DisplayName, TextColor3 = UI.rgb(egg.Color), Parent = row })
+		smallLabel({ Position = UDim2.new(0, 18, 0, 32), Size = UDim2.new(0.6, -18, 0, 16), TextColor3 = UI.rgb(best.Color), Text = "Up to " .. string.upper(best.DisplayName) .. " pets!", Parent = row })
+		smallLabel({ Position = UDim2.new(0, 18, 0, 50), Size = UDim2.new(0.6, -18, 0, 56), TextWrapped = true, TextScaled = true, TextYAlignment = Enum.TextYAlignment.Top,
+			TextColor3 = UI.Colors.SubText, Text = chanceText(eggId), Parent = row })
+		local b1 = UI.Button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10), Size = UDim2.new(0.36, 0, 0, onBuy3 and 44 or 90), Color = UI.Colors.Green,
+			Text = buttonText, ZIndex = 6, Parent = row }, onBuy)
+		local b3 = nil
+		if onBuy3 then
+			b3 = UI.Button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 58), Size = UDim2.new(0.36, 0, 0, 44), Color = UI.Colors.Purple,
+				Text = "Hatch x3", ZIndex = 6, Parent = row }, onBuy3)
+		end
+		return { Row = row, Name = name, Buy = b1, Buy3 = b3 }
+	end
+
+	UI.Label({ Size = UDim2.new(1, -10, 0, 28), LayoutOrder = 1, TextXAlignment = Enum.TextXAlignment.Left, Text = "⭐ WEEKLY EVENT (exclusive pets!)", TextColor3 = UI.Colors.Gold, ZIndex = 6, Parent = list })
+	local eventTimer = smallLabel({ Size = UDim2.new(1, -10, 0, 18), LayoutOrder = 2, TextColor3 = UI.Colors.SubText, Parent = list })
+	for i, event in ipairs(Config.WeeklyEvents) do
+		local eggId = event.EggId
+		eventRows[event.Id] = eggRow(10 + i, eggId, "💎 " .. Calc.FormatNumber(Config.EventEggPrice), function()
+			ctx.Request("Hatch", eggId, 1)
+		end, function()
+			ctx.Request("Hatch", eggId, 3)
+		end)
+	end
+	UI.Label({ Size = UDim2.new(1, -10, 0, 28), LayoutOrder = 100, TextXAlignment = Enum.TextXAlignment.Left, Text = "💎 GEM EGGS", TextColor3 = Color3.fromRGB(140, 220, 255), ZIndex = 6, Parent = list })
+	local gemRows = {}
+	local order = 101
+	for _, eggId in ipairs(Config.EggOrder) do
+		local egg = Config.Eggs[eggId]
+		if egg.Shop then
+			gemRows[eggId] = eggRow(order, eggId, "💎 " .. Calc.FormatNumber(egg.Price), function()
+				ctx.Request("Hatch", eggId, 1)
+			end, function()
+				ctx.Request("Hatch", eggId, 3)
+			end)
+			order = order + 1
+		end
+	end
+	UI.Label({ Size = UDim2.new(1, -10, 0, 28), LayoutOrder = 200, TextXAlignment = Enum.TextXAlignment.Left, Text = "💸 ROBUX EGGS (best pets!)", TextColor3 = Color3.fromRGB(120, 255, 140), ZIndex = 6, Parent = list })
+	for i, robuxEgg in ipairs(Config.RobuxEggs) do
+		eggRow(200 + i, robuxEgg.Id, "R$ " .. robuxEgg.Robux, function()
+			ctx.Request("BuyRobuxEgg", robuxEgg.Id)
+		end, nil)
+	end
+
+	win.Refresh = function()
+		local s = state()
+		if not s then
+			return
+		end
+		balance.Text = "Your Gems: 💎 " .. Calc.FormatNumber(s.Gems) .. "    Pets: " .. #(s.Pets or {}) .. " / " .. Calc.GetInventorySize(s)
+		local current, endsAt = Calc.GetCurrentEvent(ctx.Now())
+		for id, r in pairs(eventRows) do
+			r.Row.Visible = current ~= nil and current.Id == id
+		end
+		if current then
+			eventTimer.Text = current.Name .. " ends in " .. Calc.FormatTime(math.max(0, endsAt - ctx.Now()))
+		end
+		for eggId, r in pairs(gemRows) do
+			UI.SetButtonColor(r.Buy, s.Gems >= Config.Eggs[eggId].Price and UI.Colors.Green or UI.Colors.Gray)
+		end
+		if current and eventRows[current.Id] then
+			UI.SetButtonColor(eventRows[current.Id].Buy, s.Gems >= Config.EventEggPrice and UI.Colors.Green or UI.Colors.Gray)
+		end
+	end
+	return win
+end
+
+--------------------------------------------------------------------------
+-- Item-Kisten
+--------------------------------------------------------------------------
+local function weightText(weights)
+	local total = 0
+	for _, w in pairs(weights) do
+		total = total + w
+	end
+	local parts = {}
+	for _, rarity in ipairs(Config.RarityOrder) do
+		local w = weights[rarity]
+		if w and w > 0 then
+			table.insert(parts, Config.Rarities[rarity].DisplayName .. " " .. Calc.FormatChance(w / total))
+		end
+	end
+	return table.concat(parts, " · ")
+end
+
+local function buildItemShop()
+	local win = UI.CreateWindow(ctx.Screen, "ItemShop", "Item Crates", "🎁", Vector2.new(600, 500))
+	local balance = smallLabel({ Size = UDim2.new(1, 0, 0, 22), TextColor3 = UI.Colors.SubText, Parent = win.Content })
+	local list = UI.ScrollList(win.Content, { Position = UDim2.new(0, 0, 0, 26), Size = UDim2.new(1, 0, 1, -26) })
+	smallLabel({ Size = UDim2.new(1, -10, 0, 34), LayoutOrder = 0, TextWrapped = true, TextColor3 = UI.Colors.SubText,
+		Text = "Hats, wings and auras change your look and give bonuses. Merge 3 of the same item in the Forge for a stronger one!", Parent = list })
+	local rows = {}
+	for order, crate in ipairs(Config.ItemCrates) do
+		local row = UI.Row(list, 84, order)
+		local best = nil
+		for rarity in pairs(crate.Weights) do
+			local r = Config.Rarities[rarity]
+			if not best or r.Order > best.Order then
+				best = r
+			end
+		end
+		Create("Frame", { Size = UDim2.new(0, 10, 1, 0), BackgroundColor3 = UI.rgb(best.Color), ZIndex = 6, Parent = row }, { UI.Corner(8) })
+		title({ Position = UDim2.new(0, 18, 0, 6), Size = UDim2.new(0.6, -18, 0, 26), Text = "🎁 " .. crate.Name .. ((crate.Count or 1) > 1 and ("  x" .. crate.Count) or ""), TextColor3 = UI.rgb(best.Color), Parent = row })
+		smallLabel({ Position = UDim2.new(0, 18, 0, 34), Size = UDim2.new(0.6, -18, 0, 44), TextWrapped = true, TextScaled = true, TextYAlignment = Enum.TextYAlignment.Top,
+			TextColor3 = UI.Colors.SubText, Text = weightText(crate.Weights), Parent = row })
+		local text
+		if crate.Currency == "Robux" then
+			text = "R$ " .. Calc.FormatNumber(crate.Robux)
+		else
+			text = money(crate.Price, crate.Currency)
+		end
+		local button = UI.Button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.new(0.34, 0, 0, 50),
+			Color = crate.Currency == "Robux" and UI.Colors.Green or UI.Colors.Blue, Text = text, ZIndex = 6, Parent = row }, function()
+			ctx.Request("BuyCrate", crate.Id)
+		end)
+		rows[crate.Id] = button
+	end
+	win.Refresh = function()
+		local s = state()
+		if not s then
+			return
+		end
+		balance.Text = money(s.Slaps, "Slaps") .. "    " .. money(s.Gems, "Gems") .. "    🎒 " .. #(s.Items or {}) .. " / " .. Config.ItemInventory
+		for _, crate in ipairs(Config.ItemCrates) do
+			if crate.Currency ~= "Robux" then
+				local have = crate.Currency == "Gems" and s.Gems or s.Slaps
+				UI.SetButtonColor(rows[crate.Id], have >= crate.Price and UI.Colors.Blue or UI.Colors.Gray)
+			end
+		end
+	end
+	return win
+end
+
+--------------------------------------------------------------------------
+-- Items & Schmiede: ausruesten, verschmelzen, loeschen
+--------------------------------------------------------------------------
+local function buildItems()
+	local win = UI.CreateWindow(ctx.Screen, "Items", "Items & Forge", "🔨", Vector2.new(660, 520))
+	local bonusLabel = smallLabel({ Size = UDim2.new(1, 0, 0, 22), TextColor3 = UI.Colors.Gold, Parent = win.Content })
+	local tabBar = Create("Frame", { Position = UDim2.new(0, 0, 0, 26), Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, ZIndex = 5, Parent = win.Content }, { UI.List(6, true) })
+	local list = UI.ScrollList(win.Content, { Position = UDim2.new(0, 0, 0, 66), Size = UDim2.new(0.58, -6, 1, -66), Grid = UDim2.new(0, 84, 0, 96) })
+	local detail = Create("Frame", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 66), Size = UDim2.new(0.42, 0, 1, -66), BackgroundColor3 = UI.Colors.Panel, ZIndex = 5, Parent = win.Content },
+		{ UI.Corner(14), UI.Stroke(2, UI.Colors.PanelLight) })
+	local dName = title({ Position = UDim2.new(0, 10, 0, 8), Size = UDim2.new(1, -20, 0, 28), TextWrapped = true, Text = "Select an item", Parent = detail })
+	local dRarity = smallLabel({ Position = UDim2.new(0, 10, 0, 38), Size = UDim2.new(1, -20, 0, 18), Text = "", Parent = detail })
+	local dStat = smallLabel({ Position = UDim2.new(0, 10, 0, 58), Size = UDim2.new(1, -20, 0, 18), TextColor3 = UI.Colors.Text, Text = "", Parent = detail })
+	local dNext = smallLabel({ Position = UDim2.new(0, 10, 0, 78), Size = UDim2.new(1, -20, 0, 34), TextWrapped = true, TextColor3 = UI.Colors.SubText, Text = "", Parent = detail })
+	local selected = nil
+	local equipButton = UI.Button({ Position = UDim2.new(0, 10, 0, 118), Size = UDim2.new(1, -20, 0, 42), Color = UI.Colors.Green, Text = "Equip", ZIndex = 6, Parent = detail }, function()
+		local s = state()
+		if not selected or not s then
+			return
+		end
+		for _, item in ipairs(s.Items or {}) do
+			if item.Uid == selected then
+				ctx.Request(item.Equipped and "UnequipItem" or "EquipItem", selected)
+				return
+			end
+		end
+	end)
+	local mergeButton = UI.Button({ Position = UDim2.new(0, 10, 0, 166), Size = UDim2.new(1, -20, 0, 42), Color = UI.Colors.Gold, Text = "🔨 Merge 3", ZIndex = 6, Parent = detail }, function()
+		if selected then
+			ctx.Request("MergeItem", selected)
+		end
+	end)
+	local deleteArmed = false
+	local deleteButton
+	deleteButton = UI.Button({ Position = UDim2.new(0, 10, 0, 214), Size = UDim2.new(1, -20, 0, 36), Color = UI.Colors.Red, Text = "🗑️ Delete", ZIndex = 6, Parent = detail }, function()
+		if not selected then
+			return
+		end
+		if deleteArmed then
+			deleteArmed = false
+			ctx.Request("DeleteItem", selected)
+			selected = nil
+		else
+			deleteArmed = true
+			deleteButton.Text = "Tap again to delete"
+			task.delay(2.5, function()
+				deleteArmed = false
+				deleteButton.Text = "🗑️ Delete"
+			end)
+		end
+	end)
+	smallLabel({ AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 10, 1, -6), Size = UDim2.new(1, -20, 0, 40), TextWrapped = true, TextScaled = true,
+		TextColor3 = UI.Colors.SubText, Text = "Find items by defeating targets (chests & piñatas drop the most), from crates and rebirths.", Parent = detail })
+
+	local filter = "All"
+	local tabs = {}
+	local refresh
+	local tabDefs = { { "All", "All" } }
+	for _, cat in ipairs(Config.ItemCategories) do
+		local info = Config.ItemCategoryInfo[cat]
+		table.insert(tabDefs, { cat, info.Icon .. " " .. info.Name })
+	end
+	for order, def in ipairs(tabDefs) do
+		tabs[def[1]] = UI.Button({ LayoutOrder = order, Size = UDim2.new(0, def[1] == "All" and 60 or 140, 1, 0), Color = UI.Colors.Panel, Text = def[2], ZIndex = 6, Parent = tabBar }, function()
+			filter = def[1]
+			refresh()
+		end)
+	end
+
+	local function sameCount(items, base)
+		local n = 0
+		for _, other in ipairs(items) do
+			if other.Id == base.Id and other.Level == base.Level then
+				n = n + 1
+			end
+		end
+		return n
+	end
+
+	refresh = function()
+		local s = state()
+		if not s then
+			return
+		end
+		local items = s.Items or {}
+		local b = Calc.GetItemBonuses(s)
+		bonusLabel.Text = "Bonuses: 💪 +" .. math.floor(b.Damage * 100 + 0.5) .. "%  💰 +" .. math.floor(b.Slaps * 100 + 0.5) .. "%  🦵 +"
+			.. string.format("%.1f", math.min(30, b.Speed * 10)) .. "  🍀 +" .. string.format("%.1f", b.Luck * 10) .. "%  💎 +" .. math.floor(b.Gems * 100 + 0.5) .. "%"
+			.. "   🎒 " .. #items .. "/" .. Config.ItemInventory
+		for id, button in pairs(tabs) do
+			UI.SetButtonColor(button, id == filter and UI.Colors.Pink or UI.Colors.Panel)
+		end
+		for _, child in ipairs(list:GetChildren()) do
+			if child:IsA("GuiButton") or child:IsA("TextLabel") then
+				child:Destroy()
+			end
+		end
+		local sorted = {}
+		for _, item in ipairs(items) do
+			local cfg = Config.Items[item.Id]
+			if cfg and (filter == "All" or cfg.Category == filter) then
+				table.insert(sorted, item)
+			end
+		end
+		table.sort(sorted, function(a, b2)
+			if a.Equipped ~= b2.Equipped then
+				return a.Equipped == true
+			end
+			local va, vb = Calc.GetItemValue(a.Id, a.Level), Calc.GetItemValue(b2.Id, b2.Level)
+			if va ~= vb then
+				return va > vb
+			end
+			return a.Uid < b2.Uid
+		end)
+		local selectedItem = nil
+		for order, item in ipairs(sorted) do
+			local cfg = Config.Items[item.Id]
+			local rarity = Config.Rarities[cfg.Rarity]
+			if item.Uid == selected then
+				selectedItem = item
+			end
+			local card = UI.Button({ LayoutOrder = order, Color = UI.Colors.Darker, Text = "", ZIndex = 6, Parent = list }, function()
+				selected = item.Uid
+				refresh()
+			end)
+			UI.Stroke(item.Uid == selected and 4 or 2.5, item.Uid == selected and UI.Colors.White or UI.rgb(rarity.Color)).Parent = card
+			UI.Label({ Size = UDim2.new(1, 0, 0, 40), Text = Config.ItemCategoryInfo[cfg.Category].Icon, ZIndex = 7, Parent = card })
+			UI.Label({ Position = UDim2.new(0, 0, 0, 40), Size = UDim2.new(1, 0, 0, 26), Font = UI.BodyFont, TextWrapped = true, TextColor3 = UI.rgb(cfg.Color), Text = cfg.DisplayName, ZIndex = 7, Parent = card })
+			UI.Label({ Position = UDim2.new(0, 0, 0, 68), Size = UDim2.new(1, 0, 0, 18), Text = string.rep("★", item.Level), TextColor3 = UI.Colors.Gold, ZIndex = 7, Parent = card })
+			if item.Equipped then
+				UI.Label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -2, 0, 2), Size = UDim2.new(0, 22, 0, 22), Text = "✅", ZIndex = 8, Parent = card })
+			end
+		end
+		if not selectedItem then
+			selected = nil
+		end
+		equipButton.Visible = selectedItem ~= nil
+		mergeButton.Visible = selectedItem ~= nil
+		deleteButton.Visible = selectedItem ~= nil
+		if selectedItem then
+			local cfg = Config.Items[selectedItem.Id]
+			local rarity = Config.Rarities[cfg.Rarity]
+			dName.Text = cfg.DisplayName .. " " .. string.rep("★", selectedItem.Level)
+			dName.TextColor3 = UI.rgb(cfg.Color)
+			dRarity.Text = rarity.DisplayName .. " " .. Config.ItemCategoryInfo[cfg.Category].Name
+			dRarity.TextColor3 = UI.rgb(rarity.Color)
+			dStat.Text = Calc.DescribeItem(selectedItem.Id, selectedItem.Level)
+			local count = sameCount(items, selectedItem)
+			if selectedItem.Level >= Config.ItemMaxLevel then
+				dNext.Text = "⭐ Max stars reached!"
+				mergeButton.Text = "MAX"
+				UI.SetButtonColor(mergeButton, UI.Colors.Gray)
+			else
+				dNext.Text = "Merge 3 (" .. count .. "/3 owned) → " .. Calc.DescribeItem(selectedItem.Id, selectedItem.Level + 1)
+				mergeButton.Text = "🔨 Merge 3  (" .. math.min(count, 3) .. "/3)"
+				UI.SetButtonColor(mergeButton, count >= 3 and UI.Colors.Gold or UI.Colors.Gray)
+			end
+			equipButton.Text = selectedItem.Equipped and "Unequip" or "Equip"
+			UI.SetButtonColor(equipButton, selectedItem.Equipped and UI.Colors.Gray or UI.Colors.Green)
+		else
+			dName.Text = #items == 0 and "No items yet" or "Select an item"
+			dName.TextColor3 = UI.Colors.Text
+			dRarity.Text = ""
+			dStat.Text = ""
+			dNext.Text = ""
+		end
+	end
+	win.Refresh = refresh
+	return win
+end
+
+--------------------------------------------------------------------------
 function Menus.Init(context)
 	ctx = context
 	UI = ctx.UI
@@ -8786,6 +10930,10 @@ function Menus.Init(context)
 	buildDaily()
 	buildCodes()
 	buildSettings()
+	buildShopHub()
+	buildEggShop()
+	buildItemShop()
+	buildItems()
 
 	-- offenes Fenster bei jeder Aenderung aktualisieren
 	ctx.OnState(function()
@@ -8799,7 +10947,7 @@ function Menus.Init(context)
 		while true do
 			task.wait(1)
 			local open = UI.OpenWindow
-			if (open == "Daily" or open == "Quests" or open == "Gems") and UI.Windows[open].Refresh and ctx.State then
+			if (open == "Daily" or open == "Quests" or open == "Gems" or open == "EggShop") and UI.Windows[open].Refresh and ctx.State then
 				UI.Windows[open].Refresh()
 			end
 		end
@@ -8807,7 +10955,7 @@ function Menus.Init(context)
 end
 
 return Menus
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">PetsFx</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">PetsFx</string><ProtectedString name="Source"><![CDATA[--[[
 	PetsFx: baut die Pets aus Teilen und animiert sie (nur lokal, fluessig).
 
 	Jedes Pet besteht aus Teilen mit fester Position relativ zum Koerper.
@@ -9151,6 +11299,9 @@ local function syncOwner(owner)
 	if owner ~= Players.LocalPlayer and not ctx.Setting("OtherPets") then
 		signature = ""
 	end
+	if owner:GetAttribute("InDuel") then
+		signature = "" -- im Duell keine Pets: freie Sicht
+	end
 	local entry = owners[owner]
 	if entry and entry.Signature == signature then
 		return
@@ -9263,7 +11414,7 @@ function PetsFx.Init(context)
 end
 
 return PetsFx
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">TradeUI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">TradeUI</string><ProtectedString name="Source"><![CDATA[--[[
 	TradeUI: Pets handeln.
 	  * "Trade"-Fenster: Spielerliste mit "Request"-Knopf
 	  * Anfrage-Popup (Annehmen / Ablehnen)
@@ -9561,7 +11712,7 @@ function TradeUI.Init(context)
 end
 
 return TradeUI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
 	UI: kleine UI-Bibliothek (Farben, Bausteine, animierte Buttons, Fenster).
 ]]
 
@@ -9950,7 +12101,7 @@ function UI.Row(parent, height, order)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">WorldFx</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">WorldFx</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFx: alles, was der Client in der Welt animiert.
 	  * Gyatts huepfen, schauen dich an, wackeln und erschrecken bei Treffern
 	  * Eier drehen sich, Regenbogen-Haende leuchten
@@ -10162,11 +12313,16 @@ local MOODS = {
 -- Welten ab Zone 11 nehmen die Stimmung ihres Themas
 local DECOR_MOOD = { meadow = 1, desert = 2, ice = 3, lava = 4, cloud = 5, space = 6, candy = 7, cyber = 8, shadow = 9, void = 10 }
 
+local DARK_MOOD = { Clock = 0, Color = { 40, 30, 70 }, Decay = { 5, 0, 15 }, Density = 0.55, Tint = { 170, 160, 210 }, Cloud = 0, CloudColor = { 255, 255, 255 } }
+
 local function applyMood(zoneIndex)
 	local mood = MOODS[zoneIndex]
 	if not mood then
 		local zone = Config.Zones[zoneIndex]
 		mood = (zone and MOODS[DECOR_MOOD[zone.Decor]]) or MOODS[0]
+		if zone and zone.Mechanic == "dark" then
+			mood = DARK_MOOD
+		end
 	end
 	local info = TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 	TweenService:Create(Lighting, info, { ClockTime = mood.Clock }):Play()
@@ -10202,6 +12358,100 @@ local function checkZone()
 		currentZone = zone
 		ctx.Hud.SetZone(zone)
 		applyMood(zone)
+		WorldFx.ApplyMechanic(zone)
+	end
+end
+
+--------------------------------------------------------------------------
+-- Zonen-Mechaniken (Schwerkraft, Wind, Spring- und Turbo-Felder)
+--------------------------------------------------------------------------
+local GRAVITY = { lowgrav = 70, floaty = 120, heavy = 300 }
+local MECHANIC_HINT = {
+	lowgrav = "Low gravity! Jump really high!",
+	floaty = "Floaty air! You fall slowly.",
+	heavy = "Heavy gravity! Jumping is hard here.",
+	ice = "Slippery ice! Careful, you slide!",
+	bounce = "Step on the pink pads to bounce up high!",
+	boost = "Run over the blue pads for a speed boost!",
+	dark = "It's dark here... the targets glow!",
+	storm = "Strong wind gusts push you around!",
+}
+local currentMechanic = "none"
+
+function WorldFx.ApplyMechanic(zoneIndex)
+	local zone = Config.Zones[zoneIndex]
+	local mechanic = (zone and zone.Mechanic) or "none"
+	currentMechanic = mechanic
+	workspace.Gravity = GRAVITY[mechanic] or 196.2
+	local info = Config.MechanicInfo[mechanic]
+	if info and MECHANIC_HINT[mechanic] then
+		ctx.Hud.Notify(info.Icon .. " " .. info.Name .. ": " .. MECHANIC_HINT[mechanic], { 200, 230, 255 })
+	end
+end
+
+local padCooldown = 0
+local function onPadTouched(pad, hit, kind)
+	local character = player.Character
+	if not character or not hit:IsDescendantOf(character) then
+		return
+	end
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local now = os.clock()
+	if not root or now < padCooldown then
+		return
+	end
+	padCooldown = now + 0.6
+	local v = root.AssemblyLinearVelocity
+	if kind == "bounce" then
+		root.AssemblyLinearVelocity = Vector3.new(v.X, 110, v.Z)
+	else
+		local dir = pad.CFrame.LookVector
+		dir = Vector3.new(dir.X, 0, dir.Z)
+		if dir.Magnitude < 0.01 then
+			dir = Vector3.new(0, 0, 1)
+		end
+		root.AssemblyLinearVelocity = dir.Unit * 110 + Vector3.new(0, 18, 0)
+	end
+	ctx.PlaySound("Popup", kind == "bounce" and 1.6 or 1.2)
+end
+
+local function hookPad(pad, kind)
+	if pad:IsA("BasePart") and not pad:GetAttribute("PadHooked") then
+		pad:SetAttribute("PadHooked", true)
+		pad.Touched:Connect(function(hit)
+			onPadTouched(pad, hit, kind)
+		end)
+	end
+end
+
+local function setupPads()
+	for tag, kind in pairs({ SlapBouncePad = "bounce", SlapBoostPad = "boost" }) do
+		for _, pad in ipairs(CollectionService:GetTagged(tag)) do
+			hookPad(pad, kind)
+		end
+		CollectionService:GetInstanceAddedSignal(tag):Connect(function(pad)
+			hookPad(pad, kind)
+		end)
+	end
+end
+
+-- Windboeen in Sturm-Zonen
+local nextGust = 0
+local function updateStorm()
+	if currentMechanic ~= "storm" then
+		return
+	end
+	local now = os.clock()
+	if now < nextGust then
+		return
+	end
+	nextGust = now + 3 + math.random() * 3
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		local angle = math.random() * math.pi * 2
+		root.AssemblyLinearVelocity = root.AssemblyLinearVelocity + Vector3.new(math.cos(angle) * 45, 8, math.sin(angle) * 45)
+		ctx.Hud.Notify("💨 Whoosh! A gust of wind!", { 200, 230, 255 })
 	end
 end
 
@@ -10280,9 +12530,11 @@ function WorldFx.Init(context)
 		end
 	end)
 
+	setupPads()
 	task.spawn(function()
 		while true do
 			task.wait(0.5)
+			pcall(updateStorm)
 			checkZone()
 			refreshGates()
 			updateTutorial()
