@@ -77,8 +77,12 @@ local function animateGyatts(dt)
 		local size = model:GetAttribute("Size") or 6
 		if model.Parent and typeof(base) == "CFrame" and model.PrimaryPart then
 			local position = base.Position
-			if (position - cameraPos).Magnitude < 260 then
-				local cache = getCache(model)
+			local distance = (position - cameraPos).Magnitude
+			local cache = getCache(model)
+			if cache.Highlight then
+				cache.Highlight.Enabled = distance < 170
+			end
+			if distance < 260 then
 
 				-- zum Spieler drehen (Schatzkisten nicht)
 				local targetYaw = cache.Yaw
@@ -203,8 +207,15 @@ local MOODS = {
 	[-1] = { Clock = 18.5, Color = { 255, 150, 170 }, Decay = { 120, 40, 90 }, Density = 0.25, Tint = { 255, 230, 235 }, Cloud = 0.4, CloudColor = { 255, 200, 220 } },
 }
 
+-- Welten ab Zone 11 nehmen die Stimmung ihres Themas
+local DECOR_MOOD = { meadow = 1, desert = 2, ice = 3, lava = 4, cloud = 5, space = 6, candy = 7, cyber = 8, shadow = 9, void = 10 }
+
 local function applyMood(zoneIndex)
-	local mood = MOODS[zoneIndex] or MOODS[0]
+	local mood = MOODS[zoneIndex]
+	if not mood then
+		local zone = Config.Zones[zoneIndex]
+		mood = (zone and MOODS[DECOR_MOOD[zone.Decor]]) or MOODS[0]
+	end
 	local info = TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 	TweenService:Create(Lighting, info, { ClockTime = mood.Clock }):Play()
 	local atmosphere = Lighting:FindFirstChild("SlapAtmosphere")

@@ -13,7 +13,8 @@ local Calc = {}
 --------------------------------------------------------------------------
 -- Zahlen & Zeit
 --------------------------------------------------------------------------
-local SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td" }
+local SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td",
+	"Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg", "Uvg", "Dvg", "Tvg", "Qavg", "Qivg", "Sxvg", "Spvg", "Ocvg", "Novg", "Tg" }
 
 function Calc.FormatNumber(n)
 	n = tonumber(n) or 0
@@ -368,6 +369,7 @@ function Calc.GetDamage(data, now)
 	local upgrades = data.Upgrades or {}
 	local hand = Calc.GetHand(data.Hand)
 	local damage = Calc.GetBaseDamage(upgrades.Power) * hand.Damage * Calc.GetRebirthDamageMultiplier(data.Rebirths)
+		* Calc.GetZonePower(data.Zones)
 	if Calc.IsBoostActive(data, "DoubleDamage", now) then
 		damage = damage * 2
 	end
@@ -433,6 +435,12 @@ end
 --------------------------------------------------------------------------
 -- Zonen
 --------------------------------------------------------------------------
+-- Schadensbonus durch freigeschaltete Zonen (ab Zone 11)
+function Calc.GetZonePower(zones)
+	zones = math.floor(tonumber(zones) or 1)
+	return Config.ZonePowerBase ^ math.max(0, zones - Config.ZonePowerStart)
+end
+
 function Calc.GetDimension(zoneIndex)
 	for index, dim in ipairs(Config.Dimensions) do
 		if zoneIndex >= dim.FirstZone and zoneIndex <= dim.LastZone then

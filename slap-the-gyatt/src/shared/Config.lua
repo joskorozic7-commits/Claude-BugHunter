@@ -9,7 +9,7 @@
 local Config = {}
 
 Config.GameName = "Slap the Blob"
-Config.Version = "4.0"
+Config.Version = "5.0"
 
 --------------------------------------------------------------------------
 -- Speichern
@@ -334,7 +334,17 @@ Config.ZoneWidth = 120
 Config.Dimensions = {
 	{ Name = "Overworld", FirstZone = 1, LastZone = 6, StartZ = 0 },
 	{ Name = "The Rift", FirstZone = 7, LastZone = 10, StartZ = 1500 },
+	{ Name = "Elemental Realm", FirstZone = 11, LastZone = 15, StartZ = 2700 },
+	{ Name = "Mythic Realm", FirstZone = 16, LastZone = 20, StartZ = 4050 },
+	{ Name = "Cosmic Realm", FirstZone = 21, LastZone = 25, StartZ = 5400 },
+	{ Name = "The Infinite", FirstZone = 26, LastZone = 30, StartZ = 6750 },
 }
+
+-- Ab Zone 11 gibt jede freigeschaltete Zone x3 Schaden (sonst waeren die
+-- hohen Zonen unmoeglich). Die Leben der Ziele wachsen aber x4 pro Zone,
+-- die Preise x25 - es wird also mit jeder Zone deutlich schwerer.
+Config.ZonePowerStart = 10
+Config.ZonePowerBase = 3
 Config.DimensionLandingLength = 70 -- Plattform vor der ersten Zone einer Dimension
 
 local function chest(health, gems, color)
@@ -455,6 +465,107 @@ Config.Zones = {
 		},
 	},
 }
+
+--------------------------------------------------------------------------
+-- Schwieriger: Zonen 2-10 kosten 3x so viel, Ziele haben doppelte Leben
+--------------------------------------------------------------------------
+for index = 2, #Config.Zones do
+	local zone = Config.Zones[index]
+	zone.Price = zone.Price * 3
+	for _, target in ipairs(zone.Gyatts) do
+		target.MaxHealth = target.MaxHealth * 2
+	end
+end
+
+--------------------------------------------------------------------------
+-- 20 weitere Welten (Zone 11-30) in 4 neuen Dimensionen
+--   { Name, Decor, Boden, Bodenmaterial, Akzent, Weg, Wort, {Art1, Art2}, Boss-Titel, {Boss-Accessoires} }
+--------------------------------------------------------------------------
+local EXTRA_ZONES = {
+	-- Elemental Realm
+	{ "Inferno Peaks", "lava", { 90, 35, 25 }, "Basalt", { 255, 120, 0 }, { 140, 60, 30 }, "Inferno", { "golem", "robot" }, "Inferno Titan Blob", { "horns", "crown" } },
+	{ "Frozen Abyss", "ice", { 200, 225, 245 }, "Ice", { 90, 160, 255 }, { 150, 190, 230 }, "Glacier", { "ghost", "golem" }, "Glacier Emperor Blob", { "scarf", "crown" } },
+	{ "Storm Plains", "cloud", { 150, 160, 180 }, "SmoothPlastic", { 255, 240, 80 }, { 110, 120, 140 }, "Storm", { "ghost", "cube" }, "Thunder Lord Blob", { "halo", "crown" } },
+	{ "Toxic Swamp", "meadow", { 70, 110, 50 }, "Grass", { 150, 255, 60 }, { 90, 80, 50 }, "Toxic", { "cube", "dummy" }, "Swamp King Blob", { "horns", "glasses" } },
+	{ "Crystal Caverns", "space", { 40, 30, 70 }, "Slate", { 120, 230, 255 }, { 70, 60, 110 }, "Crystal", { "golem", "ghost" }, "Crystal Queen Blob", { "crown", "bow" } },
+	-- Mythic Realm
+	{ "Enchanted Forest", "meadow", { 60, 140, 90 }, "Grass", { 255, 150, 255 }, { 120, 100, 160 }, "Fairy", { "ghost", "dummy" }, "Forest Spirit Blob", { "halo", "bow" } },
+	{ "Dragon Desert", "desert", { 230, 170, 100 }, "Sand", { 255, 60, 40 }, { 200, 120, 80 }, "Dragon", { "golem", "robot" }, "Dragon Lord Blob", { "horns", "crown" } },
+	{ "Candy Kingdom", "candy", { 255, 220, 240 }, "SmoothPlastic", { 255, 60, 140 }, { 255, 255, 220 }, "Sugar", { "cube", "dummy" }, "Candy Emperor Blob", { "crown", "bow" } },
+	{ "Neon Metropolis", "cyber", { 25, 15, 45 }, "SmoothPlastic", { 255, 0, 200 }, { 60, 30, 90 }, "Neon", { "robot", "cube" }, "Mega Mecha Blob", { "antenna", "glasses" } },
+	{ "Haunted Graveyard", "shadow", { 45, 40, 50 }, "Slate", { 120, 255, 160 }, { 80, 70, 80 }, "Haunted", { "ghost", "golem" }, "Phantom King Blob", { "horns", "halo" } },
+	-- Cosmic Realm
+	{ "Moon Base", "space", { 170, 170, 180 }, "Slate", { 120, 200, 255 }, { 120, 120, 135 }, "Lunar", { "robot", "cube" }, "Moon Emperor Blob", { "antenna", "crown" } },
+	{ "Nebula Fields", "void", { 60, 20, 90 }, "Glass", { 255, 120, 220 }, { 90, 40, 120 }, "Nebula", { "ghost", "cube" }, "Nebula Queen Blob", { "halo", "bow" } },
+	{ "Solar Flare", "lava", { 120, 60, 10 }, "Basalt", { 255, 220, 40 }, { 170, 90, 20 }, "Solar", { "golem", "ghost" }, "Sun God Blob", { "halo", "crown" } },
+	{ "Starlight Heaven", "cloud", { 230, 235, 255 }, "SmoothPlastic", { 180, 160, 255 }, { 210, 210, 250 }, "Starlight", { "ghost", "dummy" }, "Star King Blob", { "halo", "crown", "glasses" } },
+	{ "Black Hole", "void", { 5, 5, 10 }, "Glass", { 180, 80, 255 }, { 25, 15, 40 }, "Singularity", { "golem", "ghost" }, "Event Horizon Blob", { "horns", "halo" } },
+	-- The Infinite
+	{ "Glitch World", "cyber", { 10, 30, 20 }, "SmoothPlastic", { 0, 255, 90 }, { 30, 60, 40 }, "Glitch", { "cube", "robot" }, "ERROR Blob", { "antenna", "glasses" } },
+	{ "Shadow Throne", "shadow", { 20, 10, 30 }, "Slate", { 255, 40, 80 }, { 50, 20, 60 }, "Throne", { "ghost", "golem" }, "Shadow Monarch Blob", { "horns", "crown" } },
+	{ "Rainbow Road", "candy", { 255, 255, 255 }, "SmoothPlastic", { 255, 100, 200 }, { 200, 220, 255 }, "Rainbow", { "cube", "ghost" }, "Rainbow Overlord Blob", { "halo", "crown", "bow" } },
+	{ "Golden Paradise", "desert", { 255, 220, 120 }, "Sand", { 255, 200, 40 }, { 240, 190, 90 }, "Golden", { "golem", "robot" }, "Golden God Blob", { "crown", "glasses" } },
+	{ "INFINITY", "void", { 255, 255, 255 }, "Glass", { 0, 0, 0 }, { 200, 200, 210 }, "Infinity", { "ghost", "golem" }, "THE INFINITE BLOB", { "halo", "crown", "glasses" } },
+}
+
+local KIND_NAMES = { ghost = "Ghost", cube = "Cube", robot = "Bot", golem = "Golem", dummy = "Dummy" }
+local PET_STYLES = { { "dog", "Pup" }, { "cat", "Cat" }, { "fox", "Fox" }, { "owl", "Owl" }, { "dragon", "Dragon" }, { "unicorn", "Unicorn" },
+	{ "bunny", "Bunny" }, { "bat", "Bat" }, { "shark", "Shark" }, { "octopus", "Kraken" }, { "golem", "Golem" }, { "jelly", "Jelly" },
+	{ "panda", "Panda" }, { "turtle", "Turtle" }, { "bee", "Bee" }, { "dino", "Dino" }, { "whale", "Whale" }, { "ghost", "Spirit" } }
+
+local base = Config.Zones[10] -- Void Rift (schon 3x / 2x schwerer)
+local basePrice = base.Price
+local baseHealth = { base.Gyatts[1].MaxHealth, base.Gyatts[2].MaxHealth, base.Gyatts[3].MaxHealth, base.Gyatts[4].MaxHealth }
+local baseReward = { base.Gyatts[1].RewardMultiplier, base.Gyatts[2].RewardMultiplier, base.Gyatts[3].RewardMultiplier }
+local basePetBoost = 4200
+
+for k, def in ipairs(EXTRA_ZONES) do
+	local zoneIndex = 10 + k
+	local name, decorName, floor, floorMat, accent, path, word, kinds, bossName, bossAcc =
+		def[1], def[2], def[3], def[4], def[5], def[6], def[7], def[8], def[9], def[10]
+	local hp = 4 ^ k
+	local reward = 3.2 ^ k
+	local eggId = "Z" .. zoneIndex
+	local function shade(c, f)
+		return { math.floor(math.clamp and math.clamp(c[1] * f, 0, 255) or math.min(255, c[1] * f)),
+			math.floor(math.min(255, c[2] * f)), math.floor(math.min(255, c[3] * f)) }
+	end
+	table.insert(Config.Zones, {
+		Name = name, Price = math.floor(basePrice * (25 ^ k)), Decor = decorName,
+		Floor = floor, FloorMaterial = floorMat, Accent = accent, Path = path,
+		Egg = eggId,
+		Gyatts = {
+			{ Id = word .. "A", Kind = kinds[1], DisplayName = word .. " " .. KIND_NAMES[kinds[1]], MaxHealth = baseHealth[1] * hp, Size = 13,
+				Color = shade(accent, 0.8), RewardMultiplier = math.floor(baseReward[1] * reward), Gems = 15 + k },
+			{ Id = word .. "Boss", DisplayName = bossName, MaxHealth = baseHealth[2] * hp, Size = math.min(34, 22 + math.floor(k / 2)),
+				Color = shade(accent, 0.6), RewardMultiplier = math.floor(baseReward[2] * reward), Gems = 50 + k * 3, Accessories = bossAcc },
+			{ Id = word .. "B", Kind = kinds[2], DisplayName = word .. " " .. KIND_NAMES[kinds[2]], MaxHealth = baseHealth[3] * hp, Size = 15,
+				Color = shade(accent, 0.5), RewardMultiplier = math.floor(baseReward[3] * reward), Gems = 20 + k },
+			{ Id = "Chest", Kind = "chest", DisplayName = word .. " Chest", MaxHealth = baseHealth[4] * hp, Size = 5, Color = shade(floor, 0.7),
+				RewardMultiplier = 1, Gems = 60 + k * 4, Respawn = 60 },
+		},
+	})
+
+	-- Ei mit 6 Pets fuer diese Zone
+	local petBase = basePetBoost * (3.2 ^ k)
+	local entries = {}
+	for slotIndex, slot in ipairs(ZONE_EGG_SLOTS) do
+		local style = PET_STYLES[((k * 5 + slotIndex * 3) % #PET_STYLES) + 1]
+		local petId = eggId .. "_" .. slotIndex
+		local tint = (slotIndex % 2 == 0) and accent or floor
+		Config.Pets[petId] = {
+			DisplayName = word .. " " .. style[2],
+			Rarity = slot.Rarity,
+			Boost = math.floor(petBase * slot.Factor),
+			Color = tint,
+			Style = style[1],
+			Egg = eggId,
+		}
+		table.insert(entries, { petId, slot.Weight })
+	end
+	Config.Eggs[eggId] = { DisplayName = word .. " Egg", Price = math.floor(basePrice * (25 ^ k) * 5), Currency = "Slaps", Color = accent, Zone = zoneIndex, Pets = entries }
+	table.insert(Config.EggOrder, eggId)
+end
 
 -- Goldener Gyatt (Server-Event)
 Config.GoldenGyatt = {

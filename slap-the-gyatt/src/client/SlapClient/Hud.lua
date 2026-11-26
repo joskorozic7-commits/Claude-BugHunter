@@ -18,6 +18,9 @@ local notifyHolder
 local popupFrame, popupTitle, popupSub, popupScale
 local zoneLabel
 local autoButton
+local topPanel, menuHolder
+local hudScale = 1
+local duelMode = false
 local badges = {}
 
 local comboValue = 0
@@ -30,7 +33,8 @@ local popupId = 0
 -- Aufbau
 --------------------------------------------------------------------------
 local function buildTop(screen)
-	local top = Create("Frame", {
+	local top
+	top = Create("Frame", {
 		Name = "TopPanel",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 6),
@@ -43,6 +47,7 @@ local function buildTop(screen)
 		UI.Gradient(UI.Colors.Dark, UI.Colors.Darker),
 	})
 
+	topPanel = top
 	slapsLabel = UI.Label({
 		Name = "Slaps",
 		Position = UDim2.new(0, 10, 0, 4),
@@ -152,6 +157,7 @@ local MENU_BUTTONS = {
 local function buildMenuButtons(screen)
 	local holder = Create("Frame", {
 		Name = "MenuButtons",
+		ZIndex = 1,
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 8, 0.5, 0),
 		Size = UDim2.new(0, 132, 0, 396),
@@ -176,6 +182,7 @@ local function buildMenuButtons(screen)
 	if workspace.CurrentCamera then
 		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)
 	end
+	menuHolder = holder
 	for order, info in ipairs(MENU_BUTTONS) do
 		local name, icon, label, color = info[1], info[2], info[3], info[4]
 		local button = UI.Button({
@@ -351,7 +358,7 @@ function Hud.SetCombo(combo)
 	combo = tonumber(combo) or 0
 	comboValue = combo
 	comboExpires = os.clock() + Config.ComboWindow
-	if combo >= 2 then
+	if combo >= 2 and not duelMode then
 		comboFrame.Visible = true
 		comboLabel.Text = "🔥 " .. combo .. "x COMBO  +" .. math.floor(combo * Config.ComboBonusPerStack * 100 + 0.5) .. "%"
 		local hue = math.clamp(0.12 - combo / 1000, 0, 0.12)
@@ -363,7 +370,7 @@ function Hud.SetGoldenEvent(zoneIndex, endsAt)
 	if zoneIndex then
 		golden.ZoneIndex = zoneIndex
 		golden.EndsAt = tonumber(endsAt) or 0
-		eventBanner.Visible = true
+		eventBanner.Visible = not duelMode
 	else
 		golden.ZoneIndex = nil
 		eventBanner.Visible = false
@@ -443,7 +450,7 @@ function Hud.Refresh(state)
 		multiLabel.Text = "💪 " .. Calc.FormatNumber(Calc.GetDamage(state, now)) .. "   💰 " .. Calc.FormatMultiplier(Calc.GetSlapMultiplier(state, now))
 	end
 	local owned = state.GemShop and (state.GemShop.AutoSlap or 0) >= 1
-	autoButton.Visible = owned == true
+	autoButton.Visible = owned == true and not duelMode
 	if owned then
 		autoButton.Text = state.AutoSlapOn and "🤖 Auto: ON" or "🤖 Auto: OFF"
 		UI.SetButtonColor(autoButton, state.AutoSlapOn and UI.Colors.Green or UI.Colors.Gray)
@@ -461,6 +468,56 @@ function Hud.Refresh(state)
 	end
 end
 
+--------------------------------------------------------------------------
+-- Handy: alles kleiner machen. Duell: unnoetiges ausblenden.
+--------------------------------------------------------------------------
+local scaleObjects = {}
+
+local function addScale(guiObject)
+	local scale = Create("UIScale", { Name = "HudScale", Scale = 1, Parent = guiObject })
+	table.insert(scaleObjects, scale)
+end
+
+local function applyScale()
+	local camera = workspace.CurrentCamera
+	local height = camera and camera.ViewportSize.Y or 720
+	hudScale = math.clamp(height / 680, 0.55, 1)
+	for _, scale in ipairs(scaleObjects) do
+		scale.Scale = hudScale
+	end
+	-- Abstaende an die Groesse anpassen
+	local y = 6 + 86 * hudScale + 6
+	comboFrame.Position = UDim2.new(0.5, 0, 0, y)
+	y = y + 46 * hudScale + 4
+	boostRow.Position = UDim2.new(0.5, 0, 0, y)
+	y = y + 28 * hudScale + 6
+	eventBanner.Position = UDim2.new(0.5, 0, 0, y)
+	notifyHolder.Position = UDim2.new(0.5, 0, 1, -40 * hudScale)
+end
+
+function Hud.GetScale()
+	return hudScale
+end
+
+-- Waehrend eines Duells nur das Noetigste zeigen (wichtig auf dem Handy)
+function Hud.SetDuelMode(on)
+	duelMode = on == true
+	topPanel.Visible = not duelMode
+	menuHolder.Visible = not duelMode
+	boostRow.Visible = not duelMode
+	zoneLabel.Visible = not duelMode
+	if duelMode then
+		comboFrame.Visible = false
+		eventBanner.Visible = false
+		autoButton.Visible = false
+	else
+		eventBanner.Visible = golden.ZoneIndex ~= nil
+		if ctx.State then
+			Hud.Refresh(ctx.State)
+		end
+	end
+end
+
 local lastSlaps = nil
 function Hud.Init(context)
 	ctx = context
@@ -473,6 +530,13 @@ function Hud.Init(context)
 	buildMenuButtons(ctx.Screen)
 	buildRightSide(ctx.Screen)
 	buildBottom(ctx.Screen)
+	for _, guiObject in ipairs({ topPanel, comboFrame, boostRow, eventBanner, notifyHolder, zoneLabel }) do
+		addScale(guiObject)
+	end
+	applyScale()
+	if workspace.CurrentCamera then
+		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(applyScale)
+	end
 
 	ctx.OnState(function(state)
 		Hud.Refresh(state)

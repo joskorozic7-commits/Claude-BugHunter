@@ -379,6 +379,7 @@ local function buildModel(spec)
 	highlight.OutlineColor = Color3.fromRGB(40, 15, 40)
 	highlight.OutlineTransparency = 0.1
 	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.Enabled = false -- der Client schaltet nur nahe Ziele ein (max. 31 Highlights moeglich)
 	highlight.Adornee = model
 	highlight.Parent = model
 

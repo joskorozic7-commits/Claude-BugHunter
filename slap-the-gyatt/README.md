@@ -1,4 +1,4 @@
-# 👋 Slap the Blob 4.0
+# 👋 Slap the Blob 5.0
 
 A complete, family-friendly Roblox simulator game: slap the Blobs, collect **Slaps** and **Gems**,
 upgrade your hand, hatch pets, unlock 6 worlds and become the strongest!
@@ -17,6 +17,13 @@ the scripts when the game starts. You don't need to build anything yourself.
 Without that everything works, only progress isn't saved.
 
 With Rojo: `rojo serve` (the `default.project.json` is in this folder).
+
+## 🆕 New in 5.0
+
+- **30 worlds in 6 dimensions:** Overworld (1-6), The Rift (7-10), Elemental Realm (11-15), Mythic Realm (16-20), Cosmic Realm (21-25) and The Infinite (26-30). Each dimension ends with a portal to the next one, and every new world has its own targets, a treasure chest, an egg and 6 pets (192 pets in total).
+- **Much harder progression:** zone prices grow x25 per zone and target HP x4 per zone (zones 2-10 got 3x more expensive and 2x tougher). From zone 11 on, every unlocked zone gives x3 damage, so the late game stays possible but takes real time.
+- **Phone-friendly duels:** during a duel the Slaps panel, menu buttons, boosts and banners are hidden. Only the duel bar and the Dash button stay. The whole HUD scales down on small screens.
+- **Performance:** fewer decorations in the far worlds, and outlines only on nearby targets.
 
 ## 🆕 New in 4.0
 

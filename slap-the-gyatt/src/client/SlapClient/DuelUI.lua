@@ -14,6 +14,7 @@ local ctx, UI, Config, Create
 local player = Players.LocalPlayer
 local frame, myBar, theirBar, myLabel, theirLabel, timerLabel, bigLabel, bigScale, dashButton
 local active = false
+local duelScale
 local dashReadyAt = 0
 local maxHealth = 100
 
@@ -21,7 +22,7 @@ local function build()
 	frame = Create("Frame", {
 		Name = "DuelHud",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 100),
+		Position = UDim2.new(0.5, 0, 0, 8),
 		Size = UDim2.new(0, 520, 0, 74),
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		Visible = false,
@@ -33,6 +34,7 @@ local function build()
 		UI.Gradient(Color3.fromRGB(70, 20, 50), Color3.fromRGB(30, 10, 30)),
 		Create("UISizeConstraint", { MaxSize = Vector2.new(520, 74) }),
 	})
+	duelScale = Create("UIScale", { Scale = 1, Parent = frame })
 	myLabel = UI.Label({ Position = UDim2.new(0, 10, 0, 4), Size = UDim2.new(0.4, -10, 0, 22), TextXAlignment = Enum.TextXAlignment.Left, Text = "You", ZIndex = 11, Parent = frame })
 	theirLabel = UI.Label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 4), Size = UDim2.new(0.4, -10, 0, 22), TextXAlignment = Enum.TextXAlignment.Right, Text = "", ZIndex = 11, Parent = frame })
 	timerLabel = UI.Label({ AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 2), Size = UDim2.new(0.2, 0, 0, 28), Text = "60", TextColor3 = UI.Colors.Gold, ZIndex = 11, Parent = frame })
@@ -45,7 +47,7 @@ local function build()
 		Name = "DuelBig",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.4),
-		Size = UDim2.new(0, 500, 0, 120),
+		Size = UDim2.new(0.6, 0, 0.18, 0),
 		Text = "",
 		Visible = false,
 		ZIndex = 30,
@@ -56,8 +58,9 @@ local function build()
 
 	dashButton = UI.Button({
 		Name = "Dash",
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -150, 1, -40),
+		-- rechts in der Mitte, damit er nicht den Springen-Knopf am Handy verdeckt
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.45, 0),
 		Size = UDim2.new(0, 110, 0, 60),
 		Color = Color3.fromRGB(80, 160, 255),
 		Text = "💨 DASH (Q)",
@@ -110,6 +113,8 @@ function DuelUI.OnEvent(info)
 	end
 	if info.Kind == "Start" then
 		active = true
+		ctx.Hud.SetDuelMode(true)
+		duelScale.Scale = ctx.Hud.GetScale()
 		maxHealth = tonumber(info.MaxHealth) or 100
 		frame.Visible = true
 		dashButton.Visible = true
@@ -154,6 +159,7 @@ function DuelUI.OnEvent(info)
 		task.delay(2.5, function()
 			if not active then
 				frame.Visible = false
+				ctx.Hud.SetDuelMode(false)
 			end
 		end)
 	end

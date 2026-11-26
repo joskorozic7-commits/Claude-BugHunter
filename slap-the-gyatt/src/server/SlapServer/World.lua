@@ -993,6 +993,10 @@ local function buildZone(index, zone)
 	end
 	for _, entry in ipairs(THEMES[zone.Decor] or {}) do
 		local kind, count, color, mat, big = entry[1], entry[2], entry[3], entry[4], entry[5]
+		-- in den hinteren Welten weniger Deko (Leistung, vor allem am Handy)
+		if index > 10 and not big then
+			count = math.max(1, math.floor(count * 0.5))
+		end
 		local builder = decor[kind]
 		if builder then
 			for n = 1, count do
@@ -1369,7 +1373,7 @@ local function buildBackground()
 		for _, side in ipairs({ -1, 1 }) do
 			ground("ZoneGround", Vector3.new(outer, 2, Config.ZoneLength), Vector3.new(side * (HALF_WIDTH + outer / 2), FLOOR - 1.2, centerZ), rgb(theme.Ground),
 				zone.Decor == "desert" and Enum.Material.Sand or (zone.Decor == "ice" and Enum.Material.Snow or (zone.Decor == "lava" and Enum.Material.Basalt or (zone.Decor == "meadow" and Enum.Material.Grass or Enum.Material.SmoothPlastic))))
-			for n = 1, 3 do
+			for n = 1, (index > 10 and 2 or 3) do
 				local x = side * rng:NextNumber(HALF_WIDTH + 60, HALF_WIDTH + 280)
 				local z = startZ + (n - 0.5) * Config.ZoneLength / 3 + rng:NextNumber(-15, 15)
 				backdropMountain(bg, theme.Kind, Vector3.new(x, FLOOR - 1, z), rng, theme)
