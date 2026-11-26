@@ -268,6 +268,24 @@ def make_icon_lvl100():
     finish(img, (512, 512), "icon.png")
 
 
+# ---------------------------------------------------------------- icon ohne Slap (freundlich)
+def make_icon_cute():
+    W = H = 512 * SS
+    img = background(W, H, (120, 200, 255), (200, 120, 255), (255, 255, 255, 40), (W * 0.5, H * 0.42), rays=20)
+    rng = random.Random(9)
+    sparkles(img, rng, (W * 0.06, H * 0.06, W * 0.94, H * 0.5), 14, W * 0.026)
+    # schwebender, leuchtender Handschuh als "Trophaee" ueber dem Blob
+    paste_hand(img, (255, 250, 220), (W * 0.5, H * 0.19), int(W * 0.34), 0, kind="ultragod", glow_color=(255, 230, 140))
+    # zwei kleine Pet-Blobs
+    draw_blob(img, W * 0.15, H * 0.8, W * 0.2, (255, 200, 90), shocked=False)
+    draw_blob(img, W * 0.85, H * 0.8, W * 0.2, (130, 230, 140), shocked=False)
+    # Haupt-Blob, laechelnd, mit Krone
+    draw_blob(img, W * 0.5, H * 0.68, W * 0.52, (255, 130, 190), accessory="crown", shocked=False)
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([W * 0.012, H * 0.012, W * 0.988, H * 0.988], radius=W * 0.08, outline=(255, 255, 255), width=int(W * 0.02))
+    finish(img, (512, 512), "icon_cute.png")
+
+
 # ---------------------------------------------------------------- thumbnail 1
 def make_thumb1():
     W, H = 1920 * SS, 1080 * SS
@@ -390,6 +408,7 @@ def make_thumb3():
 if __name__ == "__main__":
     make_icon()
     make_icon_lvl100()
+    make_icon_cute()
     make_thumb1()
     make_thumb2()
     make_thumb3()
