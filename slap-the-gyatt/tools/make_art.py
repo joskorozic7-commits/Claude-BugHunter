@@ -246,6 +246,25 @@ def make_icon():
     # frame
     d = ImageDraw.Draw(img)
     d.rounded_rectangle([W * 0.012, H * 0.012, W * 0.988, H * 0.988], radius=W * 0.08, outline=(255, 255, 255), width=int(W * 0.018))
+    finish(img, (512, 512), "icon_classic.png")
+
+
+# ---------------------------------------------------------------- icon (Level 100)
+def make_icon_lvl100():
+    W = H = 512 * SS
+    img = background(W, H, (90, 20, 170), (255, 70, 170), (255, 240, 170, 45), (W * 0.62, H * 0.38), rays=20)
+    rng = random.Random(5)
+    sparkles(img, rng, (W * 0.05, H * 0.05, W * 0.95, H * 0.55), 12, W * 0.028)
+    # Blob unten links, erschrocken
+    draw_blob(img, W * 0.36, H * 0.66, W * 0.56, (120, 220, 255), shocked=True)
+    motion_lines(img, (W * 0.82, H * 0.5), (1, -0.8), 4, W * 0.16, W * 0.045, int(W * 0.018))
+    # riesige leuchtende Hand oben rechts
+    paste_hand(img, (255, 250, 220), (W * 0.7, H * 0.33), int(W * 0.62), 35, kind="ultragod", glow_color=(255, 230, 140))
+    burst(img, (W * 0.62, H * 0.66), W * 0.14, "SLAP!", rot=0.15)
+    # LVL 100 Abzeichen
+    pill(img, (W * 0.27, H * 0.13), "LVL 100", H * 0.075, (255, 60, 150))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([W * 0.012, H * 0.012, W * 0.988, H * 0.988], radius=W * 0.08, outline=(255, 230, 120), width=int(W * 0.02))
     finish(img, (512, 512), "icon.png")
 
 
@@ -370,6 +389,7 @@ def make_thumb3():
 
 if __name__ == "__main__":
     make_icon()
+    make_icon_lvl100()
     make_thumb1()
     make_thumb2()
     make_thumb3()
