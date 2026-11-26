@@ -351,7 +351,7 @@ def make_thumb2():
 def make_pass_icon(name, hand_kind, hand_color, top, bottom, glow_color, label, label_color):
     W = H = 512 * SS
     img = background(W, H, top, bottom, (255, 255, 255, 30), (W * 0.5, H * 0.48), rays=20)
-    rng = random.Random(hash(name) % 1000)
+    rng = random.Random(sum(ord(c) for c in name))
     sparkles(img, rng, (W * 0.15, H * 0.12, W * 0.85, H * 0.6), 9, W * 0.025)
     paste_hand(img, hand_color, (W * 0.5, H * 0.46), int(W * 0.62), 0, kind=hand_kind, glow_color=glow_color)
     # label in the lower middle (stays inside the circle crop)
