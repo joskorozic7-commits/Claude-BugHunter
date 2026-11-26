@@ -327,8 +327,50 @@ def make_pass_icons():
     make_pass_icon("pass_ultragod.png", "ultragod", (255, 250, 220), (255, 200, 80), (230, 90, 200), (255, 240, 150), "ULTRA GOD", (235, 160, 30))
 
 
+# ---------------------------------------------------------------- thumbnail 3: Level 1 vs Level 100
+def make_thumb3():
+    W, H = 1920 * SS, 1080 * SS
+    img = Image.new("RGBA", (W, H))
+    # linke Haelfte: langweilig grau-braun
+    left = background(W // 2, H, (120, 110, 100), (70, 60, 55), (255, 255, 255, 14), (W * 0.25, H * 0.55), rays=14)
+    # rechte Haelfte: episch
+    right = background(W - W // 2, H, (60, 10, 120), (255, 60, 170), (255, 240, 160, 40), (W * 0.25, H * 0.55), rays=24)
+    img.alpha_composite(left, (0, 0))
+    img.alpha_composite(right, (W // 2, 0))
+    rng = random.Random(21)
+    sparkles(img, rng, (W * 0.55, H * 0.15, W, H * 0.95), 26, W * 0.014)
+    # Blitze hinter der grossen Hand
+    glow_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow_layer)
+    for bx in (W * 0.6, W * 0.92):
+        bolt = [(bx - 30, 0), (bx + 40, 0), (bx + 5, H * 0.28), (bx + 80, H * 0.28), (bx - 60, H * 0.7), (bx - 10, H * 0.38), (bx - 85, H * 0.38)]
+        gd.polygon(bolt, fill=(255, 250, 180, 255))
+    img.alpha_composite(glow_layer.filter(ImageFilter.GaussianBlur(30)))
+    d = ImageDraw.Draw(img)
+    # Trennlinie (Zickzack)
+    zig = []
+    for i in range(13):
+        zig.append((W * 0.5 + (40 if i % 2 else -40), H * i / 12))
+    d.line(zig, fill=(255, 255, 255), width=18)
+    d.line(zig, fill=OUTLINE, width=6)
+    # kleine Holz-Hand
+    paste_hand(img, (165, 115, 70), (W * 0.25, H * 0.56), int(H * 0.34), 0)
+    # riesige Level-100-Hand
+    paste_hand(img, (255, 250, 220), (W * 0.76, H * 0.52), int(H * 0.86), -8, kind="ultragod", glow_color=(255, 230, 140))
+    # Texte
+    title(img, (W * 0.25, H * 0.13), "LEVEL 1", H * 0.12, (230, 220, 210), anchor="mm")
+    title(img, (W * 0.76, H * 0.11), "LEVEL 100", H * 0.15, (255, 225, 80), anchor="mm")
+    pill(img, (W * 0.25, H * 0.86), "1 DAMAGE", H * 0.055, (130, 120, 110))
+    pill(img, (W * 0.76, H * 0.9), "223M DAMAGE", H * 0.065, (255, 60, 150))
+    burst(img, (W * 0.5, H * 0.5), H * 0.11, "VS", fill=(255, 230, 60), text_color=(255, 70, 140), rot=0.2)
+    title(img, (W * 0.25, H * 0.73), "Wood Glove", H * 0.045, (210, 190, 170), anchor="mm")
+    pill(img, (W * 0.76, H * 0.24), "INFINITE+ TIER", H * 0.04, (150, 70, 230))
+    finish(img, (1920, 1080), "thumbnail_3.png")
+
+
 if __name__ == "__main__":
     make_icon()
     make_thumb1()
     make_thumb2()
+    make_thumb3()
     make_pass_icons()
