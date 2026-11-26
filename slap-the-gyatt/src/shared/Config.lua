@@ -693,7 +693,7 @@ addEgg("Mythic", "Mythic Egg", 5000, "Gems", { 255, 80, 160 }, 1, 200, {
 
 -- ROBUX-EIER (Developer Products, R$100 bis R$1000). ProductId eintragen wie bei den Gems.
 Config.RobuxEggs = {
-	{ Id = "RobuxEgg1", Name = "Robux Egg", Robux = 100, ProductId = 0, Color = { 120, 255, 140 }, Base = 50,
+	{ Id = "RobuxEgg1", Name = "Robux Egg", Robux = 100, ProductId = 3736656485, Color = { 120, 255, 140 }, Base = 50,
 		Slots = { { Rarity = "Rare", Weight = 50, Factor = 3 }, { Rarity = "Epic", Weight = 25, Factor = 7 }, { Rarity = "Epic", Weight = 10, Factor = 9 },
 			{ Rarity = "Legendary", Weight = 9, Factor = 20 }, { Rarity = "Legendary", Weight = 3, Factor = 26 }, { Rarity = "Mythic", Weight = 3, Factor = 60 } },
 		Pets = { { "Lucky Pup", "dog", { 120, 255, 140 } }, { "Clover Cat", "cat", { 90, 220, 110 } }, { "Emerald Fox", "fox", { 60, 200, 120 } },
